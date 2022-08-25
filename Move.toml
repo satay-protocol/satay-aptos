@@ -1,0 +1,16 @@
+[package]
+name = 'satay'
+version = '1.0.0'
+
+[addresses]
+satay = "0x42"
+usdc_vault = "0x43"
+
+# latest 'main' with any.move
+[dependencies.Liquidswap]
+git = 'git@github.com:pontem-network/liquidswap.git'
+rev = '8eacbb194045ed53f7a682614287b4943aee7b61'
+
+[dependencies.LiquidswapLP]
+git = "https://github.com/mkurnikov/liquidswap-lp.git"
+rev = "3009f2c6e102006f2118bce2764551b4c19af8d9"
