@@ -3,8 +3,7 @@ name = 'satay'
 version = '1.0.0'
 
 [addresses]
-satay = "0x42"
-usdc_vault = "0x43"
+satay = "0x44"
 
 # latest 'main' with any.move
 [dependencies.Liquidswap]

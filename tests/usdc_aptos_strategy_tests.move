@@ -1,5 +1,5 @@
 #[test_only]
-module satay::vault_tests {
+module satay::usdc_aptos_strategy_tests {
     use std::signer;
     use std::string;
 
@@ -11,20 +11,20 @@ module satay::vault_tests {
     use liquidswap_lp::coins_extended::{Self, USDC};
     use liquidswap_lp::lp::LP;
 
-    use satay::vault;
+    use satay::usdc_aptos;
 
     #[test(
         aptos_framework = @aptos_framework,
         token_admin = @liquidswap_lp,
         pool_owner = @liquidswap_lp,
-        vault_owner = @usdc_vault,
-        user = @0x44
+        strategy_owner = @satay,
+        user = @0x45
     )]
     fun test_vault_end_to_end(
         aptos_framework: signer,
         token_admin: signer,
         pool_owner: signer,
-        vault_owner: signer,
+        strategy_owner: signer,
         user: signer
     ) {
         genesis::setup();
@@ -34,8 +34,6 @@ module satay::vault_tests {
 
         coins::register_coins(&token_admin);
         coins_extended::register_coins(&token_admin);
-
-        vault::register(&vault_owner);
 
         liquidity_pool::register<USDC, AptosCoin, LP<USDC, AptosCoin>>(
             &pool_owner,
@@ -62,12 +60,9 @@ module satay::vault_tests {
 
         coins_extended::mint_coin<USDC>(&token_admin, signer::address_of(&user), 1000);
 
-        let usdc_coins = coin::withdraw<USDC>(&user, 500);
-        vault::deposit(
-            &user,
-            signer::address_of(&vault_owner),
-            usdc_coins
-        );
+        usdc_aptos::initialize(&strategy_owner);
+        usdc_aptos::deposit(&user, 500);
+        usdc_aptos::withdraw(&user, 300);
     }
 }
 
