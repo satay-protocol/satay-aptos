@@ -1,4 +1,4 @@
-module satay::usdc_aptos {
+module satay::usdc_aptos_strategy {
     use std::signer;
 
     use aptos_framework::aptos_coin::AptosCoin;
@@ -23,18 +23,18 @@ module satay::usdc_aptos {
         vault_cap: VaultCapability
     }
 
-    public fun initialize(owner: &signer) {
+    public fun initialize(manager: &signer) {
         assert!(
-            signer::address_of(owner) == @satay,
+            signer::address_of(manager) == @satay,
             ERR_NO_PERMISSIONS
         );
         assert!(!exists<Capability>(@satay), ERR_INITIALIZE);
 
-        let vault_cap = vault::new(owner, b"usdc_aptos_strategy");
+        let vault_cap = vault::new(manager, b"usdc_aptos_strategy_25_75");
         vault::add_coin<USDC>(&vault_cap);
         vault::add_coin<AptosCoin>(&vault_cap);
 
-        move_to(owner, Capability { vault_cap });
+        move_to(manager, Capability { vault_cap });
     }
 
     public entry fun deposit(user: &signer, usdc_amount: u64) acquires Capability {

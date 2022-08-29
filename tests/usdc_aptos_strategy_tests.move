@@ -1,5 +1,5 @@
 #[test_only]
-module satay::usdc_aptos_tests {
+module satay::usdc_aptos_strategy_tests {
     use std::signer;
     use std::string;
 
@@ -11,7 +11,7 @@ module satay::usdc_aptos_tests {
     use liquidswap_lp::coins_extended::{Self, USDC};
     use liquidswap_lp::lp::LP;
 
-    use satay::usdc_aptos;
+    use satay::usdc_aptos_strategy;
 
     #[test(
         aptos_framework = @aptos_framework,
@@ -60,9 +60,9 @@ module satay::usdc_aptos_tests {
 
         coins_extended::mint_coin<USDC>(&token_admin, signer::address_of(&user), 1000);
 
-        usdc_aptos::initialize(&strategy_owner);
-        usdc_aptos::deposit(&user, 500);
-        usdc_aptos::withdraw(&user, 300);
+        usdc_aptos_strategy::initialize(&strategy_owner);
+        usdc_aptos_strategy::deposit(&user, 500);
+        usdc_aptos_strategy::withdraw(&user, 300);
     }
 }
 
