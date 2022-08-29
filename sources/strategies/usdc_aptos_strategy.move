@@ -9,11 +9,6 @@ module satay::usdc_aptos_strategy {
 
     use satay::vault::{Self, VaultCapability};
 
-    #[test_only]
-    use aptos_std::iterable_table::{Self, IterableTable};
-    #[test_only]
-    use std::string::String;
-
     const ERR_NO_PERMISSIONS: u64 = 201;
     const ERR_INITIALIZE: u64 = 202;
     const ERR_NO_POSITION: u64 = 203;
@@ -95,6 +90,11 @@ module satay::usdc_aptos_strategy {
             1
         )
     }
+
+    #[test_only]
+    use aptos_std::iterable_table::{Self, IterableTable};
+    #[test_only]
+    use std::string::String;
 
     #[test_only]
     public fun positions(): IterableTable<String, u64> acquires Capability {
