@@ -1,15 +1,13 @@
 module satay::usdc_aptos {
     use std::signer;
 
-    use aptos_framework::account::SignerCapability;
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::coin::{Self, Coin};
-    use aptos_std::table::{Self, Table};
     use liquidswap::router;
     use liquidswap_lp::coins_extended::USDC;
     use liquidswap_lp::lp::LP;
 
-    use satay::vault;
+    use satay::vault::{Self, VaultCapability};
 
     #[test_only]
     use aptos_std::iterable_table::{Self, IterableTable};
@@ -22,11 +20,7 @@ module satay::usdc_aptos {
     const ERR_NOT_ENOUGH_POSITION: u64 = 204;
 
     struct Capability has key {
-        vault_cap: SignerCapability
-    }
-
-    struct UserPositions has key {
-        items: Table<address, u64>
+        vault_cap: VaultCapability
     }
 
     public fun initialize(owner: &signer) {
@@ -39,47 +33,36 @@ module satay::usdc_aptos {
         let vault_cap = vault::new(owner, b"usdc_aptos_strategy");
         vault::add_coin<USDC>(&vault_cap);
         vault::add_coin<AptosCoin>(&vault_cap);
+
         move_to(owner, Capability { vault_cap });
-
-
-        let user_positions = UserPositions { items: table::new() };
-        move_to(owner, user_positions);
     }
 
-    public entry fun deposit(user: &signer, usdc_amount: u64) acquires Capability, UserPositions {
+    public entry fun deposit(user: &signer, usdc_amount: u64) acquires Capability {
         assert!(exists<Capability>(@satay), ERR_INITIALIZE);
 
         let vault_cap = &borrow_global<Capability>(@satay).vault_cap;
         let usdc_coin = coin::withdraw<USDC>(user, usdc_amount);
         apply_strategy(vault_cap, usdc_coin);
 
-        let user_positions = borrow_global_mut<UserPositions>(@satay);
-        let position =
-            table::borrow_mut_with_default(&mut user_positions.items, signer::address_of(user), 0);
-        *position = *position + usdc_amount;
+        vault::add_user_position(
+            vault_cap,
+            signer::address_of(user),
+            usdc_amount
+        );
     }
 
-    public entry fun withdraw(user: &signer, amount: u64) acquires Capability, UserPositions {
+    public entry fun withdraw(user: &signer, amount: u64) acquires Capability {
         assert!(exists<Capability>(@satay), ERR_INITIALIZE);
 
         let user_address = signer::address_of(user);
-        let user_positions = borrow_global_mut<UserPositions>(@satay);
-        assert!(
-            table::contains(&user_positions.items, user_address),
-            ERR_NO_POSITION
-        );
-
-        let position = table::borrow_mut(&mut user_positions.items, signer::address_of(user));
-        assert!(*position >= amount, ERR_NOT_ENOUGH_POSITION);
-
-        *position = *position - amount;
-
         let vault_cap = &borrow_global<Capability>(@satay).vault_cap;
-        let usdc_coin = get_user_position(vault_cap, amount);
+        vault::remove_user_position(vault_cap, user_address, amount);
+
+        let usdc_coin = get_usdc_coins_for_user_position(vault_cap, amount);
         coin::deposit(signer::address_of(user), usdc_coin);
     }
 
-    fun apply_strategy(vault_cap: &SignerCapability, usdc_coins: Coin<USDC>) {
+    fun apply_strategy(vault_cap: &VaultCapability, usdc_coins: Coin<USDC>) {
         let coins_amount = coin::value(&usdc_coins);
 
         let to_usdc = coins_amount / 2;
@@ -92,7 +75,7 @@ module satay::usdc_aptos {
         vault::deposit(vault_cap, aptos_coins);
     }
 
-    fun get_user_position(vault_cap: &SignerCapability, position_amount: u64): Coin<USDC> {
+    fun get_usdc_coins_for_user_position(vault_cap: &VaultCapability, position_amount: u64): Coin<USDC> {
         // split position in half, extract first one from USDC, and second from AptosCoin
         let usdc_position = position_amount / 2;
         let usdc_coin = vault::withdraw<USDC>(vault_cap, usdc_position);
