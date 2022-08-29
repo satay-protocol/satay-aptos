@@ -1,5 +1,5 @@
 #[test_only]
-module satay::usdc_aptos_strategy_tests {
+module satay::usdc_aptos_tests {
     use std::signer;
     use std::string;
 
