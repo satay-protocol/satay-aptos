@@ -20,6 +20,7 @@ module satay::vault {
         aptos_coins: Coin<AptosCoin>,
     }
 
+    // create vault and initialize holdings to zero
     public fun register(vault_owner: &signer) {
         let vault = Vault {
             usdc_coins: coin::zero(),
@@ -28,6 +29,7 @@ module satay::vault {
         move_to(vault_owner, vault);
     }
 
+    // deposit 
     public fun deposit(user: &signer, vault_address: address, coin: Coin<USDC>) acquires Vault, VaultPositions {
         let user_address = signer::address_of(user);
         if (!exists<VaultPositions>(user_address)) {
