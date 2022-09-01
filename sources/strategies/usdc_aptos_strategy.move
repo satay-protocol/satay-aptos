@@ -29,11 +29,10 @@ module satay::usdc_aptos_strategy {
     }
 
     public fun run_strategy(_acc: &signer, manager_addr: address, vault_id: u64) {
-        let witness = UsdcAptosStrategy {};
         let (vault_cap, lock) = satay::lock_vault_cap<UsdcAptosStrategy>(
             manager_addr,
             vault_id,
-            witness
+            UsdcAptosStrategy {}
         );
 
         let usdc_coins = vault::fetch_pending_coins(&vault_cap);
