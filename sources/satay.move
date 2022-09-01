@@ -114,7 +114,7 @@ module satay::satay {
         stop_handle: VaultCapLock
     ) acquires ManagerAccount {
         let VaultCapLock { vault_id } = stop_handle;
-        // TODO: think about how to prevent wrong VaultCapability passed here by using this StopHandle
+        // TODO: think about how to prevent wrong VaultCapability passed here by using this VaultCapLock fields
         assert!(
             vault::vault_cap_has_id(&vault_capability, vault_id),
             ERR_VAULT_CAP
