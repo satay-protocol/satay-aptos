@@ -16,20 +16,39 @@ module satay::usdc_aptos_strategy {
     // used for witnessing
     struct UsdcAptosStrategy has drop {}
 
-    public fun run_strategy(acc: &signer, manager_addr: address, vault_id: u64) {
-        let vault_cap = satay::get_vault_cap(acc, manager_addr, vault_id, UsdcAptosStrategy {});
+    public fun initialize(_acc: &signer, manager_addr: address, vault_id: u64) {
+        let witness = UsdcAptosStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault_cap<UsdcAptosStrategy>(manager_addr, vault_id, witness);
+        if (!vault::has_coin<USDC>(&vault_cap)) {
+            vault::add_coin<USDC>(&vault_cap);
+        };
+        if (!vault::has_coin<AptosCoin>(&vault_cap)) {
+            vault::add_coin<AptosCoin>(&vault_cap);
+        };
+        satay::unlock_vault_cap<UsdcAptosStrategy>(manager_addr, vault_cap, stop_handle);
+    }
 
-        let usdc_coins = vault::fetch_pending_coins(vault_cap);
+    public fun run_strategy(_acc: &signer, manager_addr: address, vault_id: u64) {
+        let witness = UsdcAptosStrategy {};
+        let (vault_cap, lock) = satay::lock_vault_cap<UsdcAptosStrategy>(
+            manager_addr,
+            vault_id,
+            witness
+        );
+
+        let usdc_coins = vault::fetch_pending_coins(&vault_cap);
         let coins_amount = coin::value(&usdc_coins);
 
         let to_usdc = coins_amount / 2;
         vault::deposit(
-            vault_cap,
+            &vault_cap,
             coin::extract(&mut usdc_coins, to_usdc)
         );
 
         let aptos_coins = swap<USDC, AptosCoin>(usdc_coins);
-        vault::deposit(vault_cap, aptos_coins);
+        vault::deposit(&vault_cap, aptos_coins);
+
+        satay::unlock_vault_cap<UsdcAptosStrategy>(manager_addr, vault_cap, lock);
     }
 
     fun swap<From, To>(coins: Coin<From>): Coin<To> {

@@ -13,6 +13,7 @@ module satay::usdc_aptos_strategy_tests {
 
     use satay::usdc_aptos_strategy;
     use satay::satay;
+    use satay::usdc_aptos_strategy::UsdcAptosStrategy;
 
     #[test(
         aptos_framework = @aptos_framework,
@@ -63,8 +64,11 @@ module satay::usdc_aptos_strategy_tests {
 
         satay::initialize(&manager_acc);
         satay::new_vault<USDC>(&manager_acc, b"usdc_aptos_vault_50_50");
+        satay::approve_strategy<UsdcAptosStrategy>(&manager_acc, 0);
 
-        satay::deposit<USDC>(&user, @satay, 0, 500);
+        usdc_aptos_strategy::initialize(&manager_acc, @satay, 0);
+
+        satay::deposit<USDC>(&user, @satay, 0, 1000);
 
         usdc_aptos_strategy::run_strategy(&manager_acc, @satay, 0);
 

@@ -25,10 +25,11 @@ module satay::vault {
 
     struct VaultCapability has drop, store {
         storage_cap: SignerCapability,
+        vault_id: u64,
         vault_addr: address,
     }
 
-    public fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>): VaultCapability {
+    public fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
         move_to(
             &vault_acc,
@@ -38,7 +39,11 @@ module satay::vault {
                 pending_coins_amount: 0
             }
         );
-        VaultCapability { storage_cap, vault_addr: signer::address_of(&vault_acc) }
+        VaultCapability { storage_cap, vault_addr: signer::address_of(&vault_acc), vault_id }
+    }
+
+    public fun has_coin<CoinType>(vault_cap: &VaultCapability): bool {
+        exists<CoinStore<CoinType>>(vault_cap.vault_addr)
     }
 
     public fun add_coin<CoinType>(vault_cap: &VaultCapability) {
@@ -55,7 +60,7 @@ module satay::vault {
         let pending_coin_amount = vault.pending_coins_amount;
         // fast tracking special case
         if (pending_coin_amount == 0) {
-            return coin::zero();
+            return coin::zero()
         };
         vault.pending_coins_amount = 0;
 
@@ -131,13 +136,9 @@ module satay::vault {
         withdraw(vault_cap, amount)
     }
 
-    // public(friend) fun cap_has_address(vault_cap: &VaultCapability, addr: address) {
-    //     vault_cap.vault_addr == addr
-    // }
-    //
-    // public(friend) fun get_address(vault_cap: &VaultCapability): address {
-    //     vault_cap.vault_addr
-    // }
+    public fun vault_cap_has_id(vault_cap: &VaultCapability, vault_id: u64): bool {
+        vault_cap.vault_id == vault_id
+    }
 
     public fun balance<CoinType>(vault_cap: &VaultCapability): u64 acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
