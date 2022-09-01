@@ -19,7 +19,11 @@ module satay::satay {
     }
 
     struct VaultInfo has store {
+        /// VaultCapability of the vault.
+        /// `Option` here is required to allow "lending" the capability object to the strategy.
         vault_cap: Option<VaultCapability>,
+
+        /// Currently approved strategy
         strategy_type: Option<TypeInfo>,
     }
 
@@ -27,6 +31,9 @@ module satay::satay {
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
 
+    /// Manager creates a new `Vault` as a resource account with it's own `CoinStorage` resources.
+    /// Assigns a new `vault_id` to it.
+    /// Later, vaults are identified as a pair of `(manager_address, vault_id)`.
     public fun new_vault<BaseCoin>(manager: &signer, seed: vector<u8>) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
@@ -79,7 +86,8 @@ module satay::satay {
         coin::deposit(user_addr, base_coin);
     }
 
-    public fun approve_strategy<Strategy>(manager: &signer, vault_id: u64) acquires ManagerAccount {
+    /// Allows this strategy to access the vault. To be called in the governance.
+    public entry fun approve_strategy<Strategy>(manager: &signer, vault_id: u64) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
@@ -90,7 +98,7 @@ module satay::satay {
 
     struct VaultCapLock { vault_id: u64 }
 
-    public fun lock_vault_cap<Strategy: drop>(
+    public fun lock_vault<Strategy: drop>(
         manager_addr: address,
         vault_id: u64,
         _witness: Strategy
@@ -108,7 +116,7 @@ module satay::satay {
         (vault_cap, VaultCapLock { vault_id })
     }
 
-    public fun unlock_vault_cap<Strategy>(
+    public fun unlock_vault<Strategy>(
         manager_addr: address,
         vault_capability: VaultCapability,
         stop_handle: VaultCapLock

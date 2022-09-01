@@ -18,18 +18,18 @@ module satay::usdc_aptos_strategy {
 
     public fun initialize(_acc: &signer, manager_addr: address, vault_id: u64) {
         let witness = UsdcAptosStrategy {};
-        let (vault_cap, stop_handle) = satay::lock_vault_cap<UsdcAptosStrategy>(manager_addr, vault_id, witness);
+        let (vault_cap, stop_handle) = satay::lock_vault<UsdcAptosStrategy>(manager_addr, vault_id, witness);
         if (!vault::has_coin<USDC>(&vault_cap)) {
             vault::add_coin<USDC>(&vault_cap);
         };
         if (!vault::has_coin<AptosCoin>(&vault_cap)) {
             vault::add_coin<AptosCoin>(&vault_cap);
         };
-        satay::unlock_vault_cap<UsdcAptosStrategy>(manager_addr, vault_cap, stop_handle);
+        satay::unlock_vault<UsdcAptosStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
     public fun run_strategy(_acc: &signer, manager_addr: address, vault_id: u64) {
-        let (vault_cap, lock) = satay::lock_vault_cap<UsdcAptosStrategy>(
+        let (vault_cap, lock) = satay::lock_vault<UsdcAptosStrategy>(
             manager_addr,
             vault_id,
             UsdcAptosStrategy {}
@@ -47,7 +47,7 @@ module satay::usdc_aptos_strategy {
         let aptos_coins = swap<USDC, AptosCoin>(usdc_coins);
         vault::deposit(&vault_cap, aptos_coins);
 
-        satay::unlock_vault_cap<UsdcAptosStrategy>(manager_addr, vault_cap, lock);
+        satay::unlock_vault<UsdcAptosStrategy>(manager_addr, vault_cap, lock);
     }
 
     fun swap<From, To>(coins: Coin<From>): Coin<To> {
