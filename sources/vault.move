@@ -54,8 +54,8 @@ module satay::vault {
         assert!(*user_position >= position_amount, ERR_NOT_ENOUGH_POSITION);
         *user_position = *user_position - position_amount;
 
-        let vault = borrow_global_mut<Vault>(vault_address);
-        let usdc_coins_amount = get_usdc_amount(position_amount);
+        let _vault = borrow_global_mut<Vault>(vault_address);
+        let _usdc_coins_amount = get_usdc_amount(position_amount);
         // somehow convert positions in Vault into USDC
         // get to user
     }
@@ -79,7 +79,6 @@ module satay::vault {
             coin::extract(&mut usdc_coins, to_usdc)
         );
 
-        let to_aptos = coins_amount - to_usdc;
         let aptos_coins = swap_usdc_to_aptos(usdc_coins);
         coin::merge(&mut vault.aptos_coins, aptos_coins);
     }

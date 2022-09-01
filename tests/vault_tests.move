@@ -44,8 +44,8 @@ module satay::vault_tests {
             1
         );
         let user_address = signer::address_of(&user);
-        coin::register_for_test<USDC>(&user);
-        coin::register_for_test<AptosCoin>(&user);
+        coin::register<USDC>(&user);
+        coin::register<AptosCoin>(&user);
 
         coins_extended::mint_coin<USDC>(&token_admin, user_address, 100000);
         aptos_coin::mint(&aptos_framework, user_address, 100000);
@@ -57,7 +57,7 @@ module satay::vault_tests {
             usdc,
             aptos
         );
-        coin::register_for_test<LP<USDC, AptosCoin>>(&user);
+        coin::register<LP<USDC, AptosCoin>>(&user);
         coin::deposit(user_address, lp);
 
         coins_extended::mint_coin<USDC>(&token_admin, signer::address_of(&user), 1000);
