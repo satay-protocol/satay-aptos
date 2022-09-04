@@ -16,6 +16,7 @@ module satay::usdc_aptos_strategy {
     // used for witnessing
     struct UsdcAptosStrategy has drop {}
 
+    
     public fun initialize(_acc: &signer, manager_addr: address, vault_id: u64) {
         let witness = UsdcAptosStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<UsdcAptosStrategy>(manager_addr, vault_id, witness);

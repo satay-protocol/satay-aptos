@@ -27,6 +27,7 @@ module satay::satay {
         strategy_type: Option<TypeInfo>,
     }
 
+    // create manager account and give it to the sender
     public fun initialize(manager: &signer) {
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
@@ -53,6 +54,7 @@ module satay::satay {
         );
     }
 
+    // user deposits amount of BaseCoin into vault_id of manager_addr
     public entry fun deposit<BaseCoin>(
         user: &signer,
         manager_addr: address,
@@ -69,6 +71,7 @@ module satay::satay {
         vault::deposit_as_user(vault_cap, signer::address_of(user), base_coin);
     }
 
+    // user withdraws amount of BaseCoin from vault_id of manager_addr
     public entry fun withdraw<BaseCoin>(
         user: &signer,
         manager_addr: address,
@@ -86,7 +89,7 @@ module satay::satay {
         coin::deposit(user_addr, base_coin);
     }
 
-    /// Allows this strategy to access the vault. To be called in the governance.
+    // Allows this strategy to access the vault. To be called in the governance.
     public entry fun approve_strategy<Strategy>(manager: &signer, vault_id: u64) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
