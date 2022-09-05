@@ -8,8 +8,8 @@ satay = "0x44"
 # latest 'main' with any.move
 [dependencies.Liquidswap]
 git = 'git@github.com:pontem-network/liquidswap.git'
-rev = '8eacbb194045ed53f7a682614287b4943aee7b61'
+rev = '843b78ae538883a3ae6bacc16f93c3da79844ec2'
 
 [dependencies.LiquidswapLP]
-git = "https://github.com/mkurnikov/liquidswap-lp.git"
-rev = "3009f2c6e102006f2118bce2764551b4c19af8d9"
+git = "https://github.com/pontem-network/liquidswap-lp.git"
+rev = "72bc9ce31dd24659f1d35c6f0a0ffdb0b2d7b139"

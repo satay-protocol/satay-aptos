@@ -3,39 +3,28 @@ module satay::usdc_aptos_strategy_tests {
     use std::signer;
     use std::string;
 
+    use aptos_framework::account;
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::coin;
-    use aptos_framework::genesis;
+    use aptos_framework::stake;
     use liquidswap::liquidity_pool;
     use liquidswap_lp::coins;
     use liquidswap_lp::coins_extended::{Self, USDC};
     use liquidswap_lp::lp::LP;
 
-    use satay::usdc_aptos_strategy;
     use satay::satay;
-    use satay::usdc_aptos_strategy::UsdcAptosStrategy;
+    use satay::usdc_aptos_strategy::{Self, UsdcAptosStrategy};
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @liquidswap_lp,
-        pool_owner = @liquidswap_lp,
         manager_acc = @satay,
-        user = @0x45
     )]
-    fun test_vault_end_to_end(
-        aptos_framework: signer,
-        token_admin: signer,
-        pool_owner: signer,
-        manager_acc: signer,
-        user: signer
-    ) {
-        genesis::setup();
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(&aptos_framework);
-        coin::destroy_mint_cap(mint_cap);
-        coin::destroy_burn_cap(burn_cap);
+    fun test_vault_end_to_end(aptos_framework: signer, manager_acc: signer) {
+        stake::initialize_for_test(&aptos_framework);
 
-        coins::register_coins(&token_admin);
-        coins_extended::register_coins(&token_admin);
+        let pool_owner = account::create_account_for_test(@liquidswap_lp);
+        coins::register_coins(&pool_owner);
+        coins_extended::register_coins(&pool_owner);
 
         liquidity_pool::register<USDC, AptosCoin, LP<USDC, AptosCoin>>(
             &pool_owner,
@@ -43,11 +32,13 @@ module satay::usdc_aptos_strategy_tests {
             string::utf8(b"LP"),
             1
         );
-        let user_address = signer::address_of(&user);
-        coin::register_for_test<USDC>(&user);
-        coin::register_for_test<AptosCoin>(&user);
 
-        coins_extended::mint_coin<USDC>(&token_admin, user_address, 100000);
+        let user = account::create_account_for_test(@0x45);
+        let user_address = signer::address_of(&user);
+        coin::register<USDC>(&user);
+        coin::register<AptosCoin>(&user);
+
+        coins_extended::mint_coin<USDC>(&pool_owner, user_address, 100000);
         aptos_coin::mint(&aptos_framework, user_address, 100000);
 
         let usdc = coin::withdraw<USDC>(&user, 100000);
@@ -57,10 +48,10 @@ module satay::usdc_aptos_strategy_tests {
             usdc,
             aptos
         );
-        coin::register_for_test<LP<USDC, AptosCoin>>(&user);
+        coin::register<LP<USDC, AptosCoin>>(&user);
         coin::deposit(user_address, lp);
 
-        coins_extended::mint_coin<USDC>(&token_admin, signer::address_of(&user), 1000);
+        coins_extended::mint_coin<USDC>(&pool_owner, signer::address_of(&user), 1000);
 
         satay::initialize(&manager_acc);
         satay::new_vault<USDC>(&manager_acc, b"usdc_aptos_vault_50_50");
