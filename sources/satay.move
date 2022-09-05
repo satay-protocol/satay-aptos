@@ -144,6 +144,26 @@ module satay::satay {
     fun assert_manager_initialized(manager_addr: address) {
         assert!(exists<ManagerAccount>(manager_addr), ERR_MANAGER);
     }
+
+    // #[test_only]
+    // public fun get_vault_cap(manager_addr: address, vault_id: u64): &VaultCapability acquires ManagerAccount {
+    //     assert_manager_initialized(manager_addr);
+    //     let account = borrow_global<ManagerAccount>(manager_addr);
+
+    //     let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+    //     let vault_cap = option::borrow_global(&vault_info.vault_cap);
+    //     vault_cap
+    // }
+
+    #[test_only]
+    public fun balance<CoinType>(manager_addr: address, vault_id: u64): u64 acquires ManagerAccount {
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global<ManagerAccount>(manager_addr);
+
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::balance<CoinType>(vault_cap)
+    }
 }
 
 

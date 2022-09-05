@@ -45,7 +45,9 @@ module satay::vault {
                 pending_coins_amount: 0
             }
         );
-        VaultCapability { storage_cap, vault_addr: signer::address_of(&vault_acc), vault_id }
+        let vault_cap = VaultCapability { storage_cap, vault_addr: signer::address_of(&vault_acc), vault_id };
+        add_coin<BaseCoin>(&vault_cap);
+        vault_cap
     }
 
     // check if a vault has a CoinStore for CoinType
@@ -89,7 +91,7 @@ module satay::vault {
     }
 
     // add amount to user_addr position in the vault table associated with vault_cap
-    public fun add_user_position(vault_cap: &VaultCapability, user_addr: address, amount: u64) acquires Vault {
+    fun add_user_position(vault_cap: &VaultCapability, user_addr: address, amount: u64) acquires Vault {
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
         let vault_addr = signer::address_of(&vault_acc);
         let vault = borrow_global_mut<Vault>(vault_addr);
@@ -99,7 +101,7 @@ module satay::vault {
     }
 
     // remove amount from user_addr position in the vault table associated with vault_cap
-    public fun remove_user_position(vault_cap: &VaultCapability, user_addr: address, amount: u64) acquires Vault {
+    fun remove_user_position(vault_cap: &VaultCapability, user_addr: address, amount: u64) acquires Vault {
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
         let vault_addr = signer::address_of(&vault_acc);
 
