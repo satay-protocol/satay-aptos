@@ -28,14 +28,14 @@ module satay::satay {
     }
 
     // create manager account and give it to the sender
-    public fun initialize(manager: &signer) {
+    public entry fun initialize(manager: &signer) {
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
 
     /// Manager creates a new `Vault` as a resource account with it's own `CoinStorage` resources.
     /// Assigns a new `vault_id` to it.
     /// Later, vaults are identified as a pair of `(manager_address, vault_id)`.
-    public fun new_vault<BaseCoin>(manager: &signer, seed: vector<u8>) acquires ManagerAccount {
+    public entry fun new_vault<BaseCoin>(manager: &signer, seed: vector<u8>) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
@@ -145,24 +145,10 @@ module satay::satay {
         assert!(exists<ManagerAccount>(manager_addr), ERR_MANAGER);
     }
 
-    // #[test_only]
-    // public fun get_vault_cap(manager_addr: address, vault_id: u64): &VaultCapability acquires ManagerAccount {
-    //     assert_manager_initialized(manager_addr);
-    //     let account = borrow_global<ManagerAccount>(manager_addr);
-
-    //     let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-    //     let vault_cap = option::borrow_global(&vault_info.vault_cap);
-    //     vault_cap
-    // }
-
-    #[test_only]
-    public fun balance<CoinType>(manager_addr: address, vault_id: u64): u64 acquires ManagerAccount {
+    public fun get_next_vault_id(manager_addr: address) : u64 acquires ManagerAccount {
         assert_manager_initialized(manager_addr);
-        let account = borrow_global<ManagerAccount>(manager_addr);
-
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::balance<CoinType>(vault_cap)
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        account.next_vault_id
     }
 }
 

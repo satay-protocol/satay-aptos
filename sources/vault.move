@@ -1,13 +1,14 @@
 module satay::vault {
     use std::signer;
+    use std::string;
 
     use aptos_framework::account::{Self, SignerCapability};
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     use aptos_std::table::{Self, Table};
     use aptos_std::type_info::TypeInfo;
     use aptos_std::type_info;
 
-    friend satay::satay;
+    // friend satay::satay;
 
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
@@ -26,16 +27,21 @@ module satay::vault {
         pending_coins_amount: u64,
     }
 
-    struct VaultCapability has drop, store {
+    struct VaultCapability has store {
         storage_cap: SignerCapability,
         vault_id: u64,
         vault_addr: address,
+        mint_cap: MintCapability<VaultCoin>,
+        burn_cap: BurnCapability<VaultCoin>
     }
+
+    struct VaultCoin {}
 
     // create new vault with BaseCoin as its base coin type
     public fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
+
         // create a new vault and move it to the vault account
         move_to(
             &vault_acc,
@@ -45,7 +51,25 @@ module satay::vault {
                 pending_coins_amount: 0
             }
         );
-        let vault_cap = VaultCapability { storage_cap, vault_addr: signer::address_of(&vault_acc), vault_id };
+
+        // initialize vault coin and destroy freeze cap
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<VaultCoin>(
+            &vault_acc,
+            string::utf8(b"Vault Token"),
+            string::utf8(b"Vault"),
+            8,
+            true
+        );
+        coin::destroy_freeze_cap(freeze_cap);
+
+        // create vault capability with storage cap and mint/burn capability
+        let vault_cap = VaultCapability {
+            storage_cap,
+            vault_addr: signer::address_of(&vault_acc),
+            vault_id,
+            mint_cap,
+            burn_cap,
+        };
         add_coin<BaseCoin>(&vault_cap);
         vault_cap
     }
@@ -95,9 +119,7 @@ module satay::vault {
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
         let vault_addr = signer::address_of(&vault_acc);
         let vault = borrow_global_mut<Vault>(vault_addr);
-        let user_position =
-            table::borrow_mut_with_default(&mut vault.user_positions, user_addr, 0);
-        *user_position = *user_position + amount;
+
     }
 
     // remove amount from user_addr position in the vault table associated with vault_cap
@@ -130,11 +152,13 @@ module satay::vault {
         {
             let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
             assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
-
-            vault.pending_coins_amount = vault.pending_coins_amount + coin::value(&base_coin);
         };
 
-        add_user_position(vault_cap, user_addr, coin::value(&base_coin));
+        let vault_coins = coin::mint(coin::value(&base_coin), &vault_cap.mint_cap);
+        if(!coin::is_coin_initialized<VaultCoin>()){
+            coin::initialize()
+        }
+        coin::deposit(user_addr, vault_coins);
 
         deposit(vault_cap, base_coin);
     }

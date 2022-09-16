@@ -1,15 +1,16 @@
 #[test_only]
 module satay::test_vault {
 
+    use std::signer;
+
     use aptos_framework::coin;
     use aptos_framework::genesis;
-    use aptos_framework::signer;
 
     use satay::vault;
 
     use test_helpers::test_account;
 
-    use liquidswap_lp::coins::{
+    use test_coins::coins::{
         Self,
         USDT
     };
