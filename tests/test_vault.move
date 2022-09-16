@@ -32,7 +32,7 @@ module satay::test_vault {
     }
 
     #[test(
-        vault_manager=@0x45
+        vault_manager=@satay
     )]
     fun test_create_vault(vault_manager : &signer) {
         let vault_cap = vault::new<USDT>(vault_manager, b"test_vault", 0);
@@ -43,7 +43,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap_lp,
+        coin_admin = @liquidswap,
         user=@0x46,
     )]
     fun test_deposit(
@@ -63,7 +63,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap_lp,
+        coin_admin = @liquidswap,
         user=@0x46,
     )]
     fun test_withdraw(
@@ -84,5 +84,48 @@ module satay::test_vault {
         coin::deposit<USDT>(signer::address_of(&user), coin);
 
         assert!(vault::balance<USDT>(&vault_cap) == 0, 0);
+    }
+
+    #[test(
+        vault_manager=@satay,
+        coin_admin = @liquidswap,
+        user=@0x46,
+    )]
+    fun test_deposit_as_user(
+        vault_manager : signer,
+        coin_admin : signer,
+        user : signer
+    ){
+
+        setup_tests(&coin_admin, &user);
+
+        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+
+        coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
+        vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
+        assert!(vault::balance<USDT>(&vault_cap) == 100, 0);
+        assert!(vault::is_vault_coin_registered<USDT>(signer::address_of(&user)), 1);
+        assert!(vault::vault_coin_balance<USDT>(signer::address_of(&user)) == 100, 1);
+    }
+
+    #[test(
+        vault_manager=@satay,
+        coin_admin = @liquidswap,
+        user=@0x46,
+    )]
+    fun test_withdraw_as_user(
+        vault_manager : signer,
+        coin_admin : signer,
+        user : signer
+    ){
+
+        setup_tests(&coin_admin, &user);
+
+        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+
+        coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
+        vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
+        let base_coins = vault::withdraw_as_user(&user, &vault_cap, 100);
+        coin::deposit<USDT>(signer::address_of(&user), base_coins);
     }
 }
