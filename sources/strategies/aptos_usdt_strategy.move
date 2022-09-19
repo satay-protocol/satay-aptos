@@ -22,7 +22,7 @@ module satay::aptos_usdt_strategy {
     const ERR_NO_POSITION: u64 = 203;
     const ERR_NOT_ENOUGH_POSITION: u64 = 204;
 
-    struct StrategyCoin has key {
+    struct StrategyInfo has key {
         coin: TypeInfo
     }
 
@@ -32,7 +32,7 @@ module satay::aptos_usdt_strategy {
     public entry fun initialize(manager: &signer, vault_id: u64) {
         let manager_addr = signer::address_of(manager);
 
-        let strategy_coin = StrategyCoin { coin: type_info::type_of<LP<AptosCoin, USDT>>() };
+        let strategy_coin = StrategyInfo { coin: type_info::type_of<LP<AptosCoin, USDT>>() };
         move_to(manager, strategy_coin);
 
         let witness = AptosUsdcLpStrategy {};
