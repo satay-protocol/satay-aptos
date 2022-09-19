@@ -10,10 +10,11 @@ module satay::test_vault {
 
     use test_helpers::test_account;
 
-    use test_coins::coins::{
+    use liquidswap_lp::coins::{
         Self,
         USDT
     };
+    use satay::vault::VaultCoin;
 
     #[test_only]
     fun setup_tests(
@@ -106,6 +107,7 @@ module satay::test_vault {
         assert!(vault::balance<USDT>(&vault_cap) == 100, 0);
         assert!(vault::is_vault_coin_registered<USDT>(signer::address_of(&user)), 1);
         assert!(vault::vault_coin_balance<USDT>(signer::address_of(&user)) == 100, 1);
+        assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(&user)) > 0, 2);
     }
 
     #[test(
@@ -127,5 +129,6 @@ module satay::test_vault {
         vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
         let base_coins = vault::withdraw_as_user(&user, &vault_cap, 100);
         coin::deposit<USDT>(signer::address_of(&user), base_coins);
+        assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(&user)) == 0, 2);
     }
 }

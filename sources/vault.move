@@ -1,14 +1,13 @@
 module satay::vault {
     use std::signer;
     use std::string;
+    use std::option;
 
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     use aptos_std::table::{Self, Table};
     use aptos_std::type_info::TypeInfo;
     use aptos_std::type_info;
-
-    // friend satay::satay;
 
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
@@ -94,20 +93,6 @@ module satay::vault {
         );
     }
 
-    // for strategies
-    // get all coins pending strategy application
-    // public fun fetch_pending_coins<BaseCoin>(vault_cap: &VaultCapability): Coin<BaseCoin> acquires Vault, CoinStore {
-    //     let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
-    //     let pending_coin_amount = vault.pending_coins_amount;
-    //     // fast tracking special case
-    //     if (pending_coin_amount == 0) {
-    //         return coin::zero()
-    //     };
-    //     vault.pending_coins_amount = 0;
-    //
-    //     withdraw(vault_cap, pending_coin_amount)
-    // }
-    //
     // // deposit coin of CoinType into the vault
     public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
@@ -171,9 +156,11 @@ module satay::vault {
             assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
         };
 
-        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
+        let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
+        let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
 
-        withdraw<BaseCoin>(vault_cap, amount)
+        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
+        withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
 
     // check if vault_id matches the vault_id of vault_cap
