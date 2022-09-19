@@ -12,17 +12,31 @@ module satay::aptos_usdt_strategy {
 
     use satay::vault;
     use satay::satay;
+    use aptos_std::type_info::{
+        Self,
+        TypeInfo
+    };
 
     const ERR_NO_PERMISSIONS: u64 = 201;
     const ERR_INITIALIZE: u64 = 202;
     const ERR_NO_POSITION: u64 = 203;
     const ERR_NOT_ENOUGH_POSITION: u64 = 204;
 
+    struct StrategyCoin has key {
+        coin: TypeInfo
+    }
+
     // used for witnessing
     struct AptosUsdcLpStrategy has drop {}
 
-    public entry fun initialize(_acc: &signer, manager_addr: address, vault_id: u64) {
+    public entry fun initialize(manager: &signer, vault_id: u64) {
+        let manager_addr = signer::address_of(manager);
+
+        let strategy_coin = StrategyCoin { coin: type_info::type_of<LP<AptosCoin, USDT>>() };
+        move_to(manager, strategy_coin);
+
         let witness = AptosUsdcLpStrategy {};
+
         let (vault_cap, stop_handle) = satay::lock_vault<AptosUsdcLpStrategy>(manager_addr, vault_id, witness);
         if (!vault::has_coin<LP<AptosCoin, USDT>>(&vault_cap)) {
             vault::add_coin<LP<AptosCoin, USDT>>(&vault_cap);

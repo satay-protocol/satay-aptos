@@ -69,7 +69,7 @@ module satay::test_aptos_usdt_strategy {
         satay::new_vault<AptosCoin>(&manager_acc, b"aptos_vault");
         satay::approve_strategy<AptosUsdcLpStrategy>(&manager_acc, 0);
 
-        aptos_usdt_strategy::initialize(&manager_acc, @satay, 0);
+        aptos_usdt_strategy::initialize(&manager_acc, 0);
 
         satay::deposit<AptosCoin>(&user, @satay, 0, 1000);
 
