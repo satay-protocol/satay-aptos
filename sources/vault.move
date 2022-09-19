@@ -1,100 +1,187 @@
 module satay::vault {
     use std::signer;
+    use std::string;
+    use std::option;
 
-    use aptos_framework::aptos_coin::AptosCoin;
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::account::{Self, SignerCapability};
+    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     use aptos_std::table::{Self, Table};
-    use liquidswap::router;
-    use liquidswap_lp::coins_extended::USDC;
-    use liquidswap_lp::lp::LP;
+    use aptos_std::type_info::TypeInfo;
+    use aptos_std::type_info;
 
-    const ERR_POSITIONS: u64 = 1;
-    const ERR_NOT_ENOUGH_POSITION: u64 = 2;
+    const ERR_NO_USER_POSITION: u64 = 101;
+    const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
+    const ERR_COIN: u64 = 103;
 
-    struct VaultPositions has key {
-        items: Table<address, u64>
+    struct CoinStore<phantom CoinType> has key {
+        coin: Coin<CoinType>
     }
 
     struct Vault has key {
-        usdc_coins: Coin<USDC>,
-        aptos_coins: Coin<AptosCoin>,
+        // mapping from user address to input amount
+        user_positions: Table<address, u64>,
+        // input and withdraw token
+        base_coin_type: TypeInfo,
+        // amount of tokens pending strategy application
+        pending_coins_amount: u64,
     }
 
-    // create vault and initialize holdings to zero
-    public fun register(vault_owner: &signer) {
-        let vault = Vault {
-            usdc_coins: coin::zero(),
-            aptos_coins: coin::zero()
-        };
-        move_to(vault_owner, vault);
+    struct VaultCapability has store, drop {
+        storage_cap: SignerCapability,
+        vault_id: u64,
+        vault_addr: address,
     }
 
-    // deposit 
-    public fun deposit(user: &signer, vault_address: address, coin: Coin<USDC>) acquires Vault, VaultPositions {
-        let user_address = signer::address_of(user);
-        if (!exists<VaultPositions>(user_address)) {
-            move_to(user, VaultPositions { items: table::new() });
-        };
-
-        let vault_positions = borrow_global_mut<VaultPositions>(user_address);
-        let position = table::borrow_mut_with_default(&mut vault_positions.items, vault_address, 0);
-        *position = *position + get_position_amount(coin::value(&coin));
-
-        let vault = borrow_global_mut<Vault>(vault_address);
-        apply_strategy(vault, coin);
+    struct Caps<phantom CoinType> has key {
+        mint_cap: MintCapability<CoinType>,
+        burn_cap: BurnCapability<CoinType>
     }
 
-    public fun withdraw(user: &signer, vault_address: address, position_amount: u64) acquires Vault, VaultPositions {
-        let user_address = signer::address_of(user);
+    struct VaultCoin<phantom BaseCoin> {}
 
-        assert!(exists<VaultPositions>(user_address), ERR_POSITIONS);
-        let vault_positions = borrow_global_mut<VaultPositions>(user_address);
+    // create new vault with BaseCoin as its base coin type
+    public fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
+        // create a resource account for the vault managed by the sender
+        let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
-        let user_position = table::borrow_mut_with_default(&mut vault_positions.items, vault_address, 0);
-        assert!(*user_position >= position_amount, ERR_NOT_ENOUGH_POSITION);
-        *user_position = *user_position - position_amount;
-
-        let _vault = borrow_global_mut<Vault>(vault_address);
-        let _usdc_coins_amount = get_usdc_amount(position_amount);
-        // somehow convert positions in Vault into USDC
-        // get to user
-    }
-
-    fun get_position_amount(usdc_amount: u64): u64 {
-        // get price of one position token in USDC, let's assume it 1-to-1 for now
-        usdc_amount
-    }
-
-    fun get_usdc_amount(position_amount: u64): u64 {
-        // get price of one position token in USDC, let's assume it 1-to-1 for now
-        position_amount
-    }
-
-    fun apply_strategy(vault: &mut Vault, usdc_coins: Coin<USDC>) {
-        let coins_amount = coin::value(&usdc_coins);
-
-        let to_usdc = coins_amount / 2;
-        coin::merge(
-            &mut vault.usdc_coins,
-            coin::extract(&mut usdc_coins, to_usdc)
+        // create a new vault and move it to the vault account
+        move_to(
+            &vault_acc,
+            Vault {
+                user_positions: table::new(),
+                base_coin_type: type_info::type_of<BaseCoin>(),
+                pending_coins_amount: 0
+            }
         );
 
-        let aptos_coins = swap_usdc_to_aptos(usdc_coins);
-        coin::merge(&mut vault.aptos_coins, aptos_coins);
+        // initialize vault coin and destroy freeze cap
+        let (
+            burn_cap,
+            freeze_cap,
+            mint_cap
+        ) = coin::initialize<VaultCoin<BaseCoin>>(
+            vault_owner,
+            string::utf8(b"Vault Token"),
+            string::utf8(b"Vault"),
+            8,
+            true
+        );
+        coin::destroy_freeze_cap(freeze_cap);
+        move_to(&vault_acc, Caps<VaultCoin<BaseCoin>> { mint_cap, burn_cap});
+
+        // create vault capability with storage cap and mint/burn capability
+        let vault_cap = VaultCapability {
+            storage_cap,
+            vault_addr: signer::address_of(&vault_acc),
+            vault_id,
+        };
+        add_coin<BaseCoin>(&vault_cap);
+        vault_cap
     }
 
-    fun swap_usdc_to_aptos(coins: Coin<USDC>): Coin<AptosCoin> {
-        // swap on AMM
-        let aptos_coins =
-            router::swap_exact_coin_for_coin<USDC, AptosCoin, LP<USDC, AptosCoin>>(@liquidswap_lp, coins, 1);
-        aptos_coins
+    // check if a vault has a CoinStore for CoinType
+    public fun has_coin<CoinType>(vault_cap: &VaultCapability): bool {
+        exists<CoinStore<CoinType>>(vault_cap.vault_addr)
+    }
+
+    // create a new CoinStore for CoinType
+    public fun add_coin<CoinType>(vault_cap: &VaultCapability) {
+        let owner = account::create_signer_with_capability(&vault_cap.storage_cap);
+        move_to(
+            &owner,
+            CoinStore<CoinType> { coin: coin::zero() }
+        );
+    }
+
+    // // deposit coin of CoinType into the vault
+    public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
+        let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        coin::merge(&mut store.coin, coin);
+    }
+    //
+    // // withdraw coin of CoinType from the vault
+    public fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore {
+        let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        coin::extract(&mut store.coin, amount)
+    }
+    //
+    // // add amount to user_addr position in the vault table associated with vault_cap
+    fun mint_vault_coin<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
+        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
+        let vault_addr = signer::address_of(&vault_acc);
+        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_addr);
+        let coins = coin::mint<VaultCoin<BaseCoin>>(amount, &caps.mint_cap);
+        if(!is_vault_coin_registered<BaseCoin>(signer::address_of(user))){
+            coin::register<VaultCoin<BaseCoin>>(user);
+        };
+        coin::deposit(signer::address_of(user), coins);
+    }
+
+    // remove amount from user_addr position in the vault table associated with vault_cap
+    fun burn_vault_coins<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
+        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
+        let vault_addr = signer::address_of(&vault_acc);
+
+        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_addr);
+        coin::burn(coin::withdraw(user, amount), &caps.burn_cap);
+    }
+
+    // for satay
+
+    // deposit base_coin into the vault
+    // ensure that BaseCoin is the base coin type of the vault
+    // update pending coins amount
+    public fun deposit_as_user<BaseCoin>(
+        user: &signer,
+        vault_cap: &VaultCapability,
+        base_coin: Coin<BaseCoin>
+    ) acquires Vault, CoinStore, Caps {
+        {
+            let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+            assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+        };
+        mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
+        deposit(vault_cap, base_coin);
+    }
+
+    // withdraw base_coin from the vault
+    // ensure that BaseCoin is the base coin type of the vault
+    public fun withdraw_as_user<BaseCoin>(
+        user: &signer,
+        vault_cap: &VaultCapability,
+        amount: u64
+    ): Coin<BaseCoin> acquires CoinStore, Vault, Caps {
+        {
+            let vault = borrow_global<Vault>(vault_cap.vault_addr);
+            assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+        };
+
+        let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
+        let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
+
+        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
+        withdraw<BaseCoin>(vault_cap, withdraw_amount)
+    }
+
+    // check if vault_id matches the vault_id of vault_cap
+    public fun vault_cap_has_id(vault_cap: &VaultCapability, vault_id: u64): bool {
+        vault_cap.vault_id == vault_id
+    }
+
+    // check the CoinType balance of the vault
+    public fun balance<CoinType>(vault_cap: &VaultCapability): u64 acquires CoinStore {
+        let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        coin::value(&store.coin)
+    }
+
+    public fun is_vault_coin_registered<CoinType>(user_address : address): bool {
+        coin::is_account_registered<VaultCoin<CoinType>>(user_address)
+    }
+
+    public fun vault_coin_balance<CoinType>(user_address : address): u64 {
+        coin::balance<VaultCoin<CoinType>>(user_address)
     }
 }
-
-
-
-
-
 
 
 

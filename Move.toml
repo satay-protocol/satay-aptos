@@ -3,14 +3,18 @@ name = 'satay'
 version = '1.0.0'
 
 [addresses]
-satay = "0x42"
-usdc_vault = "0x43"
+satay = "c09622c20bdd49b2b83b7e05c264a62cfedeb45eaf5c629d0f0174917d801aef"
 
 # latest 'main' with any.move
 [dependencies.Liquidswap]
-git = 'git@github.com:pontem-network/liquidswap.git'
-rev = 'v0.2.6'
+git = 'https://github.com/pontem-network/liquidswap.git'
+rev = 'v0.2.7'
 
 [dependencies.LiquidswapLP]
-git = "git@github.com:pontem-network/liquidswap-lp.git"
-rev = "v0.4.7"
+git = "https://github.com/pontem-network/liquidswap-lp"
+rev = "v0.4.12"
+
+#[dependencies.AptosFramework]
+#git = "https://github.com/aptos-labs/aptos-core.git"
+#rev = "8f634bcd2e48c4972868d0053d3532f4f760ae19"
+#subdir = "aptos-move/framework/aptos-framework"
