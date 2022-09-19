@@ -21,7 +21,7 @@ module satay::aptos_usdt_strategy {
     // used for witnessing
     struct AptosUsdcLpStrategy has drop {}
 
-    public fun initialize(_acc: &signer, manager_addr: address, vault_id: u64) {
+    public entry fun initialize(_acc: &signer, manager_addr: address, vault_id: u64) {
         let witness = AptosUsdcLpStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<AptosUsdcLpStrategy>(manager_addr, vault_id, witness);
         if (!vault::has_coin<LP<AptosCoin, USDT>>(&vault_cap)) {
@@ -30,25 +30,8 @@ module satay::aptos_usdt_strategy {
         satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
-    public fun init(manager: &signer, vault_id: u64) {
-        let witness = AptosUsdcLpStrategy {};
-        let (vault_cap, stop_handle) = satay::lock_vault<AptosUsdcLpStrategy>(signer::address_of(manager), vault_id, witness);
-        if (!vault::has_coin<LP<AptosCoin, USDT>>(&vault_cap)) {
-            vault::add_coin<LP<AptosCoin, USDT>>(&vault_cap);
-        };
-        satay::unlock_vault<AptosUsdcLpStrategy>(signer::address_of(manager), vault_cap, stop_handle);
-    }
-
-    public entry fun initialize_coin_store(manager: &signer, vault_id: u64) {
-        let witness = AptosUsdcLpStrategy {};
-        let (vault_cap, stop_handle) = satay::lock_vault<AptosUsdcLpStrategy>(signer::address_of(manager), vault_id, witness);
-        if (!vault::has_coin<LP<AptosCoin, USDT>>(&vault_cap)) {
-            vault::add_coin<LP<AptosCoin, USDT>>(&vault_cap);
-        };
-        satay::unlock_vault<AptosUsdcLpStrategy>(signer::address_of(manager), vault_cap, stop_handle);
-    }
-
-    public fun run_strategy(_acc: &signer, manager_addr : address, vault_id: u64, amount : u64) {
+    public entry fun apply_strategy(manager: &signer, vault_id: u64, amount : u64) {
+        let manager_addr = signer::address_of(manager);
         let (vault_cap, lock) = satay::lock_vault<AptosUsdcLpStrategy>(
             manager_addr,
             vault_id,
@@ -80,7 +63,8 @@ module satay::aptos_usdt_strategy {
         satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, lock);
     }
 
-    public fun liquidate_position(_acc: &signer, manager_addr: address, vault_id : u64, amount : u64) {
+    public entry fun liquidate_strategy(manager: &signer, vault_id : u64, amount : u64) {
+        let manager_addr = signer::address_of(manager);
         let (vault_cap, lock) = satay::lock_vault<AptosUsdcLpStrategy>(
             manager_addr,
             vault_id,
@@ -99,14 +83,6 @@ module satay::aptos_usdt_strategy {
             vault_cap,
             lock
         );
-    }
-
-    public entry fun apply_strategy(manager: &signer, vault_id: u64, amount : u64) {
-        run_strategy(manager, signer::address_of(manager), vault_id, amount);
-    }
-
-    public entry fun liquidate_strategy(manager: &signer, vault_id : u64, amount : u64) {
-        liquidate_position(manager, signer::address_of(manager), vault_id, amount);
     }
 
     fun swap<From, To>(coins: Coin<From>): Coin<To> {

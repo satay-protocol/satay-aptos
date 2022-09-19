@@ -6,15 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="d25e5b3b-7ab2-498e-8b58-a39569240dfb" name="Changes" comment="updated vault">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Move.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Move.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sources/satay.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/satay.move" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/sources/strategies/aptos_usdt_strategy.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/strategies/aptos_usdt_strategy.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sources/strategies/usdt_btc_strategy.move" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/sources/vault.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/vault.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_aptos_usdt_strategy.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_aptos_usdt_strategy.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_satay.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_satay.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_usdt_btc_strategy.move" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_vault.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_vault.move" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +23,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="annotate-generic-storage" />
+        <entry key="$PROJECT_DIR$" value="make-something-work" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -107,7 +99,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1662409773078</updated>
-      <workItem from="1663368066263" duration="14314000" />
+      <workItem from="1663368066263" duration="14587000" />
     </task>
     <task id="LOCAL-00001" summary="updated vault">
       <created>1663300383248</created>
@@ -116,7 +108,21 @@
       <option name="project" value="LOCAL" />
       <updated>1663300383248</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="updated vault">
+      <created>1663553719541</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1663553719541</updated>
+    </task>
+    <task id="LOCAL-00003" summary="updated vault">
+      <created>1663553726771</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1663553726771</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
