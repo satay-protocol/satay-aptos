@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d25e5b3b-7ab2-498e-8b58-a39569240dfb" name="Changes" comment="update StrategyInfo struct">
+    <list default="true" id="d25e5b3b-7ab2-498e-8b58-a39569240dfb" name="Changes" comment="update vaults structure">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Move.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Move.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sources/satay.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/satay.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sources/strategies/aptos_usdt_strategy.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/strategies/aptos_usdt_strategy.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sources/vault.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/vault.move" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_aptos_usdt_strategy.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_aptos_usdt_strategy.move" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_satay.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_satay.move" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_vault.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_vault.move" afterDir="false" />
@@ -33,6 +30,13 @@
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GithubProjectSettings">
+    <option name="branchProtectionPatterns">
+      <list>
+        <option value="main" />
+      </list>
+    </option>
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -118,7 +122,7 @@
       <workItem from="1664763616031" duration="5308000" />
       <workItem from="1664909714552" duration="2224000" />
       <workItem from="1664931717834" duration="698000" />
-      <workItem from="1665516307102" duration="66000" />
+      <workItem from="1665516307102" duration="3397000" />
     </task>
     <task id="LOCAL-00001" summary="updated vault">
       <created>1663300383248</created>
@@ -141,7 +145,14 @@
       <option name="project" value="LOCAL" />
       <updated>1663553726771</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="update vaults structure">
+      <created>1665516475628</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1665516475628</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -152,7 +163,13 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="CUSTOM_BOOLEAN_PROPERTIES">
+                <map>
+                  <entry key="Show.Git.Branches" value="false" />
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -161,7 +178,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="updated vault" />
     <MESSAGE value="update StrategyInfo struct" />
-    <option name="LAST_COMMIT_MESSAGE" value="update StrategyInfo struct" />
+    <MESSAGE value="update vaults structure" />
+    <option name="LAST_COMMIT_MESSAGE" value="update vaults structure" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

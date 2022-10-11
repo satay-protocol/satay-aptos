@@ -47,7 +47,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap,
+        coin_admin = @test_coins,
         user=@0x46,
     )]
     fun test_deposit(
@@ -67,7 +67,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap,
+        coin_admin = @test_coins,
         user=@0x46,
     )]
     fun test_withdraw(
@@ -92,7 +92,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap,
+        coin_admin = @test_coins,
         user=@0x46,
     )]
     fun test_deposit_as_user(
@@ -116,7 +116,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap,
+        coin_admin = @test_coins,
         user=@0x46,
     )]
     fun test_withdraw_as_user(
@@ -138,7 +138,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @liquidswap,
+        coin_admin = @test_coins,
         user=@0x46,
     )]
     fun test_withdraw_as_user_after_farm(
@@ -167,7 +167,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin=@liquidswap,
+        coin_admin=@test_coins,
         user=@0x46
     )]
     fun test_approve_strategy(

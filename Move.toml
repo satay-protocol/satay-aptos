@@ -5,16 +5,10 @@ version = '1.0.0'
 [addresses]
 satay = "c09622c20bdd49b2b83b7e05c264a62cfedeb45eaf5c629d0f0174917d801aef"
 
-# latest 'main' with any.move
 [dependencies.Liquidswap]
 git = 'https://github.com/pontem-network/liquidswap.git'
-rev = 'v0.3.0'
+rev = 'v0.4.0'
 
 [dependencies.TestCoins]
 git = 'https://github.com/pontem-network/test-coins.git'
-rev = 'v0.1.0'
-
-#[dependencies.AptosFramework]
-#git = "https://github.com/aptos-labs/aptos-core.git"
-#rev = "8f634bcd2e48c4972868d0053d3532f4f760ae19"
-#subdir = "aptos-move/framework/aptos-framework"
+rev = 'v0.1.2'

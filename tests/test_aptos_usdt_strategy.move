@@ -2,7 +2,10 @@
 module satay::test_aptos_usdt_strategy {
     use std::signer;
 
-    use aptos_framework::aptos_coin::{Self, AptosCoin};
+    use aptos_framework::aptos_coin::{
+        Self,
+        AptosCoin
+    };
     use aptos_framework::coin;
     use aptos_framework::stake;
 
@@ -11,7 +14,10 @@ module satay::test_aptos_usdt_strategy {
 
     use liquidswap_lp::lp_coin::{LP};
 
-    use test_coins::coins::{Self, USDT};
+    use test_coins::coins::{
+        Self,
+        USDT,
+    };
 
     use test_helpers::test_account;
 
@@ -39,6 +45,8 @@ module satay::test_aptos_usdt_strategy {
 
         test_account::create_account(&token_admin);
         test_account::create_account(&user);
+        test_account::create_account(&pool_owner);
+
 
         lp_account::initialize_lp_account(
             &pool_owner,

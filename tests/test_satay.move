@@ -34,7 +34,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_initialize(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -43,7 +43,7 @@ module satay::test_satay {
 
    #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_new_vault(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -53,7 +53,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_deposit(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -71,7 +71,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_withdraw(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -96,7 +96,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_approve_strategy(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -109,7 +109,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_approve_multiple_strategies(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -125,7 +125,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_lock_unlock_vault(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -147,7 +147,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_lock_unlock_vault_multiple_strategies(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -181,7 +181,7 @@ module satay::test_satay {
 
     #[test_reject(
         vault_manager = @satay,
-        coins_manager = @liquidswap,
+        coins_manager = @test_coins,
         user = @0x47
     )]
     fun test_reject_unapproved_strategy(vault_manager : signer, coins_manager : signer, user : signer) {
