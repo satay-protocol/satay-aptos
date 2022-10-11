@@ -4,8 +4,7 @@ module satay::vault {
     use std::option;
 
     use aptos_framework::account::{Self, SignerCapability};
-    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
-    use aptos_std::table::{Self, Table};
+    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
     use aptos_std::type_info::TypeInfo;
     use aptos_std::type_info;
 
@@ -18,12 +17,7 @@ module satay::vault {
     }
 
     struct Vault has key {
-        // mapping from user address to input amount
-        user_positions: Table<address, u64>,
-        // input and withdraw token
         base_coin_type: TypeInfo,
-        // amount of tokens pending strategy application
-        pending_coins_amount: u64,
     }
 
     struct VaultCapability has store, drop {
@@ -34,10 +28,15 @@ module satay::vault {
 
     struct Caps<phantom CoinType> has key {
         mint_cap: MintCapability<CoinType>,
+        freeze_cap: FreezeCapability<CoinType>,
         burn_cap: BurnCapability<CoinType>
     }
 
-    struct VaultCoin<phantom BaseCoin> {}
+    struct VaultCoin<phantom BaseCoin> has key {}
+
+    struct VaultStrategy<phantom StrategyType> has key, store {
+        base_coin_type: TypeInfo
+    }
 
     // create new vault with BaseCoin as its base coin type
     public fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
@@ -48,9 +47,7 @@ module satay::vault {
         move_to(
             &vault_acc,
             Vault {
-                user_positions: table::new(),
                 base_coin_type: type_info::type_of<BaseCoin>(),
-                pending_coins_amount: 0
             }
         );
 
@@ -66,8 +63,7 @@ module satay::vault {
             8,
             true
         );
-        coin::destroy_freeze_cap(freeze_cap);
-        move_to(&vault_acc, Caps<VaultCoin<BaseCoin>> { mint_cap, burn_cap});
+        move_to(&vault_acc, Caps<VaultCoin<BaseCoin>> { mint_cap, freeze_cap, burn_cap});
 
         // create vault capability with storage cap and mint/burn capability
         let vault_cap = VaultCapability {
@@ -155,12 +151,25 @@ module satay::vault {
             let vault = borrow_global<Vault>(vault_cap.vault_addr);
             assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
         };
-
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
-
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
+    }
+
+    public fun approve_strategy<StrategyType: drop>(
+        vault_cap: &VaultCapability,
+        position_type: TypeInfo
+    ) {
+        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
+        move_to(&vault_acc, VaultStrategy<StrategyType>{ base_coin_type: position_type});
+    }
+
+    public fun has_strategy<StrategyType: drop>(
+        vault_cap: &VaultCapability
+    ) : bool {
+        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
+        exists<VaultStrategy<StrategyType>>(signer::address_of(&vault_acc))
     }
 
     // check if vault_id matches the vault_id of vault_cap

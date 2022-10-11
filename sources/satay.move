@@ -4,7 +4,7 @@ module satay::satay {
 
     use aptos_framework::coin;
     use aptos_std::table::{Self, Table};
-    use aptos_std::type_info::{Self, TypeInfo};
+    use aptos_std::type_info::{TypeInfo};
 
     use satay::vault::{Self, VaultCapability};
 
@@ -22,9 +22,6 @@ module satay::satay {
         /// VaultCapability of the vault.
         /// `Option` here is required to allow "lending" the capability object to the strategy.
         vault_cap: Option<VaultCapability>,
-
-        /// Currently approved strategy
-        strategy_type: Option<TypeInfo>,
     }
 
     // create manager account and give it to the sender
@@ -49,7 +46,6 @@ module satay::satay {
             vault_id,
             VaultInfo {
                 vault_cap: option::some(vault_cap),
-                strategy_type: option::none()
             }
         );
     }
@@ -90,14 +86,17 @@ module satay::satay {
         coin::deposit(user_addr, base_coin);
     }
 
-    // Allows this strategy to access the vault. To be called in the governance.
-    public entry fun approve_strategy<Strategy>(manager: &signer, vault_id: u64) acquires ManagerAccount {
+    // Allows this strategy to access the vault. To be called by strategies.
+    public fun approve_strategy<Strategy : drop>(
+        manager: &signer,
+        vault_id: u64,
+        position_coin_type: TypeInfo
+    ) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
-
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        vault_info.strategy_type = option::some(type_info::type_of<Strategy>());
+        vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type);
     }
 
     struct VaultCapLock { vault_id: u64 }
@@ -112,7 +111,7 @@ module satay::satay {
 
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         assert!(
-            vault_info.strategy_type == option::some(type_info::type_of<Strategy>()),
+            vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)),
             ERR_STRATEGY
         );
 
@@ -120,7 +119,7 @@ module satay::satay {
         (vault_cap, VaultCapLock { vault_id })
     }
 
-    public fun unlock_vault<Strategy>(
+    public fun unlock_vault<Strategy: drop>(
         manager_addr: address,
         vault_capability: VaultCapability,
         stop_handle: VaultCapLock
@@ -136,7 +135,7 @@ module satay::satay {
 
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         assert!(
-            vault_info.strategy_type == option::some(type_info::type_of<Strategy>()),
+            vault::has_strategy<Strategy>(&vault_capability),
             ERR_STRATEGY
         );
         option::fill(&mut vault_info.vault_cap, vault_capability);
@@ -150,6 +149,17 @@ module satay::satay {
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         account.next_vault_id
+    }
+
+    public fun has_strategy<StrategyType: drop>(
+        manager: &signer,
+        vault_id: u64,
+    ) : bool acquires ManagerAccount {
+        let manager_addr = signer::address_of(manager);
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
     }
 
     #[test_only]
