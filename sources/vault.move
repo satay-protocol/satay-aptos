@@ -103,9 +103,7 @@ module satay::vault {
     //
     // // add amount to user_addr position in the vault table associated with vault_cap
     fun mint_vault_coin<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
-        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
-        let vault_addr = signer::address_of(&vault_acc);
-        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_addr);
+        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
         let coins = coin::mint<VaultCoin<BaseCoin>>(amount, &caps.mint_cap);
         if(!is_vault_coin_registered<BaseCoin>(signer::address_of(user))){
             coin::register<VaultCoin<BaseCoin>>(user);
@@ -115,10 +113,7 @@ module satay::vault {
 
     // remove amount from user_addr position in the vault table associated with vault_cap
     fun burn_vault_coins<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
-        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
-        let vault_addr = signer::address_of(&vault_acc);
-
-        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_addr);
+        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
         coin::burn(coin::withdraw(user, amount), &caps.burn_cap);
     }
 
@@ -133,7 +128,7 @@ module satay::vault {
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, Caps {
         {
-            let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+            let vault = borrow_global_mut<Vault>(vault_cap.®);
             assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
         };
         mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
