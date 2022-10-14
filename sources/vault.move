@@ -128,7 +128,7 @@ module satay::vault {
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, Caps {
         {
-            let vault = borrow_global_mut<Vault>(vault_cap.®);
+            let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
             assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
         };
         mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
