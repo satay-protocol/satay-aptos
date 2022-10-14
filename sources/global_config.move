@@ -3,7 +3,8 @@ module satay::global_config {
     use std::signer;
 
     struct GlobalConfig has key {
-        dao_admin_address: address
+        dao_admin_address: address,
+        vault_manager_address: address
     }
 
     const ERR_CONFIG_DOES_NOT_EXIST: u64 = 401;
@@ -13,7 +14,8 @@ module satay::global_config {
         assert!(signer::address_of(satay_admin) == @satay, ERR_NO_ADMIN);
 
         move_to(satay_admin, GlobalConfig {
-            dao_admin_address: @satay_dao_admin
+            dao_admin_address: @satay_dao_admin,
+            vault_manager_address: @satay,
         })
     }
 
@@ -22,5 +24,12 @@ module satay::global_config {
 
         let config = borrow_global<GlobalConfig>(@satay);
         config.dao_admin_address
+    }
+
+    public fun get_vault_manager(): address acquires GlobalConfig {
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
+
+        let config = borrow_global<GlobalConfig>(@satay);
+        config.vault_manager_address
     }
 }

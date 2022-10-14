@@ -18,11 +18,13 @@ module satay::test_vault {
 
     use satay::aptos_usdt_strategy::AptosUsdcLpStrategy;
     use aptos_std::type_info;
+    use satay::global_config;
 
     #[test_only]
     fun setup_tests(
         coin_admin : &signer,
         user : &signer,
+        manager: &signer,
     ) {
 
         genesis::setup();
@@ -33,6 +35,8 @@ module satay::test_vault {
         coins::register_coins(coin_admin);
 
         coin::register<USDT>(user);
+
+        global_config::initialize(manager);
     }
 
     #[test(
@@ -56,7 +60,7 @@ module satay::test_vault {
         user : signer
     ){
 
-        setup_tests(&coin_admin, &user);
+        setup_tests(&coin_admin, &user, &vault_manager);
 
         let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
 
@@ -76,7 +80,7 @@ module satay::test_vault {
         user : signer
     ){
 
-        setup_tests(&coin_admin, &user);
+        setup_tests(&coin_admin, &user, &vault_manager);
 
         let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
 
@@ -101,7 +105,7 @@ module satay::test_vault {
         user : signer
     ){
 
-        setup_tests(&coin_admin, &user);
+        setup_tests(&coin_admin, &user, &vault_manager);
 
         let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
 
@@ -125,7 +129,7 @@ module satay::test_vault {
         user : signer
     ){
 
-        setup_tests(&coin_admin, &user);
+        setup_tests(&coin_admin, &user, &vault_manager);
 
         let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
 
@@ -147,7 +151,7 @@ module satay::test_vault {
         user : signer
     ){
 
-        setup_tests(&coin_admin, &user);
+        setup_tests(&coin_admin, &user, &vault_manager);
 
         let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
 
@@ -175,7 +179,7 @@ module satay::test_vault {
         coin_admin : signer,
         user : signer
     ){
-        setup_tests(&coin_admin, &user);
+        setup_tests(&coin_admin, &user, &vault_manager);
 
         let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
         vault::approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>());

@@ -24,6 +24,7 @@ module satay::test_aptos_usdt_strategy {
     use satay::satay;
     use satay::aptos_usdt_strategy;
     use liquidswap::curves::Uncorrelated;
+    use satay::global_config;
 
     #[test(
         aptos_framework = @aptos_framework,
@@ -76,6 +77,7 @@ module satay::test_aptos_usdt_strategy {
 
         aptos_coin::mint(&aptos_framework, user_address, 100000);
 
+        global_config::initialize(&manager_acc);
         satay::initialize(&manager_acc);
         satay::new_vault<AptosCoin>(&manager_acc, b"aptos_vault");
 

@@ -7,11 +7,13 @@ module satay::satay {
     use aptos_std::type_info::{TypeInfo};
 
     use satay::vault::{Self, VaultCapability};
+    use satay::global_config::get_vault_manager;
 
     const ERR_MANAGER: u64 = 1;
     const ERR_STRATEGY: u64 = 2;
     const ERR_COIN: u64 = 3;
     const ERR_VAULT_CAP: u64 = 4;
+    const ERR_UNAUTHROIZED_MANAGER: u64 = 5;
 
     struct ManagerAccount has key {
         next_vault_id: u64,
@@ -26,6 +28,7 @@ module satay::satay {
 
     // create manager account and give it to the sender
     public entry fun initialize(manager: &signer) {
+        assert!(signer::address_of(manager) == get_vault_manager(), ERR_UNAUTHROIZED_MANAGER);
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
 
