@@ -4,12 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d25e5b3b-7ab2-498e-8b58-a39569240dfb" name="Changes" comment="update vaults structure">
+    <list default="true" id="d25e5b3b-7ab2-498e-8b58-a39569240dfb" name="Changes" comment="update tests and liquidswap version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Move.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Move.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_aptos_usdt_strategy.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_aptos_usdt_strategy.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_satay.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_satay.move" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_vault.move" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_vault.move" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sources/satay.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/satay.move" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sources/vault.move" beforeDir="false" afterPath="$PROJECT_DIR$/sources/vault.move" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,7 +24,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="vault_restructure" />
+        <entry key="$PROJECT_DIR$" value="main" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -122,7 +120,9 @@
       <workItem from="1664763616031" duration="5308000" />
       <workItem from="1664909714552" duration="2224000" />
       <workItem from="1664931717834" duration="698000" />
-      <workItem from="1665516307102" duration="3397000" />
+      <workItem from="1665516307102" duration="5817000" />
+      <workItem from="1665672318393" duration="2486000" />
+      <workItem from="1665777905873" duration="2215000" />
     </task>
     <task id="LOCAL-00001" summary="updated vault">
       <created>1663300383248</created>
@@ -152,7 +152,14 @@
       <option name="project" value="LOCAL" />
       <updated>1665516475628</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="update tests and liquidswap version">
+      <created>1665519725843</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1665519725843</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -166,7 +173,18 @@
             <State>
               <option name="CUSTOM_BOOLEAN_PROPERTIES">
                 <map>
-                  <entry key="Show.Git.Branches" value="false" />
+                  <entry key="Show.Git.Branches" value="true" />
+                </map>
+              </option>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="origin/main" />
+                      </list>
+                    </value>
+                  </entry>
                 </map>
               </option>
             </State>
@@ -179,7 +197,8 @@
     <MESSAGE value="updated vault" />
     <MESSAGE value="update StrategyInfo struct" />
     <MESSAGE value="update vaults structure" />
-    <option name="LAST_COMMIT_MESSAGE" value="update vaults structure" />
+    <MESSAGE value="update tests and liquidswap version" />
+    <option name="LAST_COMMIT_MESSAGE" value="update tests and liquidswap version" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
