@@ -73,4 +73,15 @@ module satay::dao_storage {
 
         asset
     }
+
+    #[test_only]
+    public fun has_storage<CoinType>(owner: &signer): bool {
+        exists<Storage<CoinType>>(signer::address_of(owner))
+    }
+
+    #[test_only]
+    public fun get_coin_value<CoinType>(owner: &signer): u64 acquires Storage {
+        let storage = borrow_global<Storage<CoinType>>(signer::address_of(owner));
+        coin::value(&storage.coin)
+    }
 }
