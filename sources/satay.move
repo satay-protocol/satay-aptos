@@ -24,6 +24,8 @@ module satay::satay {
         vaults: Table<u64, VaultInfo>,
     }
 
+    struct VaultCapLock { vault_id: u64 }
+    
     // create manager account and give it to the sender
     public entry fun initialize(manager: &signer) {
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
@@ -98,8 +100,6 @@ module satay::satay {
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type);
     }
-
-    struct VaultCapLock { vault_id: u64 }
 
     public fun lock_vault<Strategy: drop>(
         manager_addr: address,
