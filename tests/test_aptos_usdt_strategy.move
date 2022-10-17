@@ -24,6 +24,7 @@ module satay::test_aptos_usdt_strategy {
     use satay::satay;
     use satay::aptos_usdt_strategy;
     use liquidswap::curves::Uncorrelated;
+    use satay::global_config;
 
     #[test(
         aptos_framework = @aptos_framework,
@@ -39,6 +40,7 @@ module satay::test_aptos_usdt_strategy {
         manager_acc: signer,
         user: signer
     ) {
+        global_config::initialize(&manager_acc);
         stake::initialize_for_test(&aptos_framework);
 
         coins::register_coins(&token_admin);

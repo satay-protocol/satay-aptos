@@ -8,6 +8,8 @@ module satay::vault {
     use aptos_std::type_info::TypeInfo;
     use aptos_std::type_info;
 
+    friend satay::satay;
+
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
@@ -39,7 +41,7 @@ module satay::vault {
     }
 
     // create new vault with BaseCoin as its base coin type
-    public fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
+    public(friend) fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
@@ -184,5 +186,42 @@ module satay::vault {
 
     public fun vault_coin_balance<CoinType>(user_address : address): u64 {
         coin::balance<VaultCoin<CoinType>>(user_address)
+    }
+
+    #[test_only]
+    public fun new_test<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
+        // create a resource account for the vault managed by the sender
+        let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
+
+        // create a new vault and move it to the vault account
+        move_to(
+            &vault_acc,
+            Vault {
+                base_coin_type: type_info::type_of<BaseCoin>(),
+            }
+        );
+
+        // initialize vault coin and destroy freeze cap
+        let (
+            burn_cap,
+            freeze_cap,
+            mint_cap
+        ) = coin::initialize<VaultCoin<BaseCoin>>(
+            vault_owner,
+            string::utf8(b"Vault Token"),
+            string::utf8(b"Vault"),
+            8,
+            true
+        );
+        move_to(&vault_acc, Caps<VaultCoin<BaseCoin>> { mint_cap, freeze_cap, burn_cap});
+
+        // create vault capability with storage cap and mint/burn capability
+        let vault_cap = VaultCapability {
+            storage_cap,
+            vault_addr: signer::address_of(&vault_acc),
+            vault_id,
+        };
+        add_coin<BaseCoin>(&vault_cap);
+        vault_cap
     }
 }

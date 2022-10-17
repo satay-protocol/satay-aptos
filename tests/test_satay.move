@@ -14,6 +14,7 @@ module satay::test_satay {
         USDT
     };
     use aptos_std::type_info;
+    use satay::global_config;
 
     struct TestStrategy has drop {}
     struct TestStrategy2 has drop {}
@@ -23,9 +24,8 @@ module satay::test_satay {
         coins_manager: &signer,
         user: &signer,
     ) {
-
+        global_config::initialize(vault_manager);
         satay::initialize(vault_manager);
-
         coins::register_coins(coins_manager);
 
         test_account::create_account(user);

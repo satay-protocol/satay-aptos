@@ -39,7 +39,7 @@ module satay::test_vault {
         vault_manager=@satay
     )]
     fun test_create_vault(vault_manager : &signer) {
-        let vault_cap = vault::new<USDT>(vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(vault_manager, b"test_vault", 0);
         assert!(vault::vault_cap_has_id(&vault_cap, 0), 0);
         assert!(vault::has_coin<USDT>(&vault_cap), 0);
         assert!(vault::balance<USDT>(&vault_cap) == 0, 0);
@@ -58,7 +58,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -78,7 +78,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -103,7 +103,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -127,7 +127,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -149,7 +149,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 1000);
         vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 500));
@@ -177,7 +177,7 @@ module satay::test_vault {
     ){
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
         vault::approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>());
         assert!(vault::has_strategy<AptosUsdcLpStrategy>(&vault_cap), 2);
     }
