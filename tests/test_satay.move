@@ -25,7 +25,7 @@ module satay::test_satay {
         user: &signer,
     ) {
         global_config::initialize(vault_manager);
-        satay::initialize(vault_manager, vault_manager);
+        satay::initialize(vault_manager);
         coins::register_coins(coins_manager);
 
         test_account::create_account(user);

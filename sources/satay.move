@@ -7,7 +7,6 @@ module satay::satay {
     use aptos_std::type_info::{TypeInfo};
 
     use satay::vault::{Self, VaultCapability};
-    use satay::global_config::{get_strategy_admin, set_strategy_admin};
 
     const ERR_MANAGER: u64 = 1;
     const ERR_STRATEGY: u64 = 2;
@@ -28,10 +27,8 @@ module satay::satay {
     struct VaultCapLock { vault_id: u64 }
 
     // create manager account and give it to the sender
-    public entry fun initialize(satayAdmin: &signer, manager: &signer) {
-        assert!(get_strategy_admin() == signer::address_of(satayAdmin), ERR_MANAGER);
+    public entry fun initialize(manager: &signer) {
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
-        set_strategy_admin(satayAdmin, signer::address_of(manager));
     }
 
     /// Manager creates a new `Vault` as a resource account with it's own `CoinStorage` resources.
