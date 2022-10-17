@@ -13,15 +13,15 @@ module satay::satay {
     const ERR_COIN: u64 = 3;
     const ERR_VAULT_CAP: u64 = 4;
 
-    struct ManagerAccount has key {
-        next_vault_id: u64,
-        vaults: Table<u64, VaultInfo>,
-    }
-
     struct VaultInfo has store {
         /// VaultCapability of the vault.
         /// `Option` here is required to allow "lending" the capability object to the strategy.
         vault_cap: Option<VaultCapability>,
+    }
+
+    struct ManagerAccount has key {
+        next_vault_id: u64,
+        vaults: Table<u64, VaultInfo>,
     }
 
     // create manager account and give it to the sender
