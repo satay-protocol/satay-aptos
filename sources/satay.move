@@ -66,7 +66,7 @@ module satay::satay {
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
 
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
+        let vault_cap = option::borrow_mut(&mut vault_info.vault_cap);
 
         let base_coin = coin::withdraw<BaseCoin>(user, amount);
 
@@ -85,7 +85,7 @@ module satay::satay {
 
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
 
-        let vault_cap = option::borrow(&vault_info.vault_cap);
+        let vault_cap = option::borrow_mut(&mut vault_info.vault_cap);
         let user_addr = signer::address_of(user);
         let base_coin = vault::withdraw_as_user<BaseCoin>(user, vault_cap, amount);
         coin::deposit(user_addr, base_coin);

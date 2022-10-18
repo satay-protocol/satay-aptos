@@ -11,7 +11,7 @@ module satay::aptos_usdt_strategy {
     use test_coins::coins::{USDT};
     use liquidswap_lp::lp_coin::{LP};
 
-    use satay::vault;
+    use satay::vault::{Self, VaultCapability, lp_balance};
     use satay::satay;
     use aptos_std::type_info;
 
@@ -19,6 +19,7 @@ module satay::aptos_usdt_strategy {
     const ERR_INITIALIZE: u64 = 202;
     const ERR_NO_POSITION: u64 = 203;
     const ERR_NOT_ENOUGH_POSITION: u64 = 204;
+    const ERR_INVALID_COINTYPE: u64 = 205;
 
     // used for witnessing
     struct AptosUsdcLpStrategy has drop {}
@@ -92,6 +93,28 @@ module satay::aptos_usdt_strategy {
         );
     }
 
+    public entry fun harvest<CoinType>(manager: &signer, vault_id: u64) {
+        // consider explicitly use AptosCoin for CoinType
+        let manager_addr = signer::address_of(manager);
+        // check if its profitable
+        let (vault_cap, lock) = satay::lock_vault<AptosUsdcLpStrategy>(
+            manager_addr,
+            vault_id,
+            AptosUsdcLpStrategy {}
+        );
+        assert!(vault::has_coin<CoinType>(&vault_cap), ERR_INVALID_COINTYPE);
+        let currentAptos = get_aptos_reserves_for_lp_coins(&vault_cap);
+        let total_deposited = vault::total_deposited_balance(&vault_cap);
+        let vault_balance = vault::balance<AptosCoin>(&vault_cap);
+        if (currentAptos < total_deposited - vault_balance) {
+            // not profitable
+        } else {
+
+        };
+
+        satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, lock);
+    }
+
     fun swap<From, To>(coins: Coin<From>): Coin<To> {
         // swap on AMM
         router::swap_exact_coin_for_coin<From, To, Uncorrelated>(
@@ -117,5 +140,12 @@ module satay::aptos_usdt_strategy {
         Coin<USDT>, Coin<AptosCoin>
     ) {
         router::remove_liquidity<USDT, AptosCoin, Uncorrelated>(lp_coins, 1, 1)
+    }
+
+    fun get_aptos_reserves_for_lp_coins(vault_cap: &VaultCapability): u64 {
+        let lp_balance = lp_balance<LP<USDT, AptosCoin, Uncorrelated>>(vault_cap);
+        let (reserve0, reserve1) = router::get_reserves_for_lp_coins<USDT, AptosCoin, Uncorrelated>(lp_balance);
+        let reserve0ToAptos = router::get_amount_out<USDT, AptosCoin, Uncorrelated>(reserve0);
+        reserve0ToAptos + reserve1
     }
 }

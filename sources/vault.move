@@ -26,6 +26,7 @@ module satay::vault {
         storage_cap: SignerCapability,
         vault_id: u64,
         vault_addr: address,
+        total_deposited: u64
     }
 
     struct Caps<phantom CoinType> has key {
@@ -72,6 +73,7 @@ module satay::vault {
             storage_cap,
             vault_addr: signer::address_of(&vault_acc),
             vault_id,
+            total_deposited: 0
         };
         add_coin<BaseCoin>(&vault_cap);
         vault_cap
@@ -126,14 +128,19 @@ module satay::vault {
     // update pending coins amount
     public fun deposit_as_user<BaseCoin>(
         user: &signer,
-        vault_cap: &VaultCapability,
+        vault_cap: &mut VaultCapability,
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, Caps {
         {
             let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
             assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
         };
+        // TODO: should mint share token
+        // share token calculation logic
+        // share amount = base coin amount * vault coin total supply / current baseToken value in total
         mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
+        // increase deposited balance
+        vault_cap.total_deposited = vault_cap.total_deposited + coin::value(&base_coin);
         deposit(vault_cap, base_coin);
     }
 
@@ -141,7 +148,7 @@ module satay::vault {
     // ensure that BaseCoin is the base coin type of the vault
     public fun withdraw_as_user<BaseCoin>(
         user: &signer,
-        vault_cap: &VaultCapability,
+        vault_cap: &mut VaultCapability,
         amount: u64
     ): Coin<BaseCoin> acquires CoinStore, Vault, Caps {
         {
@@ -151,6 +158,9 @@ module satay::vault {
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
+        // decrease withdraw balance
+        vault_cap.total_deposited = vault_cap.total_deposited - withdraw_amount;
+
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
 
@@ -178,6 +188,14 @@ module satay::vault {
     public fun balance<CoinType>(vault_cap: &VaultCapability): u64 acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
         coin::value(&store.coin)
+    }
+
+    public fun lp_balance<CoinType>(vault_cap: &VaultCapability): u64 {
+        coin::balance<CoinType>(vault_cap.vault_addr)
+    }
+
+    public fun total_deposited_balance(vault_cap: &VaultCapability): u64 {
+        vault_cap.total_deposited
     }
 
     public fun is_vault_coin_registered<CoinType>(user_address : address): bool {
@@ -220,6 +238,7 @@ module satay::vault {
             storage_cap,
             vault_addr: signer::address_of(&vault_acc),
             vault_id,
+            total_deposited: 0
         };
         add_coin<BaseCoin>(&vault_cap);
         vault_cap
