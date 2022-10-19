@@ -8,6 +8,10 @@ module satay::satay {
 
     use satay::vault::{Self, VaultCapability};
     use satay::global_config::get_strategy_admin;
+    use aptos_framework::coin::Coin;
+    use satay::aptos_usdt_strategy;
+
+    friend satay::aptos_usdt_strategy;
 
     const ERR_MANAGER: u64 = 1;
     const ERR_STRATEGY: u64 = 2;
@@ -27,6 +31,8 @@ module satay::satay {
     }
 
     struct VaultCapLock { vault_id: u64 }
+
+    struct SatayController {}
 
     // create manager account and give it to the sender
     public entry fun initialize(manager: &signer) {
@@ -146,6 +152,38 @@ module satay::satay {
         option::fill(&mut vault_info.vault_cap, vault_capability);
     }
 
+    public fun has_coin<BaseCoin>(vault_cap: &VaultCapability): bool {
+        vault::has_coin<BaseCoin>(vault_cap)
+    }
+
+    public fun add_coin<BaseCoin>(vault_cap: &VaultCapability) {
+        vault::add_coin<BaseCoin>(vault_cap)
+    }
+
+    public fun increase_total_debt_of_vault(vault_cap: &mut VaultCapability, amount: u64) {
+        vault::increase_total_debt(vault_cap, amount)
+    }
+
+    public fun decrease_total_debt_of_vault(vault_cap: &mut VaultCapability, amount: u64) {
+        vault::decrease_total_debt(vault_cap, amount)
+    }
+
+    public fun total_debt(vault_cap: &VaultCapability): u64 {
+        vault::total_debt(vault_cap)
+    }
+
+    public fun deposit_to_vault<CoinType>(vault_cap: &VaultCapability, coins: Coin<CoinType>) {
+        vault::deposit(vault_cap, coins);
+    }
+
+    public fun withdraw_from_vault<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> {
+        vault::withdraw<CoinType>(vault_cap, amount)
+    }
+
+    public fun vault_lp_balance<CoinType>(vault_cap: &VaultCapability): u64 {
+        vault::lp_balance<CoinType>(vault_cap)
+    }
+
     fun assert_manager_initialized(manager_addr: address) {
         assert!(exists<ManagerAccount>(manager_addr), ERR_MANAGER);
     }
@@ -165,6 +203,10 @@ module satay::satay {
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
+    }
+
+    public fun liquidate_strategy(vault_id: u64, amount: u64) {
+        aptos_usdt_strategy::liquidate_strategy(vault_id, amount);
     }
 
     #[test_only]
