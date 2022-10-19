@@ -9,7 +9,6 @@ module satay::satay {
     use satay::vault::{Self, VaultCapability};
     use satay::global_config::get_strategy_admin;
     use aptos_framework::coin::Coin;
-    use satay::aptos_usdt_strategy;
 
     friend satay::aptos_usdt_strategy;
 
@@ -206,7 +205,7 @@ module satay::satay {
     }
 
     public fun liquidate_strategy(vault_id: u64, amount: u64) {
-        aptos_usdt_strategy::liquidate_strategy(vault_id, amount);
+        // aptos_usdt_strategy::liquidate_strategy(vault_id, amount);
     }
 
     #[test_only]

@@ -31,13 +31,15 @@ module satay::aptos_usdt_strategy {
         satay::approve_strategy<AptosUsdcLpStrategy>(manager, vault_id, type_info::type_of<LP<USDT, AptosCoin, Uncorrelated>>());
 
         let (vault_cap, stop_handle) = satay::lock_vault<AptosUsdcLpStrategy>(manager_addr, vault_id, witness);
-        if (!satay::has_coin<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap)) {
-            satay::add_coin<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap);
-        };
+
+        //NOTE: jason: assume coin is already added on the vault
+        // if (!vault::has_coin<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap)) {
+        //     vault::add_coin<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap);
+        // };
         satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
-    public entry fun apply_strategy(manager: &signer, vault_id: u64, amount : u64) {
+    public entry fun apply_strategy<BaseCoin>(manager: &signer, vault_id: u64, amount : u64, coins: Coin<BaseCoin>) {
         let manager_addr = signer::address_of(manager);
         let (vault_cap, lock) = satay::lock_vault<AptosUsdcLpStrategy>(
             manager_addr,
@@ -45,56 +47,63 @@ module satay::aptos_usdt_strategy {
             AptosUsdcLpStrategy {}
         );
 
-        let aptos_coins = satay::withdraw_from_vault<AptosCoin>(&vault_cap, amount);
+        //NOTE: jason: should get coin object from the vault as a param
+        // let aptos_coins = vault::withdraw(&vault_cap, amount);
 
-        // increase total_debt
-        satay::increase_total_debt_of_vault(&mut vault_cap, amount);
+        //NOTE: jason: assume total debt already increased when call this function
+        // vault::increase_total_debt(&mut vault_cap, amount);
 
-        let to_usdt = coin::value((&aptos_coins)) / 2;
+        let to_usdt = coin::value((&coins)) / 2;
 
-        let usdt_coins = swap<AptosCoin, USDT>(coin::extract(&mut aptos_coins, to_usdt));
+        let usdt_coins = swap<AptosCoin, USDT>(coin::extract(&mut coins, to_usdt));
 
         let (residual_usdt, residual_aptos, aptos_usdt_lp_coins) = add_liquidity(aptos_coins, usdt_coins);
 
-        satay::deposit_to_vault<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap, aptos_usdt_lp_coins);
+        //NOTE: jason: keep LP inside the strategy
+        // vault::deposit<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap, aptos_usdt_lp_coins);
 
         if(coin::value(&residual_usdt) > 0){
             coin::merge(&mut residual_aptos, swap<USDT, AptosCoin>(residual_usdt));
         } else {
             // TODO: need a better disposal mechanism
-            // Convert USDT to AptosCoin
-            if (!satay::has_coin<USDT>(&vault_cap)) {
-                satay::add_coin<USDT>(&vault_cap);
-            };
-            satay::deposit_to_vault<USDT>(&vault_cap, residual_usdt);
+
+            //NOTE: jason: keep inside the strategy
+            // if (!vault::has_coin<USDT>(&vault_cap)) {
+            //     vault::add_coin<USDT>(&vault_cap);
+            // };
+            // vault::deposit<USDT>(&vault_cap, residual_usdt);
         };
 
-        satay::deposit_to_vault<AptosCoin>(&vault_cap, residual_aptos);
-
-        // increase total_debt
-        satay::increase_total_debt_of_vault(&mut vault_cap, amount);
+        // NOTE: jason: keep inside the strategy
+        // vault::deposit<AptosCoin>(&vault_cap, residual_aptos);
 
         satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, lock);
     }
 
-    public entry fun liquidate_strategy(vault_id : u64, amount : u64) {
+    // NOTE: function should be called from the vault
+    public(friend) entry fun liquidate_strategy(manager: &signer, vault_id : u64, amount : u64) {
+        let manager_addr = signer::address_of(manager);
         let (vault_cap, lock) = satay::lock_vault<AptosUsdcLpStrategy>(
-            @manager,
+            manager_addr,
             vault_id,
             AptosUsdcLpStrategy {}
         );
 
-        let lp_coins = satay::withdraw_from_vault<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap, amount);
+        // NOTE: jason: LP is alraedy in strategy
+        // let lp_coins = vault::withdraw<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap, amount);
+
+        // NOTE: jason: assume its already done on the vault
         // decrease total_debt
-        satay::decrease_total_debt_of_vault(&mut vault_cap, amount);
+        // vault::decrease_total_debt(&mut vault_cap, amount);
 
         let (usdt_coins, aptos_coins) = remove_liquidity(lp_coins);
         coin::merge(&mut aptos_coins, swap<USDT, AptosCoin>(usdt_coins));
 
-        satay::deposit_to_vault<AptosCoin>(&vault_cap, aptos_coins);
+        //NOTE: jason: return these coins via return param to the vault
+        // vault::deposit<AptosCoin>(&vault_cap, aptos_coins);
 
         satay::unlock_vault<AptosUsdcLpStrategy>(
-            @manager,
+            manager_addr,
             vault_cap,
             lock
         );
@@ -110,17 +119,16 @@ module satay::aptos_usdt_strategy {
             vault_id,
             AptosUsdcLpStrategy {}
         );
-        assert!(satay::has_coin<CoinType>(&vault_cap), ERR_INVALID_COINTYPE);
-        let lp_balance = satay::vault_lp_balance<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap);
-        let (reserve0, reserve1) = router::get_reserves_for_lp_coins<USDT, AptosCoin, Uncorrelated>(lp_balance);
-        let reserve0ToAptos = router::get_amount_out<USDT, AptosCoin, Uncorrelated>(reserve0);
-        let currentAptos = reserve0ToAptos + reserve1;
-        let total_debt = satay::total_debt(&vault_cap);
-        if (currentAptos < total_debt) {
-            // not profitable
-        } else {
 
-        };
+
+        // assert!(vault::has_coin<CoinType>(&vault_cap), ERR_INVALID_COINTYPE);
+        // let currentAptos = get_aptos_reserves_for_lp_coins(&vault_cap);
+        // let total_debt = vault::total_debt(&vault_cap);
+        // if (currentAptos < total_debt) {
+        //     // not profitable
+        // } else {
+        //
+        // };
 
         satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, lock);
     }
@@ -151,4 +159,11 @@ module satay::aptos_usdt_strategy {
     ) {
         router::remove_liquidity<USDT, AptosCoin, Uncorrelated>(lp_coins, 1, 1)
     }
+
+    // fun get_aptos_reserves_for_lp_coins(vault_cap: &VaultCapability): u64 {
+    //     let lp_balance = lp_balance<LP<USDT, AptosCoin, Uncorrelated>>(vault_cap);
+    //     let (reserve0, reserve1) = router::get_reserves_for_lp_coins<USDT, AptosCoin, Uncorrelated>(lp_balance);
+    //     let reserve0ToAptos = router::get_amount_out<USDT, AptosCoin, Uncorrelated>(reserve0);
+    //     reserve0ToAptos + reserve1
+    // }
 }
