@@ -14,6 +14,7 @@ module satay::aptos_usdt_strategy {
     use satay::vault::{Self, VaultCapability, lp_balance};
     use satay::satay;
     use aptos_std::type_info;
+    friend satay::vault;
 
     const ERR_NO_PERMISSIONS: u64 = 201;
     const ERR_INITIALIZE: u64 = 202;
@@ -48,6 +49,9 @@ module satay::aptos_usdt_strategy {
 
         let aptos_coins = vault::withdraw(&vault_cap, amount);
 
+        // increase total_debt
+        vault::increase_total_debt(&mut vault_cap, amount);
+
         let to_usdt = coin::value((&aptos_coins)) / 2;
 
         let usdt_coins = swap<AptosCoin, USDT>(coin::extract(&mut aptos_coins, to_usdt));
@@ -68,31 +72,36 @@ module satay::aptos_usdt_strategy {
 
         vault::deposit<AptosCoin>(&vault_cap, residual_aptos);
 
+        // increase total_debt
+        vault::increase_total_debt(&mut vault_cap, amount);
+
         satay::unlock_vault<AptosUsdcLpStrategy>(manager_addr, vault_cap, lock);
     }
 
-    public entry fun liquidate_strategy(manager: &signer, vault_id : u64, amount : u64) {
-        let manager_addr = signer::address_of(manager);
+    public(friend) entry fun liquidate_strategy(vault_id : u64, amount : u64) {
         let (vault_cap, lock) = satay::lock_vault<AptosUsdcLpStrategy>(
-            manager_addr,
+            @manager,
             vault_id,
             AptosUsdcLpStrategy {}
         );
 
         let lp_coins = vault::withdraw<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap, amount);
-        let (usdt_coins, aptos_coins) = remove_liquidity(lp_coins);
+        // decrease total_debt
+        vault::decrease_total_debt(&mut vault_cap, amount);
 
+        let (usdt_coins, aptos_coins) = remove_liquidity(lp_coins);
         coin::merge(&mut aptos_coins, swap<USDT, AptosCoin>(usdt_coins));
 
         vault::deposit<AptosCoin>(&vault_cap, aptos_coins);
 
         satay::unlock_vault<AptosUsdcLpStrategy>(
-            manager_addr,
+            @manager,
             vault_cap,
             lock
         );
     }
 
+    /// NOTE: harvest function is not used in this strategy but added for strategy standard
     public entry fun harvest<CoinType>(manager: &signer, vault_id: u64) {
         // consider explicitly use AptosCoin for CoinType
         let manager_addr = signer::address_of(manager);
@@ -104,9 +113,8 @@ module satay::aptos_usdt_strategy {
         );
         assert!(vault::has_coin<CoinType>(&vault_cap), ERR_INVALID_COINTYPE);
         let currentAptos = get_aptos_reserves_for_lp_coins(&vault_cap);
-        let total_deposited = vault::total_deposited_balance(&vault_cap);
-        let vault_balance = vault::balance<AptosCoin>(&vault_cap);
-        if (currentAptos < total_deposited - vault_balance) {
+        let total_debt = vault::total_debt(&vault_cap);
+        if (currentAptos < total_debt) {
             // not profitable
         } else {
 

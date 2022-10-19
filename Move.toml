@@ -4,6 +4,7 @@ version = '1.0.0'
 
 [addresses]
 satay = "c09622c20bdd49b2b83b7e05c264a62cfedeb45eaf5c629d0f0174917d801aef"
+manager = "c09622c20bdd49b2b83b7e05c264a62cfedeb45eaf5c629d0f0174917d801aef"
 
 [dependencies.Liquidswap]
 git = 'https://github.com/pontem-network/liquidswap.git'

@@ -104,6 +104,7 @@ module satay::satay {
         vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type);
     }
 
+    // TODO: restrict access to this function
     public fun lock_vault<Strategy: drop>(
         manager_addr: address,
         vault_id: u64,
@@ -122,6 +123,7 @@ module satay::satay {
         (vault_cap, VaultCapLock { vault_id })
     }
 
+    // TODO: restrict access to this function
     public fun unlock_vault<Strategy: drop>(
         manager_addr: address,
         vault_capability: VaultCapability,
