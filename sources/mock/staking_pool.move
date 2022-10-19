@@ -20,4 +20,9 @@ module satay::staking_pool {
         let coinStore = borrow_global_mut<CoinStore<CoinType>>(manager_addr);
         coin::extract(&mut coinStore.coin, amount)
     }
+
+    public fun claimRewards<CoinType>(manager_addr: address) : Coin<CoinType> acquires CoinStore {
+        let coinStore = borrow_global_mut<CoinStore<CoinType>>(manager_addr);
+        coin::extract(&mut coinStore.coin, 1)
+    }
 }
