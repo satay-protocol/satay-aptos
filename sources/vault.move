@@ -159,7 +159,7 @@ module satay::vault {
         let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
         // decrease withdraw balance
-        vault_cap.total_deposited = vault_cap.total_deposited - withdraw_amount;
+        vault_cap.total_deposited = vault_cap.total_deposited - amount;
 
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
