@@ -40,7 +40,7 @@ module satay::base_strategy {
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
 
         // check if user is eligible to withdraw
-        let user_deposited_amount = vault::get_user_amount(&vault_cap, signer::address_of(user));
+        let user_deposited_amount = vault::get_user_amount<BaseCoin>(&vault_cap, signer::address_of(user));
         assert!(user_deposited_amount >= amount, ERR_NOT_ENOUGH_FUND);
 
         // check if vault has enough balance
