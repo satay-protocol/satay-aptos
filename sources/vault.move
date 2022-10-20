@@ -7,12 +7,14 @@ module satay::vault {
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
     use aptos_std::type_info::TypeInfo;
     use aptos_std::type_info;
+    use aptos_std::simple_map;
 
     friend satay::satay;
 
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
+    const ERR_NOT_REGISTERED_USER: u64 = 104;
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>
@@ -20,6 +22,7 @@ module satay::vault {
 
     struct Vault has key {
         base_coin_type: TypeInfo,
+        user_info: simple_map::SimpleMap<address, u64>
     }
 
     struct VaultCapability has store, drop {
@@ -40,6 +43,10 @@ module satay::vault {
         base_coin_type: TypeInfo
     }
 
+    struct UserInfo has key {
+
+    }
+
     // create new vault with BaseCoin as its base coin type
     public(friend) fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
         // create a resource account for the vault managed by the sender
@@ -50,6 +57,7 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
+                user_info: simple_map::create()
             }
         );
 
@@ -129,10 +137,17 @@ module satay::vault {
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, Caps {
-        {
-            let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
-            assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+
+        // increase user balance
+        let user_addr = signer::address_of(user);
+        if (!simple_map::contains_key(&vault.user_info, &user_addr)) {
+            simple_map::add(&mut vault.user_info, user_addr, 0);
         };
+        let user_balance = simple_map::borrow_mut(&mut vault.user_info, &user_addr);
+        *user_balance = *user_balance + coin::value(&base_coin);
+
         mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
         deposit(vault_cap, base_coin);
     }
@@ -144,13 +159,20 @@ module satay::vault {
         vault_cap: &VaultCapability,
         amount: u64
     ): Coin<BaseCoin> acquires CoinStore, Vault, Caps {
-        {
-            let vault = borrow_global<Vault>(vault_cap.vault_addr);
-            assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
-        };
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        let user_addr = signer::address_of(user);
+        assert!(simple_map::contains_key(&vault.user_info, &user_addr), ERR_NOT_REGISTERED_USER);
+        let user_balance = simple_map::borrow_mut(&mut vault.user_info, &user_addr);
+
+        assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+        assert!(*user_balance >= amount, ERR_NOT_ENOUGH_USER_POSITION);
+
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
+
+        // decrase user balance
+        *user_balance = *user_balance - amount;
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
 
@@ -188,6 +210,11 @@ module satay::vault {
         coin::balance<VaultCoin<CoinType>>(user_address)
     }
 
+    public fun get_user_amount(vault_cap: &VaultCapability, user_addr: address) : u64 acquires Vault {
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        *simple_map::borrow(&vault.user_info, &user_addr)
+    }
+
     #[test_only]
     public fun new_test<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
         // create a resource account for the vault managed by the sender
@@ -198,6 +225,7 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
+                user_info: simple_map::create()
             }
         );
 
