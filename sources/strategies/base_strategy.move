@@ -35,6 +35,14 @@ module satay::base_strategy {
         staking_pool::deposit(@staking_pool_manager, want_coins);
     }
 
+    public entry fun name() : vector<u8> {
+        b"strategy-name"
+    }
+
+    public entry fun version() : vector<u8> {
+        b"0.0.1"
+    }
+
     fun swap_to_want_token<CoinType, BaseCoin>(coins: Coin<CoinType>) : Coin<BaseCoin> {
         // swap on liquidswap AMM
         router::swap_exact_coin_for_coin<CoinType, BaseCoin, Uncorrelated>(
