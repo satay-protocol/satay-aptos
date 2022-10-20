@@ -79,12 +79,16 @@ module satay::base_strategy {
     *   @notice
     *   It is for harvest
     */
-    public entry fun harvest<CoinType, BaseCoin>() {
+    public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) {
         let coins = claimRewards<CoinType>(@staking_pool_manager);
         let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
 
+        let _witness = BaseStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
+        let coins =  vault::withdraw<BaseCoin>(&vault_cap, vault::balance<BaseCoin>(&vault_cap));
         // re-invest
         staking_pool::deposit(@staking_pool_manager, want_coins);
+        staking_pool::deposit(@staking_pool_manager, coins);
     }
 
     public entry fun name() : vector<u8> {
