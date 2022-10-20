@@ -13,6 +13,5 @@ rev = 'v0.4.0'
 git = 'https://github.com/pontem-network/test-coins.git'
 rev = 'v0.1.2'
 
-#[dependencies.ditto-interface]
-#git = 'https://github.com/ditto-research/ditto-interface'
-#rev = '96321f0a7c3fc555251775e1b4373f981c969905'
+[dependencies.DittoStaking]
+local = "./interfaces/ditto"
