@@ -89,6 +89,7 @@ module satay::base_strategy {
         // re-invest
         staking_pool::deposit(@staking_pool_manager, want_coins);
         staking_pool::deposit(@staking_pool_manager, coins);
+        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
     public entry fun name() : vector<u8> {
