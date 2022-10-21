@@ -27,13 +27,13 @@ module satay::base_strategy {
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
 
     // initialize vault_cap to accept strategy
-    public fun initialize(manager: &signer, vault_id: u64, seed: vector<u8>) {
+    public fun initialize(manager: &signer, vault_id: u64, seed: vector<u8>, debt_ratio: u64) {
         let (_, strategy_cap) = account::create_resource_account(manager, seed);
         move_to(manager, StrategyCapability {strategy_cap});
         let manager_addr = signer::address_of(manager);
         let witness = BaseStrategy {};
 
-        satay::approve_strategy<BaseStrategy>(manager, vault_id, type_info::type_of<PoolBaseCoin>());
+        satay::approve_strategy<BaseStrategy>(manager, vault_id, type_info::type_of<PoolBaseCoin>(), debt_ratio);
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, witness);
         if (!vault::has_coin<PoolBaseCoin>(&vault_cap)) {
             vault::add_coin<PoolBaseCoin>(&vault_cap);
@@ -97,11 +97,28 @@ module satay::base_strategy {
 
         let _witness = BaseStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
-        // checks profit and loss
-        let coins =  vault::withdraw<BaseCoin>(&vault_cap, vault::balance<BaseCoin>(&vault_cap));
-        // re-invest
-        apply_position<BaseCoin>(manager_addr, vault_id, want_coins);
-        apply_position<BaseCoin>(manager_addr, vault_id, coins);
+
+        let (profit, loss, debt_payment) = prepareReturn<BaseCoin>(&vault_cap, manager_addr);
+        let credit = vault::credit_available<BaseStrategy, BaseCoin>(&vault_cap);
+        let debt = vault::debt_out_standing<BaseStrategy, BaseCoin>(&vault_cap);
+        if (debt_payment > debt) {
+            debt_payment = debt;
+        };
+
+        if (credit > 0 || debt_payment > 0) {
+            vault::update_total_debt<BaseStrategy>(&mut vault_cap, credit, debt_payment);
+            debt = debt - debt_payment;
+        };
+
+        let total_available = profit + debt_payment;
+        
+        if (total_available < credit) { // credit surplus, give to Strategy
+            let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
+            apply_position<BaseCoin>(manager_addr, vault_id, coins);
+        } else { // credit deficit, take from Strategy
+            liquidate_position<BaseCoin>(manager_addr, vault_id, total_available - credit);
+        };
+
         satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
@@ -110,22 +127,35 @@ module satay::base_strategy {
         create_signer_with_capability(&strategy_cap.strategy_cap)
     }
 
-    fun prepareReturn<BaseCoin>(vault_cap: &VaultCapability, manager_addr: address) : (u64, u64) acquires StrategyCapability {
+    fun prepareReturn<BaseCoin>(vault_cap: &VaultCapability, manager_addr: address) : (u64, u64, u64) acquires StrategyCapability {
         let strategy_cap = borrow_global_mut<StrategyCapability>(manager_addr);
         let signer = create_signer_with_capability(&strategy_cap.strategy_cap);
-        let total_debt = vault::total_debt<BaseStrategy, BaseCoin>(vault_cap);
 
-        // hopefully staking pool returns invest + profit amount
-        let current_value = staking_pool::balanceOf(signer::address_of(&signer));
-        let _profit = 0;
-        let _loss = 0;
-        if (total_debt < current_value) {
-            _profit = current_value - total_debt;
+        let debt_out_standing = vault::debt_out_standing<BaseStrategy, BaseCoin>(vault_cap);
+        // needs to be calculate
+        let total_assets = 0;
+        let total_debt = vault::total_debt<BaseStrategy>(vault_cap);
+        
+        let profit = 0;
+        let loss = 0;
+        let debt_payment: u64;
+        
+        if (total_assets > debt_out_standing) {
+            debt_payment = debt_out_standing;
+            total_assets = total_assets - debt_out_standing;
         } else {
-            _loss = total_debt - current_value;
+            debt_payment = total_assets;
+            total_assets = 0;
+        };
+        total_debt = total_debt - debt_payment;
+
+        if (total_assets > total_debt) {
+            profit = total_assets - total_debt;
+        } else {
+            loss = total_debt - total_assets;
         };
 
-        return (_profit, _loss)
+        (profit, loss, debt_payment)
     }
 
     public entry fun name() : vector<u8> {

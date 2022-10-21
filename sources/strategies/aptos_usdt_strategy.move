@@ -23,12 +23,12 @@ module satay::aptos_usdt_strategy {
     // used for witnessing
     struct AptosUsdcLpStrategy has drop {}
 
-    public entry fun initialize(manager: &signer, vault_id: u64) {
+    public entry fun initialize(manager: &signer, vault_id: u64, debt_ratio: u64) {
         let manager_addr = signer::address_of(manager);
 
         let witness = AptosUsdcLpStrategy {};
 
-        satay::approve_strategy<AptosUsdcLpStrategy>(manager, vault_id, type_info::type_of<LP<USDT, AptosCoin, Uncorrelated>>());
+        satay::approve_strategy<AptosUsdcLpStrategy>(manager, vault_id, type_info::type_of<LP<USDT, AptosCoin, Uncorrelated>>(), debt_ratio);
 
         let (vault_cap, stop_handle) = satay::lock_vault<AptosUsdcLpStrategy>(manager_addr, vault_id, witness);
         if (!vault::has_coin<LP<USDT, AptosCoin, Uncorrelated>>(&vault_cap)) {

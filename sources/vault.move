@@ -10,11 +10,14 @@ module satay::vault {
 
     friend satay::satay;
 
+    const MAX_BPS: u64 = 10000; // 100%
+
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
     const ERR_NOT_REGISTERED_USER: u64 = 104;
     const ERR_STRATEGY_NOT_REGISTERED: u64 = 105;
+    const ERR_INVALID_DEBT_RATIO: u64 = 106;
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>
@@ -22,7 +25,8 @@ module satay::vault {
 
     struct Vault has key {
         base_coin_type: TypeInfo,
-        total_deposited: u64,
+        debt_ratio: u64,
+        total_debt: u64
     }
 
     struct VaultCapability has store, drop {
@@ -41,6 +45,8 @@ module satay::vault {
 
     struct VaultStrategy<phantom StrategyType> has key, store {
         base_coin_type: TypeInfo,
+        debt_ratio: u64,
+        total_debt: u64
     }
 
     // create new vault with BaseCoin as its base coin type
@@ -53,7 +59,8 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
-                total_deposited: 0
+                debt_ratio: 0,
+                total_debt: 0
             }
         );
 
@@ -96,18 +103,14 @@ module satay::vault {
     }
 
     // // deposit coin of CoinType into the vault
-    public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore, Vault {
+    public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
-        vault.total_deposited = vault.total_deposited + coin::value<CoinType>(&coin);
         coin::merge(&mut store.coin, coin);
     }
     //
     // // withdraw coin of CoinType from the vault
-    public fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore, Vault {
+    public fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
-        vault.total_deposited = vault.total_deposited - amount;
         coin::extract(&mut store.coin, amount)
     }
     //
@@ -164,10 +167,20 @@ module satay::vault {
 
     public fun approve_strategy<StrategyType: drop>(
         vault_cap: &VaultCapability,
-        position_type: TypeInfo
-    ) {
+        position_type: TypeInfo,
+        debt_ratio: u64
+    ) acquires Vault {
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+
+        // check if the strategy's debt ratio is valid
+        assert!(vault.debt_ratio + debt_ratio <= MAX_BPS, ERR_INVALID_DEBT_RATIO);
+
+        // create a new strategy
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
-        move_to(&vault_acc, VaultStrategy<StrategyType>{ base_coin_type: position_type});
+        move_to(&vault_acc, VaultStrategy<StrategyType>{ base_coin_type: position_type, debt_ratio: debt_ratio, total_debt: 0 });
+
+        // update vault params
+        vault.debt_ratio = vault.debt_ratio + debt_ratio;
     }
 
     public fun has_strategy<StrategyType: drop>(
@@ -177,9 +190,76 @@ module satay::vault {
         exists<VaultStrategy<StrategyType>>(signer::address_of(&vault_acc))
     }
 
+    public fun update_total_debt<StrategyType: drop>(vault_cap: &mut VaultCapability, credit: u64, debt_payment: u64) acquires Vault, VaultStrategy {
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+
+        vault.total_debt = vault.total_debt + credit - debt_payment;
+        strategy.total_debt = strategy.total_debt + credit - debt_payment;
+    }
+
     // check if vault_id matches the vault_id of vault_cap
     public fun vault_cap_has_id(vault_cap: &VaultCapability, vault_id: u64): bool {
         vault_cap.vault_id == vault_id
+    }
+
+    public fun total_assets<CoinType>(vault_cap: &VaultCapability): u64 acquires Vault, CoinStore {
+        let vault = borrow_global<Vault>(vault_cap.vault_addr);
+        let store = borrow_global<CoinStore<CoinType>>(vault_cap.vault_addr);
+        vault.total_debt + coin::value(&store.coin)
+    }
+
+    public fun credit_available<StrategyType: drop, CoinType>(vault_cap: &VaultCapability): u64 acquires Vault, VaultStrategy, CoinStore {
+        let vault = borrow_global<Vault>(vault_cap.vault_addr);
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+
+        let vault_debt_ratio = vault.debt_ratio;
+        let vault_total_debt = vault.total_debt;
+        let vault_total_assets = total_assets<CoinType>(vault_cap);
+        let vault_debt_limit = vault_debt_ratio * vault_total_assets / MAX_BPS;
+        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_BPS;
+        let strategy_total_debt = strategy.total_debt;
+
+        if (strategy_debt_limit <= strategy_total_debt || vault_debt_limit <= vault_total_debt) {
+            return 0
+        };
+
+        let available = strategy_debt_limit - strategy_total_debt;
+        let store = borrow_global<CoinStore<CoinType>>(vault_cap.vault_addr);
+        let balance = coin::value(&store.coin);
+
+        if (available > (vault_debt_limit - vault_total_debt)) {
+            available = vault_debt_limit - vault_total_debt;
+        };
+        if (available > balance) {
+            available = balance;
+        };
+
+        available
+    }
+
+    public fun debt_out_standing<StrategyType: drop, CoinType>(vault_cap: &VaultCapability): u64 acquires Vault, VaultStrategy, CoinStore {
+        let vault = borrow_global<Vault>(vault_cap.vault_addr);
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+
+        if (vault.debt_ratio == 0) {
+            return strategy.total_debt
+        };
+
+        let vault_total_assets = total_assets<CoinType>(vault_cap);
+        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_BPS;
+        let strategy_total_debt = strategy.total_debt;
+
+        if (strategy_total_debt <= strategy_debt_limit) {
+            0
+        } else {
+            strategy_total_debt - strategy_debt_limit
+        }
+    }
+
+    public fun total_debt<StrategyType: drop>(vault_cap: &VaultCapability) : u64 acquires VaultStrategy {
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.total_debt
     }
 
     // check the CoinType balance of the vault
@@ -195,21 +275,14 @@ module satay::vault {
     public fun vault_coin_balance<CoinType>(user_address : address): u64 {
         coin::balance<VaultCoin<CoinType>>(user_address)
     }
-
-    public fun get_user_amount<BaseCoin>(vault_cap: &VaultCapability, user_addr: address) : u64 acquires Vault {
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+    
+    public fun get_user_amount<BaseCoin>(vault_cap: &VaultCapability, user_addr: address) : u64 acquires Vault, CoinStore {
+        let total_assets = total_assets<BaseCoin>(vault_cap);
         let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(user_addr);
         let share_total_supply = coin::supply<VaultCoin<BaseCoin>>();
         let total_supply = option::get_with_default<u128>(&share_total_supply, 0);
 
-        vault.total_deposited * user_share_amount / (total_supply as u64)
-    }
-
-    public fun total_debt<StrategyType: drop, BaseCoin>(vault_cap: &VaultCapability) : u64 acquires Vault, CoinStore {
-        assert!(has_strategy<StrategyType>(vault_cap), ERR_STRATEGY_NOT_REGISTERED);
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
-        assert!(type_of<BaseCoin>() == vault.base_coin_type, ERR_COIN);
-        vault.total_deposited - balance<BaseCoin>(vault_cap)
+        total_assets * user_share_amount / (total_supply as u64)
     }
 
     #[test_only]
@@ -222,7 +295,8 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
-                total_deposited: 0
+                debt_ratio: 0,
+                total_debt: 0
             }
         );
 

@@ -95,13 +95,14 @@ module satay::satay {
     public fun approve_strategy<Strategy : drop>(
         manager: &signer,
         vault_id: u64,
-        position_coin_type: TypeInfo
+        position_coin_type: TypeInfo,
+        debt_ratio: u64
     ) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type);
+        vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type, debt_ratio);
     }
 
     public fun lock_vault<Strategy: drop>(
