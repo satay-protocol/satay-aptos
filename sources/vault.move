@@ -5,7 +5,7 @@ module satay::vault {
 
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
-    use aptos_std::type_info::TypeInfo;
+    use aptos_std::type_info::{TypeInfo, type_of};
     use aptos_std::type_info;
 
     friend satay::satay;
@@ -13,6 +13,8 @@ module satay::vault {
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
+    const ERR_NOT_REGISTERED_USER: u64 = 104;
+    const ERR_STRATEGY_NOT_REGISTERED: u64 = 105;
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>
@@ -20,6 +22,7 @@ module satay::vault {
 
     struct Vault has key {
         base_coin_type: TypeInfo,
+        total_deposited: u64,
     }
 
     struct VaultCapability has store, drop {
@@ -37,7 +40,7 @@ module satay::vault {
     struct VaultCoin<phantom BaseCoin> has key {}
 
     struct VaultStrategy<phantom StrategyType> has key, store {
-        base_coin_type: TypeInfo
+        base_coin_type: TypeInfo,
     }
 
     // create new vault with BaseCoin as its base coin type
@@ -50,6 +53,7 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
+                total_deposited: 0
             }
         );
 
@@ -92,14 +96,18 @@ module satay::vault {
     }
 
     // // deposit coin of CoinType into the vault
-    public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
+    public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore, Vault {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.total_deposited = vault.total_deposited + coin::value<CoinType>(&coin);
         coin::merge(&mut store.coin, coin);
     }
     //
     // // withdraw coin of CoinType from the vault
-    public fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore {
+    public fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore, Vault {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.total_deposited = vault.total_deposited - amount;
         coin::extract(&mut store.coin, amount)
     }
     //
@@ -129,10 +137,9 @@ module satay::vault {
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, Caps {
-        {
-            let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
-            assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
-        };
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+
         mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
         deposit(vault_cap, base_coin);
     }
@@ -144,13 +151,14 @@ module satay::vault {
         vault_cap: &VaultCapability,
         amount: u64
     ): Coin<BaseCoin> acquires CoinStore, Vault, Caps {
-        {
-            let vault = borrow_global<Vault>(vault_cap.vault_addr);
-            assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
-        };
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+
+        assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
+
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
+
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
 
@@ -188,6 +196,22 @@ module satay::vault {
         coin::balance<VaultCoin<CoinType>>(user_address)
     }
 
+    public fun get_user_amount<BaseCoin>(vault_cap: &VaultCapability, user_addr: address) : u64 acquires Vault {
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(user_addr);
+        let share_total_supply = coin::supply<VaultCoin<BaseCoin>>();
+        let total_supply = option::get_with_default<u128>(&share_total_supply, 0);
+
+        vault.total_deposited * user_share_amount / (total_supply as u64)
+    }
+
+    public fun total_debt<StrategyType: drop, BaseCoin>(vault_cap: &VaultCapability) : u64 acquires Vault, CoinStore {
+        assert!(has_strategy<StrategyType>(vault_cap), ERR_STRATEGY_NOT_REGISTERED);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        assert!(type_of<BaseCoin>() == vault.base_coin_type, ERR_COIN);
+        vault.total_deposited - balance<BaseCoin>(vault_cap)
+    }
+
     #[test_only]
     public fun new_test<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
         // create a resource account for the vault managed by the sender
@@ -198,6 +222,7 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
+                total_deposited: 0
             }
         );
 
