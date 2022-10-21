@@ -5,7 +5,7 @@ module satay::vault {
 
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
-    use aptos_std::type_info::TypeInfo;
+    use aptos_std::type_info::{TypeInfo, type_of};
     use aptos_std::type_info;
 
     friend satay::satay;
@@ -14,6 +14,7 @@ module satay::vault {
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
     const ERR_NOT_REGISTERED_USER: u64 = 104;
+    const ERR_STRATEGY_NOT_REGISTERED: u64 = 105;
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>
@@ -39,7 +40,7 @@ module satay::vault {
     struct VaultCoin<phantom BaseCoin> has key {}
 
     struct VaultStrategy<phantom StrategyType> has key, store {
-        base_coin_type: TypeInfo
+        base_coin_type: TypeInfo,
     }
 
     // create new vault with BaseCoin as its base coin type
@@ -202,6 +203,13 @@ module satay::vault {
         let total_supply = option::get_with_default<u128>(&share_total_supply, 0);
 
         vault.total_deposited * user_share_amount / (total_supply as u64)
+    }
+
+    public fun total_debt<StrategyType: drop, BaseCoin>(vault_cap: &VaultCapability) : u64 acquires Vault, CoinStore {
+        assert!(has_strategy<StrategyType>(vault_cap), ERR_STRATEGY_NOT_REGISTERED);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        assert!(type_of<BaseCoin>() == vault.base_coin_type, ERR_COIN);
+        vault.total_deposited - balance<BaseCoin>(vault_cap)
     }
 
     #[test_only]
