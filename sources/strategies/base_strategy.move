@@ -105,7 +105,7 @@ module satay::base_strategy {
         // loss to report, do it before the rest of the calculation
         if (loss > 0) {
             let total_debt = vault::total_debt<BaseStrategy>(&vault_cap);
-            assert!(total_debt >= loss, ERR_NOT_ENOUGH_FUND);
+            assert!(total_debt >= loss, ERR_LOSS);
             vault::report_loss<BaseStrategy>(&mut vault_cap, loss);
         };
 
