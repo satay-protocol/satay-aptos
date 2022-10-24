@@ -92,9 +92,6 @@ module satay::base_strategy {
     *   It is for harvest
     */
     public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) acquires StrategyCapability {
-        let coins = claimRewards<CoinType>(@staking_pool_manager);
-        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
-
         let _witness = BaseStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
 
