@@ -198,6 +198,23 @@ module satay::vault {
         strategy.total_debt = strategy.total_debt + credit - debt_payment;
     }
 
+    public fun report_loss<StrategyType: drop>(vault_cap: &mut VaultCapability, loss: u64) acquires Vault, VaultStrategy {
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+
+        if (vault.debt_ratio != 0) {
+            let ratio_change = loss * vault.debt_ratio / vault.total_debt;
+            if (ratio_change > strategy.debt_ratio) {
+                ratio_change = strategy.debt_ratio;
+            };
+            strategy.debt_ratio = strategy.debt_ratio - ratio_change;
+            vault.debt_ratio = vault.debt_ratio - ratio_change;
+        };
+
+        strategy.total_debt = strategy.total_debt - loss;
+        vault.total_debt = vault.total_debt - loss;
+    }
+
     // check if vault_id matches the vault_id of vault_cap
     public fun vault_cap_has_id(vault_cap: &VaultCapability, vault_id: u64): bool {
         vault_cap.vault_id == vault_id

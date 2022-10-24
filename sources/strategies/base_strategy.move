@@ -25,6 +25,7 @@ module satay::base_strategy {
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
+    const ERR_LOSS: u64 = 303;
 
     // initialize vault_cap to accept strategy
     public fun initialize(manager: &signer, vault_id: u64, seed: vector<u8>, debt_ratio: u64) {
@@ -95,7 +96,19 @@ module satay::base_strategy {
         let _witness = BaseStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
 
+        let coins = claimRewards<CoinType>(@staking_pool_manager);
+        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
+        apply_position<BaseCoin>(manager_addr, vault_id, want_coins);
+
         let (profit, loss, debt_payment) = prepareReturn<BaseCoin>(&vault_cap, manager_addr);
+
+        // loss to report, do it before the rest of the calculation
+        if (loss > 0) {
+            let total_debt = vault::total_debt<BaseStrategy>(&vault_cap);
+            assert!(total_debt >= loss, ERR_NOT_ENOUGH_FUND);
+            vault::report_loss<BaseStrategy>(&mut vault_cap, loss);
+        };
+
         let credit = vault::credit_available<BaseStrategy, BaseCoin>(&vault_cap);
         let debt = vault::debt_out_standing<BaseStrategy, BaseCoin>(&vault_cap);
         if (debt_payment > debt) {
@@ -104,7 +117,7 @@ module satay::base_strategy {
 
         if (credit > 0 || debt_payment > 0) {
             vault::update_total_debt<BaseStrategy>(&mut vault_cap, credit, debt_payment);
-            debt = debt - debt_payment;
+            // debt = debt - debt_payment;
         };
 
         let total_available = profit + debt_payment;
@@ -130,7 +143,7 @@ module satay::base_strategy {
 
         let debt_out_standing = vault::debt_out_standing<BaseStrategy, BaseCoin>(vault_cap);
         // needs to be calculate
-        let total_assets = 0;
+        let total_assets = staking_pool::balanceOf(signer::address_of(&signer));
         let total_debt = vault::total_debt<BaseStrategy>(vault_cap);
         
         let profit = 0;
