@@ -13,10 +13,22 @@ module satay::staking_pool {
         user_info: simple_map::SimpleMap<address, u64>
     }
 
-    public fun initialize<CoinType>(account: signer) {
-        move_to(&account, CoinStore<CoinType> {
+    public fun initialize<BaseCoinType, RewardCoinType>(account: &signer) {
+        move_to(account, CoinStore<BaseCoinType> {
             coin: coin::zero()
-        })
+        });
+        move_to(account, CoinStore<RewardCoinType> {
+            coin: coin::zero()
+        });
+        move_to(account, PoolData {
+            user_info: simple_map::create()
+        });
+    }
+
+    public fun deposit_rewards<CoinType>(owner: &signer, amount: u64) acquires CoinStore {
+        let coins = coin::withdraw<CoinType>(owner, amount);
+        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@staking_pool_manager);
+        coin::merge(&mut coinStore.coin, coins);
     }
 
     public fun deposit<CoinType>(owner: &signer, coins: Coin<CoinType>) acquires CoinStore, PoolData {
@@ -42,7 +54,7 @@ module satay::staking_pool {
 
     public fun claimRewards<CoinType>(manager_addr: address) : Coin<CoinType> acquires CoinStore {
         let coinStore = borrow_global_mut<CoinStore<CoinType>>(manager_addr);
-        coin::extract(&mut coinStore.coin, 1)
+        coin::extract(&mut coinStore.coin, 10)
     }
 
     public fun balanceOf(user_addr : address) : u64 acquires PoolData {

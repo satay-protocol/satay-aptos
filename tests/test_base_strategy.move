@@ -15,6 +15,7 @@ module satay::test_base_strategy {
     use satay::global_config;
     use aptos_framework::stake;
     use liquidswap_lp::lp_coin::{LP};
+    use satay::staking_pool;
 
     #[test_only]
     fun setup_tests(
@@ -32,7 +33,6 @@ module satay::test_base_strategy {
         test_account::create_account(token_admin);
         test_account::create_account(user);
         test_account::create_account(pool_owner);
-
 
         lp_account::initialize_lp_account(
             pool_owner,
@@ -61,19 +61,20 @@ module satay::test_base_strategy {
         coin::deposit(user_address, lp);
 
         aptos_coin::mint(aptos_framework, user_address, 100000);
-
-
     }
 
     // @dev: create new vault and deposit 100 token
     #[test_only]
-    fun setup_strategy_vault(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, user: &signer) {
+    fun setup_strategy_vault(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
         setup_tests(aptos_framework, token_admin, pool_owner, manager_acc, user);
+        test_account::create_account(staking_pool_admin);
         satay::initialize(manager_acc);
         satay::new_vault<USDT>(manager_acc, b"aptos_vault");
         base_strategy::initialize(manager_acc, 0, b"test");
         coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
         satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
+        staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);
+        staking_pool::deposit_rewards<AptosCoin>(user, 100);
     }
 
     #[test(
@@ -81,9 +82,11 @@ module satay::test_base_strategy {
         token_admin = @test_coins,
         pool_owner = @liquidswap,
         manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
         user = @0x45
     )]
-    fun test_harvest(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, user: &signer) {
-        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, user);
+    fun test_harvest(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+        base_strategy::harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
     }
 }
