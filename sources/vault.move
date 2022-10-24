@@ -249,4 +249,5 @@ module satay::vault {
         add_coin<BaseCoin>(&vault_cap);
         vault_cap
     }
+
 }

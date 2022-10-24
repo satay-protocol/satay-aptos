@@ -1,7 +1,7 @@
 module satay::base_strategy {
 
     use aptos_framework::coin::{Coin};
-    use satay::staking_pool::{Self, claimRewards};
+    use satay::staking_pool::{Self};
     use liquidswap::router;
     use liquidswap::curves::Uncorrelated;
     use std::signer;
@@ -64,17 +64,10 @@ module satay::base_strategy {
      *  @notice
      *  This function adds underyling to 3rd party service to get yield
     */
-    fun apply_position<BaseCoin>(manager_addr : address, vault_id: u64, coins: Coin<BaseCoin>) acquires StrategyCapability {
-        let witness = BaseStrategy {};
-
-        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, witness);
-
+    fun apply_position<BaseCoin>(manager_addr : address, coins: Coin<BaseCoin>) acquires StrategyCapability {
         let signer = get_signer_cap(manager_addr);
         staking_pool::deposit(&signer, coins);
-
         // deposit to the vault if there's any share token from 3rd party staking pool
-
-        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
     fun liquidate_position<BaseCoin>(manager_addr: address, vault_id: u64, amount: u64) acquires StrategyCapability {
@@ -92,16 +85,16 @@ module satay::base_strategy {
     *   It is for harvest
     */
     public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) acquires StrategyCapability {
-        let coins = claimRewards<CoinType>(@staking_pool_manager);
-        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
+        // let coins = claimRewards<CoinType>(@staking_pool_manager);
+        // let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
 
         let _witness = BaseStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
         // checks profit and loss
         let coins =  vault::withdraw<BaseCoin>(&vault_cap, vault::balance<BaseCoin>(&vault_cap));
         // re-invest
-        apply_position<BaseCoin>(manager_addr, vault_id, want_coins);
-        apply_position<BaseCoin>(manager_addr, vault_id, coins);
+        // apply_position<BaseCoin>(manager_addr, vault_id, want_coins);
+        apply_position<BaseCoin>(manager_addr, coins);
         satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
