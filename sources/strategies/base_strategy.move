@@ -1,7 +1,7 @@
 module satay::base_strategy {
 
     use aptos_framework::coin::{Coin};
-    use satay::staking_pool::{Self, claimRewards};
+    use satay::staking_pool::{Self};
     use liquidswap::router;
     use liquidswap::curves::Uncorrelated;
     use std::signer;
@@ -65,17 +65,10 @@ module satay::base_strategy {
      *  @notice
      *  This function adds underyling to 3rd party service to get yield
     */
-    fun apply_position<BaseCoin>(manager_addr : address, vault_id: u64, coins: Coin<BaseCoin>) acquires StrategyCapability {
-        let witness = BaseStrategy {};
-
-        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, witness);
-
+    fun apply_position<BaseCoin>(manager_addr : address, coins: Coin<BaseCoin>) acquires StrategyCapability {
         let signer = get_signer_cap(manager_addr);
         staking_pool::deposit(&signer, coins);
-
         // deposit to the vault if there's any share token from 3rd party staking pool
-
-        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
     fun liquidate_position<BaseCoin>(manager_addr: address, vault_id: u64, amount: u64) acquires StrategyCapability {
@@ -121,7 +114,7 @@ module satay::base_strategy {
         };
 
         let total_available = profit + debt_payment;
-        
+
         if (total_available < credit) { // credit surplus, give to Strategy
             let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
             apply_position<BaseCoin>(manager_addr, vault_id, coins);
@@ -145,11 +138,11 @@ module satay::base_strategy {
         // needs to be calculate
         let total_assets = staking_pool::balanceOf(signer::address_of(&signer));
         let total_debt = vault::total_debt<BaseStrategy>(vault_cap);
-        
+
         let profit = 0;
         let loss = 0;
         let debt_payment: u64;
-        
+
         if (total_assets > debt_out_standing) {
             debt_payment = debt_out_standing;
             total_assets = total_assets - debt_out_standing;
