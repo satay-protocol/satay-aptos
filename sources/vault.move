@@ -103,6 +103,7 @@ module satay::vault {
     }
 
     // // deposit coin of CoinType into the vault
+    // TODO: restrict deposit from others
     public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
         coin::merge(&mut store.coin, coin);
@@ -135,6 +136,7 @@ module satay::vault {
     // deposit base_coin into the vault
     // ensure that BaseCoin is the base coin type of the vault
     // update pending coins amount
+    // TODO: check BaseCoin is allowed on vault
     public fun deposit_as_user<BaseCoin>(
         user: &signer,
         vault_cap: &VaultCapability,
@@ -143,7 +145,14 @@ module satay::vault {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
 
-        mint_vault_coin<BaseCoin>(user, vault_cap, coin::value(&base_coin));
+        // mint share amount
+        let share_token_amount = coin::value(&base_coin);
+        let share_amount = total_assets<BaseCoin>(vault_cap);
+        let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
+        if (total_supply != 0) {
+            share_token_amount = (total_supply as u64) * coin::value(&base_coin) / share_amount;
+        };
+        mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
         deposit(vault_cap, base_coin);
     }
 
@@ -159,7 +168,7 @@ module satay::vault {
         assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
 
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
-        let withdraw_amount = balance<BaseCoin>(vault_cap) * amount / (total_supply as u64);
+        let withdraw_amount = total_assets<BaseCoin>(vault_cap) * amount / (total_supply as u64);
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
 
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
