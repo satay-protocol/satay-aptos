@@ -64,11 +64,11 @@ module satay::base_strategy {
     /**
      *  @notice
      *  This function adds underyling to 3rd party service to get yield
+     *  TODO: if there's protocol based coin from 3rd party, we should send it to the vault
     */
     fun apply_position<BaseCoin>(manager_addr : address, coins: Coin<BaseCoin>) acquires StrategyCapability {
         let signer = get_signer_cap(manager_addr);
         staking_pool::deposit(&signer, coins);
-        // deposit to the vault if there's any share token from 3rd party staking pool
     }
 
     fun liquidate_position<BaseCoin>(manager_addr: address, vault_id: u64, amount: u64) acquires StrategyCapability {
@@ -89,9 +89,9 @@ module satay::base_strategy {
         let _witness = BaseStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
 
-        let coins = claimRewards<CoinType>(@staking_pool_manager);
+        let coins = staking_pool::claimRewards<CoinType>(@staking_pool_manager);
         let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
-        apply_position<BaseCoin>(manager_addr, vault_id, want_coins);
+        apply_position<BaseCoin>(manager_addr, want_coins);
 
         let (profit, loss, debt_payment) = prepareReturn<BaseCoin>(&vault_cap, manager_addr);
 
@@ -117,7 +117,7 @@ module satay::base_strategy {
 
         if (total_available < credit) { // credit surplus, give to Strategy
             let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
-            apply_position<BaseCoin>(manager_addr, vault_id, coins);
+            apply_position<BaseCoin>(manager_addr, coins);
         } else { // credit deficit, take from Strategy
             liquidate_position<BaseCoin>(manager_addr, vault_id, total_available - credit);
         };

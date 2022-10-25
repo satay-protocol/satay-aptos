@@ -5,7 +5,7 @@ module satay::vault {
 
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
-    use aptos_std::type_info::{TypeInfo, type_of};
+    use aptos_std::type_info::{TypeInfo};
     use aptos_std::type_info;
 
     friend satay::satay;

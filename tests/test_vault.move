@@ -178,7 +178,7 @@ module satay::test_vault {
         setup_tests(&coin_admin, &user);
 
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
-        vault::approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>());
+        vault::approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>(), 1000);
         assert!(vault::has_strategy<AptosUsdcLpStrategy>(&vault_cap), 2);
     }
 }
