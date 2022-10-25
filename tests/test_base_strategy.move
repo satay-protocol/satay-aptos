@@ -70,7 +70,7 @@ module satay::test_base_strategy {
         test_account::create_account(staking_pool_admin);
         satay::initialize(manager_acc);
         satay::new_vault<USDT>(manager_acc, b"aptos_vault");
-        base_strategy::initialize(manager_acc, 0, b"test");
+        base_strategy::initialize(manager_acc, 0, b"test", 1000);
         coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
         satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
         staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);

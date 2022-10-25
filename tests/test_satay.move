@@ -103,7 +103,7 @@ module satay::test_satay {
         setup_tests(&vault_manager, &coins_manager, &user);
         satay::new_vault<USDT>(&vault_manager, b"USDT vault");
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>());
+        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(), 1000);
         assert!(satay::has_strategy<TestStrategy>(&vault_manager, 0), 3);
     }
 
@@ -116,9 +116,9 @@ module satay::test_satay {
         setup_tests(&vault_manager, &coins_manager, &user);
         satay::new_vault<USDT>(&vault_manager, b"USDT vault");
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>());
+        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(),1000);
         assert!(satay::has_strategy<TestStrategy>(&vault_manager, 0), 3);
-        satay::approve_strategy<TestStrategy2>(&vault_manager, 0, type_info::type_of<USDT>());
+        satay::approve_strategy<TestStrategy2>(&vault_manager, 0, type_info::type_of<USDT>(), 1000);
         assert!(satay::has_strategy<TestStrategy2>(&vault_manager, 0), 3);
 
     }
@@ -132,7 +132,7 @@ module satay::test_satay {
         setup_tests(&vault_manager, &coins_manager, &user);
         satay::new_vault<USDT>(&vault_manager, b"USDT vault");
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>());
+        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(), 1000   );
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
             signer::address_of(&vault_manager),
             0,
@@ -154,8 +154,8 @@ module satay::test_satay {
         setup_tests(&vault_manager, &coins_manager, &user);
         satay::new_vault<USDT>(&vault_manager, b"USDT vault");
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>());
-        satay::approve_strategy<TestStrategy2>(&vault_manager, 0, type_info::type_of<USDT>());
+        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(),1000);
+        satay::approve_strategy<TestStrategy2>(&vault_manager, 0, type_info::type_of<USDT>(), 1000);
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
             signer::address_of(&vault_manager),
             0,
