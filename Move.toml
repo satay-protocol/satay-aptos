@@ -13,3 +13,6 @@ rev = 'v0.4.0'
 [dependencies.TestCoins]
 git = 'https://github.com/pontem-network/test-coins.git'
 rev = 'v0.1.2'
+
+[dependencies.DittoStaking]
+local = "./interfaces/ditto"
