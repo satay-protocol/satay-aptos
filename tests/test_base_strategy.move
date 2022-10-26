@@ -89,4 +89,127 @@ module satay::test_base_strategy {
         setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
         base_strategy::harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
     }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45
+    )]
+    fun test_prepare_return(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        let manager_addr = signer::address_of(manager_acc);
+
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+
+        let (profit, loss, debt_payment) = base_strategy::test_prepare_return<AptosCoin, USDT>(manager_addr, 0);
+
+        assert!(profit == 9, 0);
+        assert!(loss == 0, 1);
+        assert!(debt_payment == 0, 2);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45
+    )]
+    fun test_prepare_return_after_deposit(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        let manager_addr = signer::address_of(manager_acc);
+
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+
+        let (_profit, _loss, _debt_payment) = base_strategy::test_prepare_return<AptosCoin, USDT>(manager_addr, 0);
+
+        coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
+        satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
+
+        let (profit, loss, debt_payment) = base_strategy::test_prepare_return<AptosCoin, USDT>(manager_addr, 0);
+
+        assert!(profit == 18, 0);
+        assert!(loss == 0, 1);
+        assert!(debt_payment == 0, 2);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45
+    )]
+    fun test_prepare_return_after_withdraw(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        let manager_addr = signer::address_of(manager_acc);
+
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+
+        base_strategy::harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+
+        satay::withdraw<USDT>(
+            user,
+            signer::address_of(manager_acc),
+            0,
+            50
+        );
+
+        let (profit, loss, debt_payment) = base_strategy::test_prepare_return<AptosCoin, USDT>(manager_addr, 0);
+
+
+        assert!(profit == 9, 0);
+        assert!(loss == 0, 1);
+        assert!(debt_payment == 5, 2);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45
+    )]
+    fun test_harvest_give_to_strategy(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        // let manager_addr = signer::address_of(manager_acc);
+
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+
+        let (total_available, credit) = base_strategy::test_harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+
+        assert!(total_available == 9, 0);
+        assert!(credit == 10, 1);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45
+    )]
+    fun test_harvest_take_from_strategy(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        // let manager_addr = signer::address_of(manager_acc);
+
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+
+        let (_total_available, _credit) = base_strategy::test_harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+
+        satay::withdraw<USDT>(
+            user,
+            signer::address_of(manager_acc),
+            0,
+            50
+        );
+
+        let (total_available, credit) = base_strategy::test_harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+
+        assert!(total_available == 14, 0);
+        assert!(credit == 0, 1);
+    }
 }
+
