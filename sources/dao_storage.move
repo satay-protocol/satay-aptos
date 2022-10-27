@@ -58,6 +58,12 @@ module satay::dao_storage {
         )
     }
 
+    public fun balance<CoinType>(vault_addr: address): u64 acquires Storage {
+        assert!(exists<Storage<CoinType>>(vault_addr), ERR_NOT_REGISTERED);
+        let storage = borrow_global<Storage<CoinType>>(vault_addr);
+        coin::value<CoinType>(&storage.coin)
+    }
+
     public fun withdraw<CoinType>(dao_admin: &signer, vault_addr: address, amount: u64): Coin<CoinType>
         acquires Storage, EventsStore {
 

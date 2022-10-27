@@ -14,7 +14,7 @@ module satay::vault {
 
     const MAX_BPS: u64 = 10000; // 100%
     const MANAGEMENT_FEE: u64 = 200; // 2%
-    const PERFORMANCE_FEE: u64 = 200; // 2%
+    const PERFORMANCE_FEE: u64 = 5000; // 50%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
 
     const ERR_NO_USER_POSITION: u64 = 101;
@@ -92,7 +92,7 @@ module satay::vault {
         };
         add_coin<BaseCoin>(&vault_cap);
 
-        dao_storage::register<BaseCoin>(&vault_acc);
+        dao_storage::register<VaultCoin<BaseCoin>>(&vault_acc);
         vault_cap
     }
 
@@ -136,7 +136,7 @@ module satay::vault {
     // remove amount from user_addr position in the vault table associated with vault_cap
     fun burn_vault_coins<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
         let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
-        coin::burn(coin::withdraw(user, amount), &caps.burn_cap);
+        coin::burn(coin::withdraw<VaultCoin<BaseCoin>>(user, amount), &caps.burn_cap);
     }
 
     // for satay
@@ -155,10 +155,10 @@ module satay::vault {
 
         // mint share amount
         let share_token_amount = coin::value(&base_coin);
-        let share_amount = total_assets<BaseCoin>(vault_cap);
+        let total_base_coin_amount = total_assets<BaseCoin>(vault_cap);
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         if (total_supply != 0) {
-            share_token_amount = (total_supply as u64) * coin::value(&base_coin) / share_amount;
+            share_token_amount = (total_supply as u64) * coin::value(&base_coin) / total_base_coin_amount;
         };
         mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
         deposit(vault_cap, base_coin);
@@ -178,7 +178,6 @@ module satay::vault {
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         let withdraw_amount = total_assets<BaseCoin>(vault_cap) * amount / (total_supply as u64);
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
-
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
 
@@ -245,6 +244,7 @@ module satay::vault {
 
     public fun total_assets<CoinType>(vault_cap: &VaultCapability): u64 acquires Vault, CoinStore {
         let vault = borrow_global<Vault>(vault_cap.vault_addr);
+
         let store = borrow_global<CoinStore<CoinType>>(vault_cap.vault_addr);
         vault.total_debt + coin::value(&store.coin)
     }
@@ -328,10 +328,9 @@ module satay::vault {
         };
 
         let share_token_amount = 0;
-        let share_amount = total_assets<BaseCoin>(vault_cap);
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         if (total_supply != 0) {
-            share_token_amount =  total_fee_amount * share_amount / (total_supply as u64);
+            share_token_amount =  total_fee_amount * (total_supply as u64) / total_assets<BaseCoin>(vault_cap);
         };
         let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
         let coins = coin::mint<VaultCoin<BaseCoin>>(share_token_amount, &caps.mint_cap);
@@ -362,8 +361,18 @@ module satay::vault {
         let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(user_addr);
         let share_total_supply = coin::supply<VaultCoin<BaseCoin>>();
         let total_supply = option::get_with_default<u128>(&share_total_supply, 0);
-
         total_assets * user_share_amount / (total_supply as u64)
+    }
+
+    public fun calculate_amount_from_share<BaseCoin>(vault_cap: &VaultCapability, share: u64) : u64 acquires Vault, CoinStore {
+        let total_assets = total_assets<BaseCoin>(vault_cap);
+        let share_total_supply = coin::supply<VaultCoin<BaseCoin>>();
+        let total_supply = option::get_with_default<u128>(&share_total_supply, 0);
+        total_assets * share / (total_supply as u64)
+    }
+
+    public fun get_vault_addr(vault_cap: &VaultCapability): address {
+        vault_cap.vault_addr
     }
 
     #[test_only]

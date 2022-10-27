@@ -11,6 +11,7 @@ module satay::base_strategy {
     use satay::vault::{VaultCapability};
     use aptos_framework::account::{SignerCapability, create_signer_with_capability};
     use aptos_framework::account;
+    use aptos_framework::coin;
     // use satay::satay;
 
     struct BaseStrategy has drop {}
@@ -46,17 +47,19 @@ module satay::base_strategy {
       * @notice
       * This function suppsoed to be called when the vault doesn't have enough balance than user requested
     */
-    public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, amount: u64) acquires StrategyCapability {
+    public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, share_amount: u64) acquires StrategyCapability {
         let _witness = BaseStrategy {};
         let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
 
         // check if user is eligible to withdraw
-        let user_deposited_amount = vault::get_user_amount<BaseCoin>(&vault_cap, signer::address_of(user));
-        assert!(user_deposited_amount >= amount, ERR_NOT_ENOUGH_FUND);
+        let user_share_amount = coin::balance<vault::VaultCoin<BaseCoin>>(signer::address_of(user));
+        assert!(user_share_amount >= share_amount, ERR_NOT_ENOUGH_FUND);
 
+        let user_amount = vault::calculate_amount_from_share<BaseCoin>(&vault_cap, share_amount);
         // check if vault has enough balance
-        assert!(vault::balance<BaseCoin>(&vault_cap) < amount, ERR_ENOUGH_BALANCE_ON_VAULT);
-        let coins = liquidate_position<BaseCoin>(manager_addr, amount);
+        assert!(vault::balance<BaseCoin>(&vault_cap) < user_amount, ERR_ENOUGH_BALANCE_ON_VAULT);
+        let coins = liquidate_position<BaseCoin>(manager_addr, user_amount);
+        vault::update_total_debt<BaseStrategy>(&mut vault_cap, 0, coin::value(&coins));
         vault::deposit<BaseCoin>(&vault_cap, coins);
         satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
@@ -111,9 +114,11 @@ module satay::base_strategy {
 
         let total_available = profit + debt_payment;
 
-        if (total_available < credit) { // credit surplus, give to Strategy
+        if (profit > 0) {
             // assess fees
             assess_fees<BaseCoin>(profit, &vault_cap);
+        };
+        if (total_available < credit) { // credit surplus, give to Strategy
             let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
             apply_position<BaseCoin>(manager_addr, coins);
         } else { // credit deficit, take from Strategy

@@ -6,7 +6,7 @@ module satay::satay {
     use aptos_std::table::{Self, Table};
     use aptos_std::type_info::{TypeInfo};
 
-    use satay::vault::{Self, VaultCapability};
+    use satay::vault::{Self, VaultCapability, get_vault_addr};
     use satay::global_config::get_strategy_admin;
 
     const ERR_MANAGER: u64 = 1;
@@ -164,6 +164,22 @@ module satay::satay {
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
+    }
+
+    public fun get_vault_address_by_id(manager_addr: address, id: u64) : address acquires ManagerAccount {
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        let vault_info = table::borrow_mut(&mut account.vaults, id);
+        let vault_cap = option::borrow(&mut vault_info.vault_cap);
+        get_vault_addr(vault_cap)
+    }
+
+    public fun get_vault_total_asset<CoinType>(manager_addr: address, id: u64) : u64 acquires ManagerAccount {
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        let vault_info = table::borrow_mut(&mut account.vaults, id);
+        let vault_cap = option::borrow(&mut vault_info.vault_cap);
+        vault::total_assets<CoinType>(vault_cap)
     }
 
     #[test_only]
