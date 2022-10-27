@@ -112,6 +112,8 @@ module satay::base_strategy {
         let total_available = profit + debt_payment;
 
         if (total_available < credit) { // credit surplus, give to Strategy
+            // assess fees
+            assess_fees<BaseCoin>(profit, &vault_cap);
             let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
             apply_position<BaseCoin>(manager_addr, coins);
         } else { // credit deficit, take from Strategy
@@ -156,6 +158,10 @@ module satay::base_strategy {
         };
 
         (profit, loss, debt_payment)
+    }
+
+    fun assess_fees<BaseCoin>(gain: u64, vault_cap: &VaultCapability) {
+        vault::assess_fees<BaseStrategy, BaseCoin>(gain, 0, vault_cap, BaseStrategy {});
     }
 
     public entry fun name() : vector<u8> {
