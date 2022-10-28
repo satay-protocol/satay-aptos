@@ -213,6 +213,11 @@ module satay::base_strategy {
 
         let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
 
+        // profit to report
+        if (profit > 0) {
+            vault::report_gain<BaseStrategy>(&mut vault_cap, profit);
+        };
+
         // loss to report, do it before the rest of the calculation
         if (loss > 0) {
             let total_debt = vault::total_debt<BaseStrategy>(&vault_cap);
