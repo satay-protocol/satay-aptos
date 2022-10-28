@@ -52,6 +52,8 @@ module satay::vault {
         base_coin_type: TypeInfo,
         debt_ratio: u64,
         total_debt: u64,
+        total_gain: u64,
+        total_loss: u64,
         last_report: u64
     }
 
@@ -193,10 +195,12 @@ module satay::vault {
 
         // create a new strategy
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
-        move_to(&vault_acc, VaultStrategy<StrategyType>{
-            base_coin_type: position_type,
-            debt_ratio,
+        move_to(&vault_acc, VaultStrategy<StrategyType> { 
+            base_coin_type: position_type, 
+            debt_ratio: debt_ratio, 
             total_debt: 0,
+            total_gain: 0,
+            total_loss: 0,
             last_report: timestamp::now_seconds()
         });
 
@@ -220,6 +224,11 @@ module satay::vault {
     }
 
     // for Strategies
+    public fun report_gain<StrategyType: drop>(vault_cap: &mut VaultCapability, profit: u64) acquires VaultStrategy {
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.total_gain = strategy.total_gain + profit;
+    }
+
     public fun report_loss<StrategyType: drop>(vault_cap: &mut VaultCapability, loss: u64) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
@@ -233,6 +242,7 @@ module satay::vault {
             vault.debt_ratio = vault.debt_ratio - ratio_change;
         };
 
+        strategy.total_loss = strategy.total_loss + loss;
         strategy.total_debt = strategy.total_debt - loss;
         vault.total_debt = vault.total_debt - loss;
     }
