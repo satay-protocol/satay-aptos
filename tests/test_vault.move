@@ -16,7 +16,7 @@ module satay::test_vault {
     };
     use satay::vault::VaultCoin;
 
-    use satay::aptos_usdt_strategy::AptosUsdcLpStrategy;
+    use satay::base_strategy::BaseStrategy;
     use aptos_std::type_info;
 
     const ERR_INCORRECT_AMOUNT: u64 = 1001;
@@ -180,8 +180,8 @@ module satay::test_vault {
         setup_tests(&coin_admin, &user);
 
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
-        vault::test_approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>(), 1000);
-        assert!(vault::has_strategy<AptosUsdcLpStrategy>(&vault_cap), 2);
+        vault::test_approve_strategy<BaseStrategy>(&vault_cap, type_info::type_of<BaseStrategy>(), 1000);
+        assert!(vault::has_strategy<BaseStrategy>(&vault_cap), 2);
     }
 
     // TODO: check share calculation is correct when non_USDT deposited
