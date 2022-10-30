@@ -16,8 +16,8 @@ module satay::satay {
     const ERR_UNAUTHORIZED_MANAGER: u64 = 5;
 
     struct VaultInfo has store {
-        /// VaultCapability of the vault.
-        /// `Option` here is required to allow "lending" the capability object to the strategy.
+        // VaultCapability of the vault.
+        // `Option` here is required to allow lending the capability object to the strategy.
         vault_cap: Option<VaultCapability>,
     }
 
@@ -28,23 +28,25 @@ module satay::satay {
 
     struct VaultCapLock { vault_id: u64 }
 
-    // create manager account and give it to the sender
+    // create manager account and store in sender's account
     public entry fun initialize(manager: &signer) {
+        // assert only strategy admin can create manager account
         assert!(get_strategy_admin() == signer::address_of(manager), ERR_UNAUTHORIZED_MANAGER);
         move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
 
-    /// Manager creates a new `Vault` as a resource account with it's own `CoinStorage` resources.
-    /// Assigns a new `vault_id` to it.
-    /// Later, vaults are identified as a pair of `(manager_address, vault_id)`.
+    // create new vault for BaseCoin under Manager resource
     public entry fun new_vault<BaseCoin>(manager: &signer, seed: vector<u8>) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
-        assert_manager_initialized(manager_addr);
-        let account = borrow_global_mut<ManagerAccount>(manager_addr);
 
+        assert_manager_initialized(manager_addr);
+
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        // get vault id and update next id
         let vault_id = account.next_vault_id;
         account.next_vault_id = account.next_vault_id + 1;
 
+        // create vault and add to manager vaults table
         let vault_cap = vault::new<BaseCoin>(manager, seed, vault_id);
         table::add(
             &mut account.vaults,
@@ -91,7 +93,8 @@ module satay::satay {
         coin::deposit(user_addr, base_coin);
     }
 
-    // Allows this strategy to access the vault. To be called by strategies.
+    // allows this strategy to access the vault
+    // called by strategies.
     public fun approve_strategy<Strategy : drop>(
         manager: &signer,
         vault_id: u64,
@@ -105,15 +108,18 @@ module satay::satay {
         vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type, debt_ratio);
     }
 
+    // return vault_cap for strategies to use
     public fun lock_vault<Strategy: drop>(
         manager_addr: address,
         vault_id: u64,
         _witness: Strategy
     ): (VaultCapability, VaultCapLock) acquires ManagerAccount {
         assert_manager_initialized(manager_addr);
-        let account = borrow_global_mut<ManagerAccount>(manager_addr);
 
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+
+        // assert that strategy is approved for vault
         assert!(
             vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)),
             ERR_STRATEGY
@@ -123,20 +129,20 @@ module satay::satay {
         (vault_cap, VaultCapLock { vault_id })
     }
 
+    // returns vault_cap to vault after strategy has completed operation
     public fun unlock_vault<Strategy: drop>(
         manager_addr: address,
         vault_capability: VaultCapability,
         stop_handle: VaultCapLock
     ) acquires ManagerAccount {
+        // assert that correct VaultCapLock for VaultCapability is passed
         let VaultCapLock { vault_id } = stop_handle;
-        // TODO: think about how to prevent wrong VaultCapability passed here by using this VaultCapLock fields
         assert!(
             vault::vault_cap_has_id(&vault_capability, vault_id),
             ERR_VAULT_CAP
         );
 
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
-
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         assert!(
             vault::has_strategy<Strategy>(&vault_capability),
@@ -145,16 +151,13 @@ module satay::satay {
         option::fill(&mut vault_info.vault_cap, vault_capability);
     }
 
-    fun assert_manager_initialized(manager_addr: address) {
-        assert!(exists<ManagerAccount>(manager_addr), ERR_MANAGER);
-    }
-
     public fun get_next_vault_id(manager_addr: address) : u64 acquires ManagerAccount {
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         account.next_vault_id
     }
 
+    // checks if vault_id for manager has StrategyType approved
     public fun has_strategy<StrategyType: drop>(
         manager: &signer,
         vault_id: u64,
@@ -166,20 +169,26 @@ module satay::satay {
         vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
     }
 
-    public fun get_vault_address_by_id(manager_addr: address, id: u64) : address acquires ManagerAccount {
+    // get vault address for (manager_addr, vault_id)
+    public fun get_vault_address_by_id(manager_addr: address, vault_id: u64) : address acquires ManagerAccount {
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
-        let vault_info = table::borrow_mut(&mut account.vaults, id);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         let vault_cap = option::borrow(&mut vault_info.vault_cap);
         get_vault_addr(vault_cap)
     }
 
-    public fun get_vault_total_asset<CoinType>(manager_addr: address, id: u64) : u64 acquires ManagerAccount {
+    // get total assets for (manager_addr, vault_id)
+    public fun get_vault_total_asset<CoinType>(manager_addr: address, vault_id: u64) : u64 acquires ManagerAccount {
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
-        let vault_info = table::borrow_mut(&mut account.vaults, id);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         let vault_cap = option::borrow(&mut vault_info.vault_cap);
         vault::total_assets<CoinType>(vault_cap)
+    }
+
+    fun assert_manager_initialized(manager_addr: address) {
+        assert!(exists<ManagerAccount>(manager_addr), ERR_MANAGER);
     }
 
     #[test_only]
