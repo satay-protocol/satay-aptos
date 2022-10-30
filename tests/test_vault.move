@@ -108,7 +108,7 @@ module satay::test_vault {
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
-        vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
+        vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
 
         assert!(vault::balance<USDT>(&vault_cap) == 100, 0);
         assert!(vault::is_vault_coin_registered<USDT>(signer::address_of(&user)), 1);
@@ -132,8 +132,8 @@ module satay::test_vault {
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
-        vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
-        let base_coins = vault::withdraw_as_user(&user, &vault_cap, 100);
+        vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
+        let base_coins = vault::test_withdraw_as_user(&user, &vault_cap, 100);
         coin::deposit<USDT>(signer::address_of(&user), base_coins);
         assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(&user)) == 0, 2);
     }
@@ -154,13 +154,13 @@ module satay::test_vault {
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 1000);
-        vault::deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 500));
+        vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 500));
         vault::deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 500));
 
         assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(&user)) == 500, 5);
         assert!(coin::balance<USDT>(signer::address_of(&user)) == 0, 4);
 
-        let base_coins = vault::withdraw_as_user(&user, &vault_cap, 500);
+        let base_coins = vault::test_withdraw_as_user(&user, &vault_cap, 500);
         coin::deposit<USDT>(signer::address_of(&user), base_coins);
 
         assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(&user)) == 0, 2);
@@ -180,7 +180,7 @@ module satay::test_vault {
         setup_tests(&coin_admin, &user);
 
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
-        vault::approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>(), 1000);
+        vault::test_approve_strategy<AptosUsdcLpStrategy>(&vault_cap, type_info::type_of<AptosUsdcLpStrategy>(), 1000);
         assert!(vault::has_strategy<AptosUsdcLpStrategy>(&vault_cap), 2);
     }
 
@@ -205,24 +205,24 @@ module satay::test_vault {
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&userA), 10000);
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&userB), 10000);
-        vault::deposit_as_user<USDT>(&userA, &vault_cap, coin::withdraw<USDT>(&userA, 100));
+        vault::test_deposit_as_user<USDT>(&userA, &vault_cap, coin::withdraw<USDT>(&userA, 100));
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(&userA)) == 100, ERR_INCORRECT_AMOUNT);
 
         // userB deposit 1000 coins
         // @dev: userB should get 10x token than userA
-        vault::deposit_as_user<USDT>(&userB, &vault_cap, coin::withdraw<USDT>(&userB, 1000));
+        vault::test_deposit_as_user<USDT>(&userB, &vault_cap, coin::withdraw<USDT>(&userB, 1000));
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(&userB)) == 1000, ERR_INCORRECT_AMOUNT);
 
         // userA deposit 400 coins
         // userA should have 500 shares in total
-        vault::deposit_as_user<USDT>(&userA, &vault_cap, coin::withdraw<USDT>(&userA, 400));
+        vault::test_deposit_as_user<USDT>(&userA, &vault_cap, coin::withdraw<USDT>(&userA, 400));
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(&userA)) == 500, ERR_INCORRECT_AMOUNT);
 
         vault::deposit(&vault_cap, coin::withdraw<USDT>(&userA, 300));
         // userA withdraw 500 shares
         // userA should withdraw (1500 + 300) / 1500 * 500
         let userA_prev_balance = coin::balance<USDT>(signer::address_of(&userA));
-        let coins = vault::withdraw_as_user<USDT>(&userA, &vault_cap, 500);
+        let coins = vault::test_withdraw_as_user<USDT>(&userA, &vault_cap, 500);
         coin::deposit<USDT>(signer::address_of(&userA), coins);
         let userA_after_balance = coin::balance<USDT>(signer::address_of(&userA));
         assert!(userA_after_balance - userA_prev_balance == 600, ERR_INCORRECT_AMOUNT);
