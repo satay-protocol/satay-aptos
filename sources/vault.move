@@ -11,6 +11,7 @@ module satay::vault {
     use aptos_framework::timestamp;
 
     friend satay::satay;
+    friend satay::base_strategy;
 
     const MAX_BPS: u64 = 10000; // 100%
     const MANAGEMENT_FEE: u64 = 200; // 2%
@@ -168,7 +169,7 @@ module satay::vault {
     // for strategies
 
     // create a new CoinStore for CoinType
-    public fun add_coin<CoinType>(vault_cap: &VaultCapability) {
+    public(friend) fun add_coin<CoinType>(vault_cap: &VaultCapability) {
         let owner = account::create_signer_with_capability(&vault_cap.storage_cap);
         move_to(
             &owner,
@@ -177,19 +178,19 @@ module satay::vault {
     }
 
     // deposit coin of CoinType into the vault
-    public fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
+    public(friend) fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
         coin::merge(&mut store.coin, coin);
     }
 
     // withdraw coin of CoinType from the vault
-    public fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore {
+    public(friend) fun withdraw<CoinType>(vault_cap: &VaultCapability, amount: u64): Coin<CoinType> acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
         coin::extract(&mut store.coin, amount)
     }
 
     // assesses fees when strategies return a profit
-    public fun assess_fees<StrategyType : drop, BaseCoin>(
+    public(friend) fun assess_fees<StrategyType : drop, BaseCoin>(
         gain: u64,
         delegated_assets: u64,
         vault_cap: &VaultCapability,
@@ -233,7 +234,7 @@ module satay::vault {
     }
 
     // update vault and strategy total_debt, given credit and debt_payment amounts
-    public fun update_total_debt<StrategyType: drop>(vault_cap: &mut VaultCapability, credit: u64, debt_payment: u64) acquires Vault, VaultStrategy {
+    public(friend) fun update_total_debt<StrategyType: drop>(vault_cap: &mut VaultCapability, credit: u64, debt_payment: u64) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
@@ -242,13 +243,13 @@ module satay::vault {
     }
 
     // report a gain for StrategyType
-    public fun report_gain<StrategyType: drop>(vault_cap: &mut VaultCapability, profit: u64) acquires VaultStrategy {
+    public(friend) fun report_gain<StrategyType: drop>(vault_cap: &mut VaultCapability, profit: u64) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.total_gain = strategy.total_gain + profit;
     }
 
     // report a loss for StrategyType
-    public fun report_loss<StrategyType: drop>(vault_cap: &mut VaultCapability, loss: u64) acquires Vault, VaultStrategy {
+    public(friend) fun report_loss<StrategyType: drop>(vault_cap: &mut VaultCapability, loss: u64) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
@@ -375,8 +376,19 @@ module satay::vault {
     }
 
     // calculates amount of BaseCoin to return given an amount of VaultCoin to burn
-    public fun calculate_amount_from_share<BaseCoin>(vault_cap: &VaultCapability, share: u64) : u64 acquires Vault, CoinStore {
+    public fun calculate_base_coin_amount_from_share<BaseCoin>(vault_cap: &VaultCapability, share: u64) : u64 acquires Vault, CoinStore {
         let total_assets = total_assets<BaseCoin>(vault_cap);
+        let share_total_supply_option = coin::supply<VaultCoin<BaseCoin>>();
+        let share_total_supply = option::get_with_default<u128>(&share_total_supply_option, 0);
+        total_assets * share / (share_total_supply as u64)
+    }
+
+    // calculates proportion of StrategyCoin to liquidate given an amount of VaultCoin
+    public fun calculate_strategy_coin_amount_from_share<BaseCoin, StrategyCoin>(
+        vault_cap: &VaultCapability,
+        share: u64
+    ) : u64 acquires CoinStore {
+        let total_assets = balance<StrategyCoin>(vault_cap);
         let share_total_supply_option = coin::supply<VaultCoin<BaseCoin>>();
         let share_total_supply = option::get_with_default<u128>(&share_total_supply_option, 0);
         total_assets * share / (share_total_supply as u64)
@@ -464,6 +476,22 @@ module satay::vault {
         amount: u64
     ) : Coin<BaseCoin> acquires Vault, CoinStore, Caps {
         withdraw_as_user(user, vault_cap, amount)
+    }
+
+    #[test_only]
+    public fun test_deposit<CoinType>(
+        vault_cap: &VaultCapability,
+        coins: Coin<CoinType>
+    ) acquires CoinStore {
+        deposit(vault_cap, coins);
+    }
+
+    #[test_only]
+    public fun test_withdraw<CoinType>(
+        vault_cap: &VaultCapability,
+        amount: u64
+    ) : Coin<CoinType> acquires CoinStore {
+        withdraw<CoinType>(vault_cap, amount)
     }
 
     #[test_only]
