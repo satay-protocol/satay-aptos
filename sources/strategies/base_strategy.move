@@ -130,6 +130,11 @@ module satay::base_strategy {
                 &mut to_apply,
                 vault::withdraw<BaseCoin>(vault_cap, credit - total_available)
             );
+            vault::update_total_debt<StrategyType>(
+                vault_cap,
+                credit - total_available,
+                0
+            )
         } else { // credit deficit, take from Strategy
             coin::merge(
                 &mut to_liquidate,
@@ -147,6 +152,13 @@ module satay::base_strategy {
         base_coins: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
+        if(coin::value(&base_coins) > 0){
+            vault::update_total_debt<StrategyType>(
+                &mut vault_cap,
+                0,
+                coin::value(&base_coins)
+            );
+        };
         vault::deposit(&vault_cap, base_coins);
         vault::deposit(&vault_cap, strategy_coins);
         close_vault<StrategyType>(
