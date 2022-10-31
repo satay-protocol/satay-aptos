@@ -125,6 +125,8 @@ module satay::base_strategy {
             vault::deposit<BaseCoin>(&vault_cap, coins);
         };
 
+        vault::report<BaseStrategy>(&mut vault_cap);
+
         satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
@@ -252,6 +254,8 @@ module satay::base_strategy {
             let coins = liquidate_position<BaseCoin>(manager_addr, total_available - credit);
             vault::deposit<BaseCoin>(&vault_cap, coins);
         };
+
+        vault::report<BaseStrategy>(&mut vault_cap);
 
         satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
 
