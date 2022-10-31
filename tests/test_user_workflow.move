@@ -14,12 +14,11 @@ module satay::test_user_workflow {
     use aptos_framework::aptos_coin;
     use liquidswap_lp::lp_coin::LP;
     use satay::satay;
-    use satay::base_strategy;
     use satay::staking_pool;
     use satay::dao_storage;
     use satay::vault;
-    use satay::satay::{get_vault_address_by_id, get_vault_total_asset};
     use aptos_framework::timestamp;
+    use satay::simple_staking_strategy;
 
     #[test_only]
     fun setup_tests(
@@ -73,8 +72,8 @@ module satay::test_user_workflow {
         test_account::create_account(staking_pool_admin);
         satay::initialize(manager_acc);
         satay::new_vault<USDT>(manager_acc, b"aptos_vault");
-        base_strategy::initialize(manager_acc, 0, b"test", 10000);
-        staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);
+        simple_staking_strategy::initialize(manager_acc, 0, 10000);
+        staking_pool::initialize<USDT, AptosCoin>(manager_acc);
         staking_pool::deposit_rewards<AptosCoin>(user, 10000);
     }
 
@@ -97,33 +96,33 @@ module satay::test_user_workflow {
         test_account::create_account(userB);
         coin::register<USDT>(userB);
 
-        let vault_address = get_vault_address_by_id(signer::address_of(manager_acc), 0);
+        let vault_address = satay::get_vault_address_by_id(signer::address_of(manager_acc), 0);
         coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
         satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
         // userA balance on the vault is 100
-        base_strategy::harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+        simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
         // first time to do harvest so no fees removed
         // userA balance on the vault is 100 + 9 (reward)
         assert!(check_dao_fee(vault_address) == 0, 1);
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(user)) == 100, 1);
 
         timestamp::fast_forward_seconds(1000);
-        base_strategy::harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+        simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
         // management fee 9/2 = 4 removed for fee
         // userA balance on the vault is 109 + 9 - 4 = 114
-        assert!(get_vault_total_asset<USDT>(signer::address_of(manager_acc), 0) == 118, 1);
+        assert!(satay::get_vault_total_asset<USDT>(signer::address_of(manager_acc), 0) == 118, 1);
         assert!(check_dao_fee(vault_address) == 3, 1);
 
         // userB deposits 50
         coins::mint_coin<USDT>(token_admin, signer::address_of(userB), 50);
         satay::deposit<USDT>(userB, signer::address_of(manager_acc), 0, 50);
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(userB)) == 43, 1);
-        base_strategy::harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+        simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
         assert!(check_dao_fee(vault_address) == 5, 1);
 
         // userA withdraws 100 share token
         let user_before_amount = coin::balance<USDT>(signer::address_of(user));
-        base_strategy::withdraw_from_user<USDT>(user, signer::address_of(manager_acc), 0, 100);
+        simple_staking_strategy::withdraw_for_user<USDT>(user, signer::address_of(manager_acc), 0, 100);
         satay::withdraw<USDT>(user, signer::address_of(manager_acc), 0, 100);
         let user_after_amount = coin::balance<USDT>(signer::address_of(user));
         assert!(user_after_amount - user_before_amount == 119, 1);
