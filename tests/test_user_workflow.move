@@ -117,6 +117,7 @@ module satay::test_user_workflow {
         coins::mint_coin<USDT>(token_admin, signer::address_of(userB), 50);
         satay::deposit<USDT>(userB, signer::address_of(manager_acc), 0, 50);
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(userB)) == 43, 1);
+        timestamp::fast_forward_seconds(1000);
         simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
         assert!(check_dao_fee(vault_address) == 5, 1);
 

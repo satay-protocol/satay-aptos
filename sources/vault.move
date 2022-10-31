@@ -200,6 +200,7 @@ module satay::vault {
 
         let duration = timestamp::now_seconds() - strategy.last_report;
 
+
         if (duration == 0 || gain == 0) {
             return
         };
@@ -240,6 +241,12 @@ module satay::vault {
 
         vault.total_debt = vault.total_debt + credit - debt_payment;
         strategy.total_debt = strategy.total_debt + credit - debt_payment;
+    }
+
+    // report time for StrategyType
+    public(friend) fun report<StrategyType: drop>(vault_cap: &mut VaultCapability) acquires VaultStrategy {
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.last_report = timestamp::now_seconds();
     }
 
     // report a gain for StrategyType

@@ -130,11 +130,6 @@ module satay::base_strategy {
                 &mut to_apply,
                 vault::withdraw<BaseCoin>(vault_cap, credit - total_available)
             );
-            vault::update_total_debt<StrategyType>(
-                vault_cap,
-                credit - total_available,
-                0
-            )
         } else { // credit deficit, take from Strategy
             coin::merge(
                 &mut to_liquidate,
@@ -152,15 +147,9 @@ module satay::base_strategy {
         base_coins: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
-        if(coin::value(&base_coins) > 0){
-            vault::update_total_debt<StrategyType>(
-                &mut vault_cap,
-                0,
-                coin::value(&base_coins)
-            );
-        };
         vault::deposit(&vault_cap, base_coins);
         vault::deposit(&vault_cap, strategy_coins);
+        vault::report<StrategyType>(&mut vault_cap);
         close_vault<StrategyType>(
             manager_addr,
             vault_cap,
@@ -170,6 +159,7 @@ module satay::base_strategy {
 
     // returns any realized profits, realized losses incurred, and debt payments to be made
     // called by harvest
+    // TODO: strategy_balance should be denoted in BaseCoin
     public fun prepare_return<StrategyType: drop, BaseCoin>(
         vault_cap: &VaultCapability,
         strategy_balance: u64
