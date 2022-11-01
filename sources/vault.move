@@ -218,7 +218,6 @@ module satay::vault {
 
         let duration = timestamp::now_seconds() - strategy.last_report;
 
-
         if (duration == 0 || gain == 0) {
             return
         };
