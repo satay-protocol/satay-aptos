@@ -169,15 +169,18 @@ module satay::vault {
     public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
         vault_cap: &VaultCapability,
         debt_ratio: u64
-    ) acquires Vault, VaultStrategy {
+    ): u64 acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        let old_debt_ratio = strategy.debt_ratio;
 
-        vault.debt_ratio = vault.debt_ratio - strategy.debt_ratio + debt_ratio;
+        vault.debt_ratio = vault.debt_ratio - old_debt_ratio + debt_ratio;
         strategy.debt_ratio = debt_ratio;
 
         // check if the strategy's updated debt ratio is valid
         assert!(vault.debt_ratio <= MAX_BPS, ERR_INVALID_DEBT_RATIO);
+
+        old_debt_ratio
     }
 
     // for strategies
@@ -368,6 +371,12 @@ module satay::vault {
     public fun total_debt<StrategyType: drop>(vault_cap: &VaultCapability) : u64 acquires VaultStrategy {
         let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.total_debt
+    }
+
+    // gets the debt ratio for a given StrategyType
+    public fun debt_ratio<StrategyType: drop>(vault_cap: &VaultCapability) : u64 acquires VaultStrategy {
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.debt_ratio
     }
 
     // check the CoinType balance of the vault
