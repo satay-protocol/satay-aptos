@@ -165,6 +165,21 @@ module satay::vault {
         vault.debt_ratio = vault.debt_ratio + debt_ratio;
     }
 
+    // update strategy debt ratio
+    public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
+        vault_cap: &VaultCapability,
+        debt_ratio: u64
+    ) acquires Vault, VaultStrategy {
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+
+        vault.debt_ratio = vault.debt_ratio - strategy.debt_ratio + debt_ratio;
+        strategy.debt_ratio = debt_ratio;
+
+        // check if the strategy's updated debt ratio is valid
+        assert!(vault.debt_ratio <= MAX_BPS, ERR_INVALID_DEBT_RATIO);
+    }
+
     // for strategies
 
     // create a new CoinStore for CoinType

@@ -211,5 +211,24 @@ module satay::test_base_strategy {
         assert!(total_available == 14, 0);
         assert!(credit == 0, 1);
     }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45
+    )]
+    fun test_harvest_with_new_debt_ratio(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+
+        base_strategy::update_debt_ratio(manager_acc, 0, 500);
+
+        let (total_available, credit) = base_strategy::test_harvest<AptosCoin, USDT>(signer::address_of(manager_acc), 0);
+
+        assert!(total_available == 9, 0);
+        assert!(credit == 5, 1);
+    }
 }
 

@@ -47,6 +47,11 @@ module satay::base_strategy {
         satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
+    // update the strategy debt ratio
+    public entry fun update_debt_ratio(manager: &signer, vault_id: u64, debt_ratio: u64) {
+        satay::update_strategy_debt_ratio<BaseStrategy>(manager, vault_id, debt_ratio);
+    }
+
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
     public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, share_amount: u64) acquires StrategyCapability {
         let witness = BaseStrategy {};
@@ -93,6 +98,11 @@ module satay::base_strategy {
 
 
         let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
+
+        // profit to report
+        if (profit > 0) {
+            vault::report_gain<BaseStrategy>(&mut vault_cap, profit);
+        };
 
         // loss to report, do it before the rest of the calculation
         if (loss > 0) {
