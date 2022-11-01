@@ -72,7 +72,7 @@ module satay::staking_pool {
         coin::extract(&mut coinStore.coin, 10)
     }
 
-    public fun balance_of(user_addr : address) : u64 {
-        coin::balance<StakingCoin>(user_addr)
+    public fun get_base_coin_for_staking_coin(share_token_amount: u64) : u64 {
+        share_token_amount
     }
 }

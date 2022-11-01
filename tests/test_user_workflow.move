@@ -1,24 +1,30 @@
 #[test_only]
 module satay::test_user_workflow {
-    use satay::global_config;
-    use aptos_framework::stake;
-    use test_coins::coins;
-    use test_helpers::test_account;
-    use liquidswap::lp_account;
-    use liquidswap::liquidity_pool;
-    use test_coins::coins::USDT;
-    use aptos_framework::aptos_coin::AptosCoin;
-    use liquidswap::curves::Uncorrelated;
+
     use std::signer;
+
     use aptos_framework::coin;
     use aptos_framework::aptos_coin;
-    use liquidswap_lp::lp_coin::LP;
+    use aptos_framework::stake;
+    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::timestamp;
+
+    use satay::global_config;
     use satay::satay;
     use satay::staking_pool;
     use satay::dao_storage;
     use satay::vault;
-    use aptos_framework::timestamp;
     use satay::simple_staking_strategy;
+    use satay::vault::{VaultCoin};
+
+    use liquidswap::lp_account;
+    use liquidswap::liquidity_pool;
+    use liquidswap_lp::lp_coin::LP;
+    use liquidswap::curves::Uncorrelated;
+
+    use test_coins::coins::{Self, USDT};
+    use test_helpers::test_account;
+    // use aptos_std::debug;
 
     #[test_only]
     fun setup_tests(
@@ -101,10 +107,11 @@ module satay::test_user_workflow {
         satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
         // userA balance on the vault is 100
         simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
+        // debug::print(&satay::get_vault_total_asset<USDT>(signer::address_of(manager_acc), 0));
         // first time to do harvest so no fees removed
         // userA balance on the vault is 100 + 9 (reward)
         assert!(check_dao_fee(vault_address) == 0, 1);
-        assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(user)) == 100, 1);
+        assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(user)) == 100, 1);
 
         timestamp::fast_forward_seconds(1000);
         simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
