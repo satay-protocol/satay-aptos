@@ -1,289 +1,274 @@
 module satay::base_strategy {
 
     use aptos_framework::coin::{Coin};
+    use satay::staking_pool::{Self};
+    use liquidswap::router;
+    use liquidswap::curves::Uncorrelated;
     use std::signer;
     use satay::satay;
     use aptos_std::type_info;
-    use satay::vault::{Self, VaultCapability};
+    use satay::vault;
+    use satay::vault::{VaultCapability};
+    use aptos_framework::account::{SignerCapability, create_signer_with_capability};
+    use aptos_framework::account;
     use aptos_framework::coin;
-    use satay::satay::VaultCapLock;
+
+    // witness for the strategy
+    // used for checking approval when locking and unlocking vault
+    struct BaseStrategy has drop {}
+
+    // To be replaced by the PositionCoin which will be returned by the strategy
+    struct PoolBaseCoin has store {}
+
+    struct StrategyCapability has key {
+        strategy_cap: SignerCapability,
+    }
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
     const ERR_LOSS: u64 = 303;
 
     // initialize vault_id to accept strategy
-    public fun initialize<StrategyType: drop, StrategyCoin>(manager: &signer, vault_id: u64, debt_ratio: u64, witness: StrategyType) {
-        // approve strategy on vault
-        satay::approve_strategy<StrategyType>(manager, vault_id, type_info::type_of<StrategyCoin>(), debt_ratio);
+    public entry fun initialize(manager: &signer, vault_id: u64, seed: vector<u8>, debt_ratio: u64) {
+        // create strategy resource account and store its capability in the manager's account
+        let (_, strategy_cap) = account::create_resource_account(manager, seed);
+        move_to(manager, StrategyCapability {strategy_cap});
 
-        // add a CoinStore for the StrategyCoin
+        // approve strategy on vault
+        satay::approve_strategy<BaseStrategy>(manager, vault_id, type_info::type_of<PoolBaseCoin>(), debt_ratio);
+
+        // add a CoinStore for the PoolBaseCoin
         let manager_addr = signer::address_of(manager);
-        let (vault_cap, stop_handle) = satay::lock_vault<StrategyType>(manager_addr, vault_id, witness);
-        if (!vault::has_coin<StrategyCoin>(&vault_cap)) {
-            vault::add_coin<StrategyCoin>(&vault_cap);
+        let witness = BaseStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, witness);
+        if (!vault::has_coin<PoolBaseCoin>(&vault_cap)) {
+            vault::add_coin<PoolBaseCoin>(&vault_cap);
         };
-        satay::unlock_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
+        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
-    // for withdraw_for_user
-    // reclaim funds from StrategyType when vault does not have enough BaseCoin given a share_amount
+    // update the strategy debt ratio
+    public entry fun update_debt_ratio(manager: &signer, vault_id: u64, debt_ratio: u64) {
+        satay::update_strategy_debt_ratio<BaseStrategy>(manager, vault_id, debt_ratio);
+    }
 
-    // open vault, returing StrategyCoin to liquidate, VaultCapability, and VaultCapLock
-    public fun open_vault_for_user_withdraw<StrategyType: drop, BaseCoin, StrategyCoin>(
-        user: &signer,
-        manager_addr: address,
-        vault_id: u64,
-        share_amount: u64,
-        witness: StrategyType
-    ) : (Coin<StrategyCoin>, VaultCapability, VaultCapLock) {
-        let (vault_cap, stop_handle) = open_vault<StrategyType>(manager_addr, vault_id, witness);
+    // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
+    public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, share_amount: u64) acquires StrategyCapability {
+        let witness = BaseStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, witness);
 
         // check if user is eligible to withdraw
         let user_share_amount = coin::balance<vault::VaultCoin<BaseCoin>>(signer::address_of(user));
         assert!(user_share_amount >= share_amount, ERR_NOT_ENOUGH_FUND);
 
         // check if vault has enough balance
-        let user_amount = vault::calculate_base_coin_amount_from_share<BaseCoin>(&vault_cap, share_amount);
+        let user_amount = vault::calculate_amount_from_share<BaseCoin>(&vault_cap, share_amount);
         assert!(vault::balance<BaseCoin>(&vault_cap) < user_amount, ERR_ENOUGH_BALANCE_ON_VAULT);
 
-        let strategy_coins_amount = vault::calculate_strategy_coin_amount_from_share<BaseCoin, StrategyCoin>(
-            &vault_cap,
-            share_amount
-        );
-        let strategy_coins_to_liquidate = vault::withdraw<StrategyCoin>(
-            &vault_cap,
-            strategy_coins_amount
-        );
-
-        (strategy_coins_to_liquidate, vault_cap, stop_handle)
-    }
-
-
-    public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
-        manager_addr: address,
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock,
-        coins: Coin<BaseCoin>,
-    ) {
-        vault::update_total_debt<StrategyType>(&mut vault_cap, 0, coin::value(&coins));
+        // reclaim user_amount to vault
+        let coins = liquidate_position<BaseCoin>(manager_addr, user_amount);
+        vault::update_total_debt<BaseStrategy>(&mut vault_cap, 0, coin::value(&coins));
         vault::deposit<BaseCoin>(&vault_cap, coins);
-        close_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
+
+        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
-    // for harvest
-
-    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin>(
-        manager: &signer,
-        vault_id: u64,
-        witness: StrategyType,
-    ) :  (VaultCapability, VaultCapLock) {
-        open_vault<StrategyType>(
-            signer::address_of(manager),
-            vault_id,
-            witness
-        )
+    // adds BaseCoin to 3rd party protocol to get yield
+    // if 3rd party protocol returns a coin, it should be sent to the vault
+    fun apply_position<BaseCoin>(manager_addr : address, coins: Coin<BaseCoin>) acquires StrategyCapability {
+        let signer = get_signer_cap(manager_addr);
+        staking_pool::deposit(&signer, coins);
     }
 
-    public fun deposit_strategy_coin<StrategyCoin>(
-        vault_cap: &VaultCapability,
-        strategy_coins: Coin<StrategyCoin>
-    ) {
-        vault::deposit<StrategyCoin>(vault_cap, strategy_coins);
+    // removes BaseCoin from 3rd party protocol to get yield
+    fun liquidate_position<BaseCoin>(manager_addr: address, amount: u64): Coin<BaseCoin> acquires StrategyCapability {
+        let signer = get_signer_cap(manager_addr);
+        staking_pool::withdraw<BaseCoin>(&signer, amount)
     }
 
-    public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
-        vault_cap: &mut VaultCapability,
-        witness: StrategyType
-    ) : (Coin<BaseCoin>, Coin<StrategyCoin>) {
+    // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
+    public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) acquires StrategyCapability {
+        let _witness = BaseStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
 
-        let strategy_balance = vault_balance<StrategyCoin>(vault_cap);
-        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(vault_cap, strategy_balance);
+        // claim rewards and swap them into BaseCoin
+        let coins = staking_pool::claimRewards<CoinType>(@staking_pool_manager);
+        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
+        apply_position<BaseCoin>(manager_addr, want_coins);
+
+
+        let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
+
+        // profit to report
+        if (profit > 0) {
+            vault::report_gain<BaseStrategy>(&mut vault_cap, profit);
+        };
 
         // loss to report, do it before the rest of the calculation
         if (loss > 0) {
-            let total_debt = vault::total_debt<StrategyType>(vault_cap);
+            let total_debt = vault::total_debt<BaseStrategy>(&vault_cap);
             assert!(total_debt >= loss, ERR_LOSS);
-            vault::report_loss<StrategyType>(vault_cap, loss);
+            vault::report_loss<BaseStrategy>(&mut vault_cap, loss);
         };
 
-        let credit = vault::credit_available<StrategyType, BaseCoin>(vault_cap);
-        let debt = vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap);
+        let credit = vault::credit_available<BaseStrategy, BaseCoin>(&vault_cap);
+        let debt = vault::debt_out_standing<BaseStrategy, BaseCoin>(&vault_cap);
         if (debt_payment > debt) {
             debt_payment = debt;
         };
 
         if (credit > 0 || debt_payment > 0) {
-            vault::update_total_debt<StrategyType>(vault_cap, credit, debt_payment);
+            vault::update_total_debt<BaseStrategy>(&mut vault_cap, credit, debt_payment);
         };
 
         let total_available = profit + debt_payment;
 
+        // assess fees for profits
         if (profit > 0) {
-            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, witness);
+            assess_fees<BaseCoin>(profit, &vault_cap);
         };
-
-        let to_apply= coin::zero<BaseCoin>();
-        let to_liquidate = coin::zero<StrategyCoin>();
         if (total_available < credit) { // credit surplus, give to Strategy
-            coin::merge(
-                &mut to_apply,
-                vault::withdraw<BaseCoin>(vault_cap, credit - total_available)
-            );
+            let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
+            apply_position<BaseCoin>(manager_addr, coins);
         } else { // credit deficit, take from Strategy
-            coin::merge(
-                &mut to_liquidate,
-                vault::withdraw<StrategyCoin>(vault_cap, total_available - credit)
-            );
+            let coins = liquidate_position<BaseCoin>(manager_addr, total_available - credit);
+            vault::deposit<BaseCoin>(&vault_cap, coins);
         };
 
-        (to_apply, to_liquidate)
+        vault::report<BaseStrategy>(&mut vault_cap);
+
+        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
-    public fun close_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
-        manager_addr: address,
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock,
-        base_coins: Coin<BaseCoin>,
-        strategy_coins: Coin<StrategyCoin>
-    ) {
-        vault::deposit(&vault_cap, base_coins);
-        vault::deposit(&vault_cap, strategy_coins);
-        vault::report<StrategyType>(&mut vault_cap);
-        close_vault<StrategyType>(
-            manager_addr,
-            vault_cap,
-            stop_handle
-        );
+    // get strategy signer cap for manager_addr
+    fun get_signer_cap(manager_addr : address) : signer acquires StrategyCapability {
+        let strategy_cap = borrow_global_mut<StrategyCapability>(manager_addr);
+        create_signer_with_capability(&strategy_cap.strategy_cap)
     }
 
     // returns any realized profits, realized losses incurred, and debt payments to be made
     // called by harvest
-    // TODO: strategy_balance should be denoted in BaseCoin
-    public fun prepare_return<StrategyType: drop, BaseCoin>(
-        vault_cap: &VaultCapability,
-        strategy_balance: u64
-    ) : (u64, u64, u64) {
+    fun prepare_return<BaseCoin>(vault_cap: &VaultCapability, manager_addr: address) : (u64, u64, u64) acquires StrategyCapability {
+        let signer = get_signer_cap(manager_addr);
 
         // get amount of strategy debt over limit
-        let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap);
+        let debt_out_standing = vault::debt_out_standing<BaseStrategy, BaseCoin>(vault_cap);
+        // balance of staking pool
+        let total_assets = staking_pool::balanceOf(signer::address_of(&signer));
         // strategy's total debt
-        let total_debt = vault::total_debt<StrategyType>(vault_cap);
+        let total_debt = vault::total_debt<BaseStrategy>(vault_cap);
 
         let profit = 0;
         let loss = 0;
         let debt_payment: u64;
         // staking pool has more BaseCoin than outstanding debt
-        if (strategy_balance > debt_out_standing) {
+        if (total_assets > debt_out_standing) {
             // amount to return = outstanding debt
             debt_payment = debt_out_standing;
             // amount in staking pool decreases by debt payment
-            strategy_balance = strategy_balance - debt_payment;
+            total_assets = total_assets - debt_payment;
         } else {
             // amount to return = all assets
-            debt_payment = strategy_balance;
-            strategy_balance = 0;
+            debt_payment = total_assets;
+            total_assets = 0;
         };
         total_debt = total_debt - debt_payment;
 
-        if (strategy_balance > total_debt) {
-            profit = strategy_balance - total_debt;
+        if (total_assets > total_debt) {
+            profit = total_assets - total_debt;
         } else {
-            loss = total_debt - strategy_balance;
+            loss = total_debt - total_assets;
         };
 
         (profit, loss, debt_payment)
     }
 
-    public fun vault_balance<CoinType>(
-        vault_cap: &VaultCapability
-    ) : u64 {
-        vault::balance<CoinType>(vault_cap)
-    }
-
     // calls a vault's assess_fees function for a specified gain amount
-    fun assess_fees<StrategyType: drop, BaseCoin>(gain: u64, vault_cap: &VaultCapability, witness: StrategyType) {
-        vault::assess_fees<StrategyType, BaseCoin>(gain, 0, vault_cap, witness);
+    fun assess_fees<BaseCoin>(gain: u64, vault_cap: &VaultCapability) {
+        vault::assess_fees<BaseStrategy, BaseCoin>(gain, 0, vault_cap, BaseStrategy {});
     }
 
-    fun open_vault<StrategyType: drop>(
-        manager_addr: address,
-        vault_id: u64,
-        witness: StrategyType
-    ) : (VaultCapability, VaultCapLock) {
-        satay::lock_vault<StrategyType>(manager_addr, vault_id, witness)
+    public fun name() : vector<u8> {
+        b"strategy-name"
     }
 
-    fun close_vault<StrategyType: drop>(
-        manager_addr: address,
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock
-    ) {
-        satay::unlock_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
+    public fun version() : vector<u8> {
+        b"0.0.1"
     }
 
-    // #[test_only]
-    // public fun test_prepare_return<CoinType, BaseCoin>(manager_addr: address, vault_id: u64): (u64, u64, u64) acquires StrategyCapability {
-    //     let _witness = BaseStrategy {};
-    //     let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
-    //
-    //     let coins = staking_pool::claimRewards<CoinType>(@staking_pool_manager);
-    //     let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
-    //     apply_position<BaseCoin>(manager_addr, want_coins);
-    //
-    //     let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
-    //
-    //     satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
-    //
-    //     (profit, loss, debt_payment)
-    // }
-    //
-    // #[test_only]
-    // public entry fun test_harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64): (u64, u64) acquires StrategyCapability {
-    //     let _witness = BaseStrategy {};
-    //     let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
-    //
-    //     let coins = staking_pool::claimRewards<CoinType>(@staking_pool_manager);
-    //     let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
-    //     apply_position<BaseCoin>(manager_addr, want_coins);
-    //
-    //     let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
-    //
-    //     // profit to report
-    //     if (profit > 0) {
-    //         vault::report_gain<BaseStrategy>(&mut vault_cap, profit);
-    //     };
-    //
-    //     // loss to report, do it before the rest of the calculation
-    //     if (loss > 0) {
-    //         let total_debt = vault::total_debt<BaseStrategy>(&vault_cap);
-    //         assert!(total_debt >= loss, ERR_LOSS);
-    //         vault::report_loss<BaseStrategy>(&mut vault_cap, loss);
-    //     };
-    //
-    //     let credit = vault::credit_available<BaseStrategy, BaseCoin>(&vault_cap);
-    //     let debt = vault::debt_out_standing<BaseStrategy, BaseCoin>(&vault_cap);
-    //     if (debt_payment > debt) {
-    //         debt_payment = debt;
-    //     };
-    //
-    //     if (credit > 0 || debt_payment > 0) {
-    //         vault::update_total_debt<BaseStrategy>(&mut vault_cap, credit, debt_payment);
-    //         // debt = debt - debt_payment;
-    //     };
-    //
-    //     let total_available = profit + debt_payment;
-    //
-    //     if (total_available < credit) { // credit surplus, give to Strategy
-    //         let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
-    //         apply_position<BaseCoin>(manager_addr, coins);
-    //     } else { // credit deficit, take from Strategy
-    //         let coins = liquidate_position<BaseCoin>(manager_addr, total_available - credit);
-    //         vault::deposit<BaseCoin>(&vault_cap, coins);
-    //     };
-    //
-    //     satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
-    //
-    //     (total_available, credit)
-    // }
+    // simple swap from CoinType to BaseCoin on Liquidswap
+    fun swap_to_want_token<CoinType, BaseCoin>(coins: Coin<CoinType>) : Coin<BaseCoin> {
+        // swap on liquidswap AMM
+        router::swap_exact_coin_for_coin<CoinType, BaseCoin, Uncorrelated>(
+            coins,
+            0
+        )
+    }
+
+    #[test_only]
+    public fun test_prepare_return<CoinType, BaseCoin>(manager_addr: address, vault_id: u64): (u64, u64, u64) acquires StrategyCapability {
+        let _witness = BaseStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
+
+        let coins = staking_pool::claimRewards<CoinType>(@staking_pool_manager);
+        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
+        apply_position<BaseCoin>(manager_addr, want_coins);
+
+        let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
+
+        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
+
+        (profit, loss, debt_payment)
+    }
+
+    #[test_only]
+    public entry fun test_harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64): (u64, u64) acquires StrategyCapability {
+        let _witness = BaseStrategy {};
+        let (vault_cap, stop_handle) = satay::lock_vault<BaseStrategy>(manager_addr, vault_id, _witness);
+
+        let coins = staking_pool::claimRewards<CoinType>(@staking_pool_manager);
+        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
+        apply_position<BaseCoin>(manager_addr, want_coins);
+
+        let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
+
+        // profit to report
+        if (profit > 0) {
+            vault::report_gain<BaseStrategy>(&mut vault_cap, profit);
+        };
+
+        // loss to report, do it before the rest of the calculation
+        if (loss > 0) {
+            let total_debt = vault::total_debt<BaseStrategy>(&vault_cap);
+            assert!(total_debt >= loss, ERR_LOSS);
+            vault::report_loss<BaseStrategy>(&mut vault_cap, loss);
+        };
+
+        let credit = vault::credit_available<BaseStrategy, BaseCoin>(&vault_cap);
+        let debt = vault::debt_out_standing<BaseStrategy, BaseCoin>(&vault_cap);
+        if (debt_payment > debt) {
+            debt_payment = debt;
+        };
+
+        if (credit > 0 || debt_payment > 0) {
+            vault::update_total_debt<BaseStrategy>(&mut vault_cap, credit, debt_payment);
+            // debt = debt - debt_payment;
+        };
+
+        let total_available = profit + debt_payment;
+
+        if (total_available < credit) { // credit surplus, give to Strategy
+            let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
+            apply_position<BaseCoin>(manager_addr, coins);
+        } else { // credit deficit, take from Strategy
+            let coins = liquidate_position<BaseCoin>(manager_addr, total_available - credit);
+            vault::deposit<BaseCoin>(&vault_cap, coins);
+        };
+
+        vault::report<BaseStrategy>(&mut vault_cap);
+
+        satay::unlock_vault<BaseStrategy>(manager_addr, vault_cap, stop_handle);
+
+        (total_available, credit)
+    }
 }
