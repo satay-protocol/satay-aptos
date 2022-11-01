@@ -16,8 +16,8 @@ module satay::test_vault {
     };
     use satay::vault::VaultCoin;
 
-    use satay::base_strategy::BaseStrategy;
     use aptos_std::type_info;
+    use satay::simple_staking_strategy::SimpleStakingStrategy;
 
     const ERR_INCORRECT_AMOUNT: u64 = 1001;
 
@@ -63,7 +63,7 @@ module satay::test_vault {
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
-        vault::deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
+        vault::test_deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
         assert!(vault::balance<USDT>(&vault_cap) == 100, 0);
     }
 
@@ -83,10 +83,10 @@ module satay::test_vault {
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
-        vault::deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
+        vault::test_deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
 
         // withdraw from vault
-        let coin = vault::withdraw<USDT>(&vault_cap, 100);
+        let coin = vault::test_withdraw<USDT>(&vault_cap, 100);
         coin::deposit<USDT>(signer::address_of(&user), coin);
 
         assert!(vault::balance<USDT>(&vault_cap) == 0, 0);
@@ -155,7 +155,7 @@ module satay::test_vault {
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 1000);
         vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 500));
-        vault::deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 500));
+        vault::test_deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 500));
 
         assert!(coin::balance<VaultCoin<USDT>>(signer::address_of(&user)) == 500, 5);
         assert!(coin::balance<USDT>(signer::address_of(&user)) == 0, 4);
@@ -180,8 +180,8 @@ module satay::test_vault {
         setup_tests(&coin_admin, &user);
 
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
-        vault::test_approve_strategy<BaseStrategy>(&vault_cap, type_info::type_of<BaseStrategy>(), 1000);
-        assert!(vault::has_strategy<BaseStrategy>(&vault_cap), 2);
+        vault::test_approve_strategy<SimpleStakingStrategy>(&vault_cap, type_info::type_of<SimpleStakingStrategy>(), 1000);
+        assert!(vault::has_strategy<SimpleStakingStrategy>(&vault_cap), 2);
     }
 
     // TODO: check share calculation is correct when non_USDT deposited
@@ -218,7 +218,7 @@ module satay::test_vault {
         vault::test_deposit_as_user<USDT>(&userA, &vault_cap, coin::withdraw<USDT>(&userA, 400));
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(&userA)) == 500, ERR_INCORRECT_AMOUNT);
 
-        vault::deposit(&vault_cap, coin::withdraw<USDT>(&userA, 300));
+        vault::test_deposit(&vault_cap, coin::withdraw<USDT>(&userA, 300));
         // userA withdraw 500 shares
         // userA should withdraw (1500 + 300) / 1500 * 500
         let userA_prev_balance = coin::balance<USDT>(signer::address_of(&userA));

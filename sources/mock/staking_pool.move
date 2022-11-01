@@ -1,7 +1,9 @@
 module satay::staking_pool {
-    use aptos_framework::coin::{Self, Coin};
-    use aptos_std::simple_map;
+
+    use aptos_framework::coin::{Self, Coin, BurnCapability, FreezeCapability, MintCapability};
+
     use std::signer;
+    use std::string;
 
     const ERR_NOT_REGISTERED_USER: u64 = 501;
 
@@ -9,61 +11,68 @@ module satay::staking_pool {
         coin: Coin<CoinType>
     }
 
-    struct PoolData has key {
-        user_info: simple_map::SimpleMap<address, u64>
+    struct StakingCoin {}
+
+    struct StakingCoinCaps has key {
+        burn_cap: BurnCapability<StakingCoin>,
+        freeze_cap: FreezeCapability<StakingCoin>,
+        mint_cap: MintCapability<StakingCoin>,
     }
 
     public fun initialize<BaseCoinType, RewardCoinType>(account: &signer) {
+        // only staking pool manager can initialize
+        assert!(signer::address_of(account) == @satay, 1);
         move_to(account, CoinStore<BaseCoinType> {
             coin: coin::zero()
         });
         move_to(account, CoinStore<RewardCoinType> {
             coin: coin::zero()
         });
-        move_to(account, PoolData {
-            user_info: simple_map::create()
-        });
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<StakingCoin>(
+            account,
+            string::utf8(b"Vault Token"),
+            string::utf8(b"Vault"),
+            8,
+            true
+        );
+        move_to(
+            account,
+            StakingCoinCaps {
+                burn_cap,
+                freeze_cap,
+                mint_cap
+            }
+        )
     }
 
     public fun deposit_rewards<CoinType>(owner: &signer, amount: u64) acquires CoinStore {
         let coins = coin::withdraw<CoinType>(owner, amount);
-        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@staking_pool_manager);
+        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
         coin::merge(&mut coinStore.coin, coins);
     }
 
-    public fun deposit<CoinType>(owner: &signer, coins: Coin<CoinType>) acquires CoinStore, PoolData {
-        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@staking_pool_manager);
-        let pool_data = borrow_global_mut<PoolData>(@staking_pool_manager);
-        if (simple_map::contains_key(&pool_data.user_info, &signer::address_of(owner))) {
-            let user_amount = simple_map::borrow_mut(&mut pool_data.user_info, &signer::address_of(owner));
-            *user_amount = *user_amount + coin::value(&coins);
-        } else {
-            simple_map::add(&mut pool_data.user_info, signer::address_of(owner), coin::value(&coins));
-        };
+    public fun deposit<CoinType>(coins: Coin<CoinType>) : Coin<StakingCoin> acquires CoinStore, StakingCoinCaps {
+        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
+        let coin_caps = borrow_global_mut<StakingCoinCaps>(@satay);
+        let amount = coin::value(&coins);
         coin::merge(&mut coinStore.coin, coins);
+        coin::mint<StakingCoin>(amount, &coin_caps.mint_cap)
     }
 
-    public fun withdraw<CoinType>(owner: &signer, amount: u64) : Coin<CoinType> acquires CoinStore, PoolData {
-        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@staking_pool_manager);
-        let pool_data = borrow_global_mut<PoolData>(@staking_pool_manager);
-        assert!(simple_map::contains_key(&pool_data.user_info, &signer::address_of(owner)), ERR_NOT_REGISTERED_USER);
-        let user_amount = simple_map::borrow_mut(&mut pool_data.user_info, &signer::address_of(owner));
-        *user_amount = *user_amount - amount;
+    public fun withdraw<CoinType>(coins: Coin<StakingCoin>) : Coin<CoinType> acquires CoinStore, StakingCoinCaps {
+        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
+        let coin_caps = borrow_global_mut<StakingCoinCaps>(@satay);
+        let amount = coin::value(&coins);
+        coin::burn(coins, &coin_caps.burn_cap);
         coin::extract(&mut coinStore.coin, amount)
     }
 
-    public fun claimRewards<CoinType>(manager_addr: address) : Coin<CoinType> acquires CoinStore {
-        let coinStore = borrow_global_mut<CoinStore<CoinType>>(manager_addr);
+    public fun claimRewards<CoinType>() : Coin<CoinType> acquires CoinStore {
+        let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
         coin::extract(&mut coinStore.coin, 10)
     }
 
-    public fun balanceOf(user_addr : address) : u64 acquires PoolData {
-        let pool_data = borrow_global_mut<PoolData>(@staking_pool_manager);
-        assert!(simple_map::contains_key(&pool_data.user_info, &user_addr), ERR_NOT_REGISTERED_USER);
-
-        // for testing purpose!
-        let pool_data = borrow_global_mut<PoolData>(@staking_pool_manager);
-        assert!(simple_map::contains_key(&pool_data.user_info, &user_addr), ERR_NOT_REGISTERED_USER);
-        *simple_map::borrow(&pool_data.user_info, &user_addr)
+    public fun get_base_coin_for_staking_coin(share_token_amount: u64) : u64 {
+        share_token_amount
     }
 }
