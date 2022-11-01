@@ -52,6 +52,17 @@ module satay::base_strategy {
         satay::update_strategy_debt_ratio<BaseStrategy>(manager, vault_id, debt_ratio);
     }
 
+    // revoke the strategy
+    public entry fun revoke(manager: &signer, vault_id: u64) {
+        satay::update_strategy_debt_ratio<BaseStrategy>(manager, vault_id, 0);
+    }
+
+    // migrate to new strategy
+    public entry fun migrate_from<OldStrategy: drop>(manager: &signer, vault_id: u64, seed: vector<u8>) {
+        let debt_ratio = satay::update_strategy_debt_ratio<OldStrategy>(manager, vault_id, 0);
+        initialize(manager, vault_id, seed, debt_ratio);
+    }
+
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
     public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, share_amount: u64) acquires StrategyCapability {
         let witness = BaseStrategy {};
