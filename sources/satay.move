@@ -113,12 +113,12 @@ module satay::satay {
         manager: &signer,
         vault_id: u64,
         debt_ratio: u64
-    ) acquires ManagerAccount {
+    ): u64 acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        vault::update_strategy_debt_ratio<Strategy>(option::borrow(&vault_info.vault_cap), debt_ratio);
+        vault::update_strategy_debt_ratio<Strategy>(option::borrow(&vault_info.vault_cap), debt_ratio)
     }
 
     // return vault_cap for strategies to use
