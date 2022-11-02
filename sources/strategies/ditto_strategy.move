@@ -4,16 +4,19 @@ module satay::ditto_strategy {
     use satay::satay;
     use std::signer;
     use satay::vault;
-    use ditto::staked_coin::{StakedAptos};
     use aptos_framework::coin;
     use liquidswap_lp::lp_coin::LP;
     use aptos_framework::aptos_coin::AptosCoin;
     use liquidswap::curves::Stable;
     use aptos_framework::coin::Coin;
-    use ditto::ditto_staking;
     use liquidswap::scripts::add_liquidity;
     use liquidswap::router;
     use satay::vault::VaultCapability;
+    use ditto_staking::staked_coin::StakedAptos;
+    use ditto_staking::ditto_staking;
+    use ditto_interface::ditto_interface;
+    use liquidity_mining::liquidity_mining;
+    use liquidswap::router::{get_reserves_for_lp_coins, get_amount_out, remove_liquidity, swap_exact_coin_for_coin};
 
 
     // witness for the strategy
@@ -73,31 +76,47 @@ module satay::ditto_strategy {
 
     // adds BaseCoin to 3rd party protocol to get yield
     // if 3rd party protocol returns a coin, it should be sent to the vault
-    fun apply_position<BaseCoin>(vault_storage_signer : signer, aptos_amount: u64) acquires StrategyCapability {
-        ditto_staking::stake_aptos(&vault_storage_signer, aptos_amount / 2);
-        // stake stAPTOS-APTOS pool
-        let aptos_coins = coin::withdraw<AptosCoin>(&vault_storage_signer, aptos_balance - aptos_balance / 2);
-        let staked_aptos_coins = coin::withdraw<StakedAptos>(&strategy_signer, aptos_balance / 2);
-
+    fun apply_position<BaseCoin>(vault_cap: &VaultCapability, coins: Coin<AptosCoin>) acquires StrategyCapability {
+        let vault_storage_signer = vault::get_storage_signer(vault_cap);
+        // 1. exchange half of APT to stAPT
+        let half_aptos = coin::extract(&mut coins, coin::value<AptosCoin>(&coins) / 2);
+        let stAPT = ditto_staking::exchange_aptos(half_aptos, signer::address_of(&vault_storage_signer));
+        // 2. add liquidity with APT and stAPT
         // TODO: handle dust amount
         // convert stPAT using instant_exchange and send back to the vault
         let (_, _, lp) =
-            router::add_liquidity<StakedAptos, AptosCoin, Stable>(staked_aptos_coins, 1, aptos_coins, 1);
-
-        // stake LP token to ditto pool
-
+            router::add_liquidity<StakedAptos, AptosCoin, Stable>(stAPT, 1, half_aptos, 1);
+        let lp_amount = coin::value(&lp);
+        // 3. stake stAPTOS-APTOS pool for Ditto pre-mine program
+        vault::deposit<LP<StakedAptos, AptosCoin, Stable>>(vault_cap, lp);
+        liquidity_mining::stake<LP<StakedAptos, AptosCoin, Stable>>(&vault_storage_signer, lp_amount);
     }
 
     // removes BaseCoin from 3rd party protocol to get yield
-    fun liquidate_position<BaseCoin>(manager_addr: address, amount: u64): Coin<BaseCoin> acquires StrategyCapability {
-        let signer = get_signer_cap(manager_addr);
-        staking_pool::withdraw<BaseCoin>(&signer, amount)
+    // @param amount: aptos amount
+    fun liquidate_position(vault_cap: &VaultCapability, amount: u64): Coin<AptosCoin> {
+        let vault_storage_signer = vault::get_storage_signer(vault_cap);
+        // calcuate required LP token amount to withdraw
+        let (st_apt_amount, apt_amount) = get_reserves_for_lp_coins<StakedAptos, AptosCoin, Stable>(10000);
+        let stapt_to_apt_amount = get_amount_out<StakedAptos, AptosCoin, Stable>(st_apt_amount);
+        let lp_to_unstake = amount * 10000 / (stapt_to_apt_amount + apt_amount);
+        // withdraw and get apt coin
+        // liquidity_mining::redeem<LP<StakedAptos, AptosCoin, Stable>, DTOCoinType>()
+        liquidity_mining::unstake<LP<StakedAptos, AptosCoin, Stable>>(&vault_storage_signer, lp_to_unstake);
+        let lp_coins = coin::withdraw<LP<StakedAptos, AptosCoin, Stable>>(&vault_storage_signer, coin::balance<LP<StakedAptos, AptosCoin, Stable>>(signer::address_of(&vault_storage_signer)));
+        let (staked_aptos, aptos_coin) = remove_liquidity<StakedAptos, AptosCoin, Stable>(lp_coins, 1, 1);
+        let aptos_from_swap = swap_exact_coin_for_coin<StakedAptos, AptosCoin, Stable>(staked_aptos, 1);
+        coin::merge(&mut aptos_coin, aptos_from_swap);
+        aptos_coin
     }
 
     fun claim_rewards_from_ditto(): Coin<AptosCoin> {
-        // TODO: claim DTO rewards from LP staking pool
-        // convert DTO to APT
-        // return APT
+        // claim DTO rewards from LP staking pool
+        // FIXME: add DTO coin type
+        // liquidity_mining::redeem<LP<StakedAptos, AptosCoin, Stable>, DTOCoinType>()
+        // convert DTO to APT (DTO is not live on mainnet)
+        // proceed apply_position
+
         coin::zero<AptosCoin>()
     }
 
@@ -105,6 +124,7 @@ module satay::ditto_strategy {
     public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) acquires StrategyCapability {
         let (vault_cap, stop_handle) = satay::lock_vault<DittoStrategy>(manager_addr, vault_id, DittoStrategy {});
         // claim rewards and swap them into BaseCoin
+
         let coins = claim_rewards_from_ditto();
         // swap APT to stAPT
         ditto_staking::exchange_aptos(coins);
@@ -142,9 +162,9 @@ module satay::ditto_strategy {
         };
         if (total_available < credit) { // credit surplus, give to Strategy
             let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
-            apply_position<BaseCoin>(manager_addr, coins);
+            apply_position<BaseCoin>(&vault_cap, coins);
         } else { // credit deficit, take from Strategy
-            let coins = liquidate_position<BaseCoin>(manager_addr, total_available - credit);
+            let coins = liquidate_position(&vault_cap, total_available - credit);
             vault::deposit<BaseCoin>(&vault_cap, coins);
         };
 
