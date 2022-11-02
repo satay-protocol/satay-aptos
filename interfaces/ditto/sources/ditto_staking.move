@@ -16,4 +16,8 @@ module ditto::ditto_staking{
         coin::destroy_zero(staptos);
         coin::zero<AptosCoin>()
     }
+
+    public fun get_staked_balance(user_address: address): u64 {
+        return 0;
+    }
 }

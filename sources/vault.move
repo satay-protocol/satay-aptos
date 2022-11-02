@@ -276,6 +276,10 @@ module satay::vault {
         dao_storage::deposit<VaultCoin<BaseCoin>>(vault_cap.vault_addr, coins);
     }
 
+    public fun get_storage_signer(vault_cap: &VaultCapability): signer {
+        account::create_signer_with_capability(&vault_cap.storage_cap)
+    }
+
     // update vault and strategy total_debt, given credit and debt_payment amounts
     public(friend) fun update_total_debt<StrategyType: drop>(vault_cap: &mut VaultCapability, credit: u64, debt_payment: u64) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
