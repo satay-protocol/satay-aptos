@@ -9,12 +9,10 @@ module satay::ditto_strategy {
     use aptos_framework::aptos_coin::AptosCoin;
     use liquidswap::curves::Stable;
     use aptos_framework::coin::Coin;
-    use liquidswap::scripts::add_liquidity;
     use liquidswap::router;
     use satay::vault::VaultCapability;
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
-    use ditto_interface::ditto_interface;
     use liquidity_mining::liquidity_mining;
     use liquidswap::router::{get_reserves_for_lp_coins, get_amount_out, remove_liquidity, swap_exact_coin_for_coin};
 
@@ -55,7 +53,7 @@ module satay::ditto_strategy {
     }
 
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
-    public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, share_amount: u64) acquires StrategyCapability {
+    public fun withdraw_from_user<BaseCoin>(user: &signer, manager_addr: address, vault_id: u64, share_amount: u64) {
         let (vault_cap, stop_handle) = satay::lock_vault<DittoStrategy>(manager_addr, vault_id, DittoStrategy {});
 
         // check if user is eligible to withdraw
@@ -67,25 +65,28 @@ module satay::ditto_strategy {
         assert!(vault::balance<BaseCoin>(&vault_cap) < user_amount, ERR_ENOUGH_BALANCE_ON_VAULT);
 
         // reclaim user_amount to vault
-        let coins = liquidate_position<BaseCoin>(manager_addr, user_amount);
+        let coins = liquidate_position(&vault_cap, user_amount);
         vault::update_total_debt<DittoStrategy>(&mut vault_cap, 0, coin::value(&coins));
-        vault::deposit<BaseCoin>(&vault_cap, coins);
+        vault::deposit<AptosCoin>(&vault_cap, coins);
 
         satay::unlock_vault<DittoStrategy>(manager_addr, vault_cap, stop_handle);
     }
 
     // adds BaseCoin to 3rd party protocol to get yield
     // if 3rd party protocol returns a coin, it should be sent to the vault
-    fun apply_position<BaseCoin>(vault_cap: &VaultCapability, coins: Coin<AptosCoin>) acquires StrategyCapability {
+    fun apply_position(vault_cap: &VaultCapability, coins: Coin<AptosCoin>) {
         let vault_storage_signer = vault::get_storage_signer(vault_cap);
         // 1. exchange half of APT to stAPT
-        let half_aptos = coin::extract(&mut coins, coin::value<AptosCoin>(&coins) / 2);
+        let coin_amount = coin::value<AptosCoin>(&coins);
+        let half_aptos = coin::extract(&mut coins, coin_amount / 2);
         let stAPT = ditto_staking::exchange_aptos(half_aptos, signer::address_of(&vault_storage_signer));
         // 2. add liquidity with APT and stAPT
         // TODO: handle dust amount
         // convert stPAT using instant_exchange and send back to the vault
-        let (_, _, lp) =
-            router::add_liquidity<StakedAptos, AptosCoin, Stable>(stAPT, 1, half_aptos, 1);
+        let (rest_stk_apt, rest_apt, lp) =
+            router::add_liquidity<StakedAptos, AptosCoin, Stable>(stAPT, 1, coins, 1);
+        coin::merge(&mut rest_apt, swap_exact_coin_for_coin<StakedAptos, AptosCoin, Stable>(rest_stk_apt, 1));
+        vault::deposit(vault_cap, rest_apt);
         let lp_amount = coin::value(&lp);
         // 3. stake stAPTOS-APTOS pool for Ditto pre-mine program
         vault::deposit<LP<StakedAptos, AptosCoin, Stable>>(vault_cap, lp);
@@ -121,16 +122,15 @@ module satay::ditto_strategy {
     }
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
-    public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) acquires StrategyCapability {
+    public entry fun harvest<CoinType, BaseCoin>(manager_addr: address, vault_id: u64) {
         let (vault_cap, stop_handle) = satay::lock_vault<DittoStrategy>(manager_addr, vault_id, DittoStrategy {});
         // claim rewards and swap them into BaseCoin
 
         let coins = claim_rewards_from_ditto();
-        // swap APT to stAPT
-        ditto_staking::exchange_aptos(coins);
+        apply_position(&vault_cap, coins);
 
 
-        let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap, manager_addr);
+        let (profit, loss, debt_payment) = prepare_return<BaseCoin>(&vault_cap);
 
         // profit to report
         if (profit > 0) {
@@ -161,11 +161,11 @@ module satay::ditto_strategy {
             assess_fees<BaseCoin>(profit, &vault_cap);
         };
         if (total_available < credit) { // credit surplus, give to Strategy
-            let coins =  vault::withdraw<BaseCoin>(&vault_cap, credit - total_available);
-            apply_position<BaseCoin>(&vault_cap, coins);
+            let coins =  vault::withdraw<AptosCoin>(&vault_cap, credit - total_available);
+            apply_position(&vault_cap, coins);
         } else { // credit deficit, take from Strategy
             let coins = liquidate_position(&vault_cap, total_available - credit);
-            vault::deposit<BaseCoin>(&vault_cap, coins);
+            vault::deposit<AptosCoin>(&vault_cap, coins);
         };
 
         vault::report<DittoStrategy>(&mut vault_cap);
@@ -181,13 +181,13 @@ module satay::ditto_strategy {
 
     // returns any realized profits, realized losses incurred, and debt payments to be made
     // called by harvest
-    fun prepare_return<BaseCoin>(vault_cap: &VaultCapability, manager_addr: address) : (u64, u64, u64) acquires StrategyCapability {
-        let strategy_signer = get_strategy_signer_cap(manager_addr);
-
+    fun prepare_return<BaseCoin>(vault_cap: &VaultCapability) : (u64, u64, u64) {
         // get amount of strategy debt over limit
         let debt_out_standing = vault::debt_out_standing<DittoStrategy, BaseCoin>(vault_cap);
         // balance of staking pool
-        let total_assets = ditto_staking::get_staked_balance(signer::address_of(&strategy_signer));
+        // get user staked(LP) amount from liquidity_mining
+        // convert LP to aptos
+        let total_assets = 0;
         // strategy's total debt
         let total_debt = vault::total_debt<DittoStrategy>(vault_cap);
 
@@ -232,7 +232,7 @@ module satay::ditto_strategy {
     // simple swap from CoinType to BaseCoin on Liquidswap
     fun swap_to_want_token<CoinType, BaseCoin>(coins: Coin<CoinType>) : Coin<BaseCoin> {
         // swap on liquidswap AMM
-        router::swap_exact_coin_for_coin<CoinType, BaseCoin, Uncorrelated>(
+        router::swap_exact_coin_for_coin<CoinType, BaseCoin, Stable>(
             coins,
             0
         )
