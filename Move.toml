@@ -10,9 +10,11 @@ staking_pool_manager = "0x2"
 git = 'https://github.com/pontem-network/liquidswap.git'
 rev = 'v0.4.0'
 
-[dependencies.TestCoins]
+[dev-dependencies.TestCoins]
 git = 'https://github.com/pontem-network/test-coins.git'
 rev = 'v0.1.2'
 
-[dependencies.DittoStaking]
-local = "./interfaces/ditto"
+[dependencies.ditto-staking]
+git = "https://github.com/ditto-research/ditto-interface.git"
+subdir = "ditto-staking-interface/"
+rev = "d4a22a4d7ed6b03f28e60237a776dc7f93f7ec01"
