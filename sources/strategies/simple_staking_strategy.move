@@ -41,6 +41,7 @@ module satay::simple_staking_strategy {
     ) {
         let (
             staking_coins,
+            amount_needed,
             vault_cap,
             stop_handle
         ) = base_strategy::open_vault_for_user_withdraw<SimpleStakingStrategy, BaseCoin, StakingCoin>(
@@ -57,7 +58,8 @@ module satay::simple_staking_strategy {
             manager_addr,
             vault_cap,
             stop_handle,
-            coins
+            coins,
+            amount_needed
         );
     }
 

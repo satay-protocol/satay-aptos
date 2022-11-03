@@ -49,7 +49,7 @@ module satay::base_strategy {
         vault_id: u64,
         share_amount: u64,
         witness: StrategyType
-    ) : (Coin<StrategyCoin>, VaultCapability, VaultCapLock) {
+    ) : (Coin<StrategyCoin>, u64, VaultCapability, VaultCapLock) {
         let (vault_cap, stop_handle) = open_vault<StrategyType>(manager_addr, vault_id, witness);
 
         // check if user is eligible to withdraw
@@ -57,19 +57,22 @@ module satay::base_strategy {
         assert!(user_share_amount >= share_amount, ERR_NOT_ENOUGH_FUND);
 
         // check if vault has enough balance
-        let user_amount = vault::calculate_base_coin_amount_from_share<BaseCoin>(&vault_cap, share_amount);
-        assert!(vault::balance<BaseCoin>(&vault_cap) < user_amount, ERR_ENOUGH_BALANCE_ON_VAULT);
+        let vault_balance = vault::balance<BaseCoin>(&vault_cap);
+        let value = vault::calculate_base_coin_amount_from_share<BaseCoin>(&vault_cap, share_amount);
+        assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
 
-        let strategy_coins_amount = vault::calculate_strategy_coin_amount_from_share<BaseCoin, StrategyCoin>(
-            &vault_cap,
-            share_amount
-        );
+        let amount_needed = value - vault_balance;
+        let total_debt = vault::total_debt<StrategyType>(&vault_cap);
+        if (amount_needed > total_debt) {
+            amount_needed = total_debt;
+        };
+
         let strategy_coins_to_liquidate = vault::withdraw<StrategyCoin>(
             &vault_cap,
-            strategy_coins_amount
+            amount_needed
         );
 
-        (strategy_coins_to_liquidate, vault_cap, stop_handle)
+        (strategy_coins_to_liquidate, amount_needed, vault_cap, stop_handle)
     }
 
     public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
@@ -77,8 +80,15 @@ module satay::base_strategy {
         vault_cap: VaultCapability,
         stop_handle: VaultCapLock,
         coins: Coin<BaseCoin>,
+        amount_needed: u64,
     ) {
-        vault::update_total_debt<StrategyType>(&mut vault_cap, 0, coin::value(&coins));
+        let value = coin::value(&coins);
+
+        if (amount_needed > value) {
+            vault::report_loss<StrategyType>(&mut vault_cap, amount_needed - value);
+        };
+
+        vault::update_total_debt<StrategyType>(&mut vault_cap, 0, value);
         vault::deposit<BaseCoin>(&vault_cap, coins);
 
         close_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
