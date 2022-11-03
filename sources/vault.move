@@ -50,7 +50,7 @@ module satay::vault {
     struct VaultCoin<phantom BaseCoin> has key {}
 
     struct VaultStrategy<phantom StrategyType> has key, store {
-        base_coin_type: TypeInfo,
+        strategy_coin_type: TypeInfo,
         debt_ratio: u64,
         total_debt: u64,
         total_gain: u64,
@@ -143,7 +143,7 @@ module satay::vault {
     // approves strategy for vault
     public(friend) fun approve_strategy<StrategyType: drop>(
         vault_cap: &VaultCapability,
-        position_type: TypeInfo,
+        strategy_coin_type: TypeInfo,
         debt_ratio: u64
     ) acquires Vault {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
@@ -154,7 +154,7 @@ module satay::vault {
         // create a new strategy
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
         move_to(&vault_acc, VaultStrategy<StrategyType> { 
-            base_coin_type: position_type, 
+            strategy_coin_type,
             debt_ratio,
             total_debt: 0,
             total_gain: 0,
@@ -208,7 +208,7 @@ module satay::vault {
     }
 
     // assesses fees when strategies return a profit
-    public(friend) fun assess_fees<StrategyType : drop, BaseCoin>(
+    public(friend) fun assess_fees<StrategyType: drop, BaseCoin>(
         gain: u64,
         delegated_assets: u64,
         vault_cap: &VaultCapability,
