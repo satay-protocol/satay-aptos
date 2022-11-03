@@ -14,6 +14,7 @@ module satay::satay {
     const ERR_COIN: u64 = 3;
     const ERR_VAULT_CAP: u64 = 4;
     const ERR_UNAUTHORIZED_MANAGER: u64 = 5;
+    const ERR_VAULT_NO_STRATEGY: u64 = 6;
 
     struct VaultInfo has store {
         // VaultCapability of the vault.
@@ -140,6 +141,7 @@ module satay::satay {
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        assert!(vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
         vault::update_strategy_debt_ratio<Strategy>(option::borrow(&vault_info.vault_cap), debt_ratio)
     }
 
