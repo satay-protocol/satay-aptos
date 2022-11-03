@@ -41,10 +41,18 @@ module satay::test_vault {
         vault_manager=@satay
     )]
     fun test_create_vault(vault_manager : &signer) {
-        let vault_cap = vault::new_test<USDT>(vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(vault_manager, b"test_vault", 0, 200, 5000);
         assert!(vault::vault_cap_has_id(&vault_cap, 0), 0);
         assert!(vault::has_coin<USDT>(&vault_cap), 0);
         assert!(vault::balance<USDT>(&vault_cap) == 0, 0);
+    }
+
+    #[test(
+        vault_manager=@satay
+    )]
+    fun test_update_fee(vault_manager : &signer) {
+        let vault_cap = vault::new_test<USDT>(vault_manager, b"test_vault", 0, 200, 5000);
+        vault::test_update_fee(&vault_cap, 1000, 2000);
     }
 
     #[test(
@@ -60,7 +68,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::test_deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -80,7 +88,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::test_deposit<USDT>(&vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -105,7 +113,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -129,7 +137,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 100);
         vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 100));
@@ -151,7 +159,7 @@ module satay::test_vault {
 
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
 
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&user), 1000);
         vault::test_deposit_as_user<USDT>(&user, &vault_cap, coin::withdraw<USDT>(&user, 500));
@@ -179,7 +187,7 @@ module satay::test_vault {
     ){
         setup_tests(&coin_admin, &user);
 
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
         vault::test_approve_strategy<SimpleStakingStrategy>(&vault_cap, type_info::type_of<SimpleStakingStrategy>(), 1000);
         assert!(vault::has_strategy<SimpleStakingStrategy>(&vault_cap), 2);
     }
@@ -202,7 +210,7 @@ module satay::test_vault {
         coin::register<USDT>(&userB);
 
         // for the first depositor, should mint same amount
-        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&userA), 10000);
         coins::mint_coin<USDT>(&coin_admin, signer::address_of(&userB), 10000);
         vault::test_deposit_as_user<USDT>(&userA, &vault_cap, coin::withdraw<USDT>(&userA, 100));
