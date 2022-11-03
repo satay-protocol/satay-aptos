@@ -14,8 +14,6 @@ module satay::vault {
     friend satay::base_strategy;
 
     const MAX_BPS: u64 = 10000; // 100%
-    const MANAGEMENT_FEE: u64 = 200; // 2%
-    const PERFORMANCE_FEE: u64 = 5000; // 50%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
 
     const ERR_NO_USER_POSITION: u64 = 101;
@@ -24,6 +22,7 @@ module satay::vault {
     const ERR_NOT_REGISTERED_USER: u64 = 104;
     const ERR_STRATEGY_NOT_REGISTERED: u64 = 105;
     const ERR_INVALID_DEBT_RATIO: u64 = 106;
+    const ERR_INVALID_FEE: u64 = 107;
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>
@@ -31,6 +30,8 @@ module satay::vault {
 
     struct Vault has key {
         base_coin_type: TypeInfo,
+        management_fee: u64,
+        performance_fee: u64,
         debt_ratio: u64,
         total_debt: u64,
     }
@@ -61,13 +62,23 @@ module satay::vault {
     // for satay
 
     // create new vault with BaseCoin as its base coin type
-    public(friend) fun new<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
+    public(friend) fun new<BaseCoin>(
+        vault_owner: &signer, 
+        seed: vector<u8>, 
+        vault_id: u64,
+        management_fee: u64,
+        performance_fee: u64
+    ): VaultCapability {
+        assert!(management_fee < MAX_BPS && performance_fee < MAX_BPS, ERR_INVALID_FEE);
+
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
         // create a new vault and move it to the vault account
         let vault = Vault {
             base_coin_type: type_info::type_of<BaseCoin>(),
+            management_fee: management_fee,
+            performance_fee: performance_fee,
             debt_ratio: 0,
             total_debt: 0,
         };
@@ -166,6 +177,19 @@ module satay::vault {
         vault.debt_ratio = vault.debt_ratio + debt_ratio;
     }
 
+    // update vault fee
+    public(friend) fun update_fee(
+        vault_cap: &VaultCapability,
+        management_fee: u64,
+        performance_fee: u64
+    ) acquires Vault {
+        assert!(management_fee < MAX_BPS && performance_fee < MAX_BPS, ERR_INVALID_FEE);
+
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.management_fee = management_fee;
+        vault.performance_fee = performance_fee;
+    }
+
     // update strategy debt ratio
     public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
         vault_cap: &VaultCapability,
@@ -214,6 +238,7 @@ module satay::vault {
         vault_cap: &VaultCapability,
         _witness: StrategyType
     ) acquires VaultStrategy, Vault, CoinStore, Caps {
+        let vault = borrow_global<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
         let duration = timestamp::now_seconds() - strategy.last_report;
@@ -226,12 +251,12 @@ module satay::vault {
             (
                 (strategy.total_debt - delegated_assets)
                     * duration
-                    * MANAGEMENT_FEE
+                    * vault.management_fee
             )
                 / MAX_BPS
                 / SECS_PER_YEAR
         );
-        let performance_fee_amount = gain * PERFORMANCE_FEE / MAX_BPS;
+        let performance_fee_amount = gain * vault.performance_fee / MAX_BPS;
 
         let total_fee_amount = management_fee_amount + performance_fee_amount;
         if (total_fee_amount > gain) {
@@ -452,7 +477,13 @@ module satay::vault {
     // test functions
 
     #[test_only]
-    public fun new_test<BaseCoin>(vault_owner: &signer, seed: vector<u8>, vault_id: u64): VaultCapability {
+    public fun new_test<BaseCoin>(
+        vault_owner: &signer, 
+        seed: vector<u8>, 
+        vault_id: u64,
+        management_fee: u64,
+        performance_fee: u64
+    ): VaultCapability {
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
@@ -461,6 +492,8 @@ module satay::vault {
             &vault_acc,
             Vault {
                 base_coin_type: type_info::type_of<BaseCoin>(),
+                management_fee: management_fee,
+                performance_fee: performance_fee,
                 debt_ratio: 0,
                 total_debt: 0
             }
@@ -531,5 +564,14 @@ module satay::vault {
         debt_ratio: u64
     ) acquires Vault {
         approve_strategy<StrategyType>(vault_cap, position_type, debt_ratio);
+    }
+
+    #[test_only]
+    public fun test_update_fee(
+        vault_cap: &VaultCapability,
+        management_fee: u64,
+        performance_fee: u64
+    ) acquires Vault {
+        update_fee(vault_cap, management_fee, performance_fee);
     }
 }

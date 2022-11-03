@@ -36,7 +36,12 @@ module satay::satay {
     }
 
     // create new vault for BaseCoin under Manager resource
-    public entry fun new_vault<BaseCoin>(manager: &signer, seed: vector<u8>) acquires ManagerAccount {
+    public entry fun new_vault<BaseCoin>(
+        manager: &signer, 
+        seed: vector<u8>,
+        management_fee: u64,
+        performance_fee: u64
+    ) acquires ManagerAccount {
         let manager_addr = signer::address_of(manager);
 
         assert_manager_initialized(manager_addr);
@@ -47,7 +52,7 @@ module satay::satay {
         account.next_vault_id = account.next_vault_id + 1;
 
         // create vault and add to manager vaults table
-        let vault_cap = vault::new<BaseCoin>(manager, seed, vault_id);
+        let vault_cap = vault::new<BaseCoin>(manager, seed, vault_id, management_fee, performance_fee);
         table::add(
             &mut account.vaults,
             vault_id,
@@ -55,6 +60,23 @@ module satay::satay {
                 vault_cap: option::some(vault_cap),
             }
         );
+    }
+
+    public entry fun update_vault_fee(
+        manager: &signer,
+        vault_id: u64,
+        management_fee: u64,
+        performance_fee: u64
+    ) acquires ManagerAccount {
+        let manager_addr = signer::address_of(manager);
+        assert_manager_initialized(manager_addr);
+        
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+
+        vault::update_fee(vault_cap, management_fee, performance_fee);
     }
 
     // user deposits amount of BaseCoin into vault_id of manager_addr

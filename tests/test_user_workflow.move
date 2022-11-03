@@ -76,7 +76,7 @@ module satay::test_user_workflow {
         setup_tests(aptos_framework, token_admin, pool_owner, manager_acc, user);
         test_account::create_account(staking_pool_admin);
         satay::initialize(manager_acc);
-        satay::new_vault<USDT>(manager_acc, b"aptos_vault");
+        satay::new_vault<USDT>(manager_acc, b"aptos_vault", 200, 5000);
         simple_staking_strategy::initialize(manager_acc, 0, 10000);
         staking_pool::initialize<USDT, AptosCoin>(manager_acc);
         staking_pool::deposit_rewards<AptosCoin>(user, 10000);
