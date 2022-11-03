@@ -186,16 +186,6 @@ module satay::base_strategy {
         );
     }
 
-    public fun close_vault_for_strategy<StrategyType: drop, StrategyCoin>(
-        manager: &signer,
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock,
-        strategy_coins: Coin<StrategyCoin>
-    ) {
-        vault::deposit<StrategyCoin>(&vault_cap, strategy_coins);
-        close_vault<StrategyType>(signer::address_of(manager), vault_cap, stop_handle);
-    }
-
     // returns any realized profits, realized losses incurred, and debt payments to be made
     // called by harvest
     public fun prepare_return<StrategyType: drop, BaseCoin>(
