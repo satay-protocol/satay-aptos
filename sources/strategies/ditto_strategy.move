@@ -15,6 +15,7 @@ module satay::ditto_strategy {
     use ditto_staking::ditto_staking;
     use liquidity_mining::liquidity_mining;
     use liquidswap::router::{get_reserves_for_lp_coins, get_amount_out, remove_liquidity, swap_exact_coin_for_coin};
+    use satay::base_strategy::{Self, initialize};
 
 
     // witness for the strategy
@@ -30,26 +31,58 @@ module satay::ditto_strategy {
     const ERR_LOSS: u64 = 303;
 
     // initialize vault_id to accept strategy
-    public entry fun initialize(manager: &signer, vault_id: u64, seed: vector<u8>, debt_ratio: u64) {
+    public entry fun initialize(manager: &signer, vault_id: u64, debt_ratio: u64) {
         // create strategy resource account and store its capability in the manager's account
-        let (_, strategy_cap) = account::create_resource_account(manager, seed);
-        move_to(manager, StrategyCapability {strategy_cap});
-
-        // approve strategy on vault
-        satay::approve_strategy<DittoStrategy>(manager, vault_id, type_info::type_of<StakedAptos>(), debt_ratio);
-
-        // add a CoinStore for the PoolBaseCoin
-        let manager_addr = signer::address_of(manager);
-        let (vault_cap, stop_handle) = satay::lock_vault<DittoStrategy>(manager_addr, vault_id, DittoStrategy {});
-        if (!vault::has_coin<LP<StakedAptos, AptosCoin, Stable>>(&vault_cap)) {
-            vault::add_coin<LP<StakedAptos, AptosCoin, Stable>>(&vault_cap);
-        };
-        satay::unlock_vault<DittoStrategy>(manager_addr, vault_cap, stop_handle);
+        initialize<DittoStrategy, LP<StakedAptos, AptosCoin, Stable>>(manager, vault_id, debt_ratio, DittoStrategy {});
     }
 
     // update the strategy debt ratio
     public entry fun update_debt_ratio(manager: &signer, vault_id: u64, debt_ratio: u64) {
         satay::update_strategy_debt_ratio<DittoStrategy>(manager, vault_id, debt_ratio);
+    }
+
+    // revoke the strategy
+    public entry fun revoke<StrategyType: drop>(manager: &signer, vault_id: u64) {
+        satay::update_strategy_debt_ratio<StrategyType>(manager, vault_id, 0);
+    }
+
+    // migrate to new strategy
+    public entry fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(manager: &signer, vault_id: u64, witness: NewStrategy) {
+        let debt_ratio = satay::update_strategy_debt_ratio<OldStrategy>(manager, vault_id, 0);
+        initialize<NewStrategy, NewStrategyCoin>(manager, vault_id, debt_ratio, witness);
+    }
+
+    // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
+    public fun open_vault_for_user_withdraw<StrategyType: drop, BaseCoin, StrategyCoin>(
+        user: &signer,
+        manager_addr: address,
+        vault_id: u64,
+        share_amount: u64,
+        witness: StrategyType
+    ) : (Coin<StrategyCoin>, u64, VaultCapability, VaultCapLock) {
+        let (vault_cap, stop_handle) = open_vault<StrategyType>(manager_addr, vault_id, witness);
+
+        // check if user is eligible to withdraw
+        let user_share_amount = coin::balance<vault::VaultCoin<BaseCoin>>(signer::address_of(user));
+        assert!(user_share_amount >= share_amount, ERR_NOT_ENOUGH_FUND);
+
+        // check if vault has enough balance
+        let vault_balance = vault::balance<BaseCoin>(&vault_cap);
+        let value = vault::calculate_base_coin_amount_from_share<BaseCoin>(&vault_cap, share_amount);
+        assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
+
+        let amount_needed = value - vault_balance;
+        let total_debt = vault::total_debt<StrategyType>(&vault_cap);
+        if (amount_needed > total_debt) {
+            amount_needed = total_debt;
+        };
+
+        let strategy_coins_to_liquidate = vault::withdraw<StrategyCoin>(
+            &vault_cap,
+            amount_needed
+        );
+
+        (strategy_coins_to_liquidate, amount_needed, vault_cap, stop_handle)
     }
 
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
