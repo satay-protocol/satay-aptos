@@ -89,5 +89,18 @@ module satay::test_simple_staking_strategy {
         setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
         simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
     }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @satay,
+        user = @0x45
+    )]
+    fun test_tend(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+        simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
+    }
 }
 

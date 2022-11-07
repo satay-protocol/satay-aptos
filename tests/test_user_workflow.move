@@ -134,4 +134,31 @@ module satay::test_user_workflow {
         assert!(user_after_amount - user_before_amount == 119, 1);
     }
 
+    #[test(
+        aptos_framework = @aptos_framework,
+        token_admin = @test_coins,
+        pool_owner = @liquidswap,
+        manager_acc = @satay,
+        staking_pool_admin = @staking_pool_manager,
+        user = @0x45,
+        userB = @0x46
+    )]
+    fun test_tend(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer, userB: &signer) {
+        setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
+        test_account::create_account(userB);
+        coin::register<USDT>(userB);
+
+        coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
+        satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
+        simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
+
+        timestamp::fast_forward_seconds(1000);
+        coins::mint_coin<USDT>(token_admin, signer::address_of(userB), 50);
+        satay::deposit<USDT>(userB, signer::address_of(manager_acc), 0, 50);
+        simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
+
+        simple_staking_strategy::withdraw_for_user<USDT>(user, signer::address_of(manager_acc), 0, 50);
+        satay::withdraw<USDT>(user, signer::address_of(manager_acc), 0, 50);
+        simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
+    }
 }
