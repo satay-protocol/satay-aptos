@@ -40,7 +40,6 @@ module satay::simple_staking_strategy {
         share_amount: u64
     ) {
         let (
-            staking_coins,
             amount_needed,
             vault_cap,
             stop_handle
@@ -52,6 +51,12 @@ module satay::simple_staking_strategy {
             SimpleStakingStrategy {}
         );
 
+
+        let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
+        let staking_coins = base_strategy::withdraw_strategy_coin<StakingCoin>(
+            &vault_cap,
+            staking_coins_needed
+        );
         let coins = liquidate_position<BaseCoin>(staking_coins);
 
         base_strategy::close_vault_for_user_withdraw<SimpleStakingStrategy, BaseCoin>(
@@ -79,14 +84,25 @@ module satay::simple_staking_strategy {
         base_strategy::deposit_strategy_coin<StakingCoin>(&mut vault_cap, strategy_coins);
 
         let strategy_base_coin_balance = get_strategy_base_coin_balance<StakingCoin>(&vault_cap);
-        let (to_apply, to_liquidate, _ , _) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
+        let (to_apply, amount_needed) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
             &mut vault_cap,
             strategy_base_coin_balance,
             SimpleStakingStrategy {}
         );
 
-        let base_coins = liquidate_position<BaseCoin>(to_liquidate);
         let staking_coins = apply_position<BaseCoin>(to_apply);
+        let base_coins = coin::zero<BaseCoin>();
+        if(amount_needed > 0){
+            let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
+            let staking_coins = base_strategy::withdraw_strategy_coin<StakingCoin>(
+                &vault_cap,
+                staking_coins_needed
+            );
+            coin::merge(
+                &mut base_coins,
+                liquidate_position<BaseCoin>(staking_coins)
+            );
+        };
 
         base_strategy::close_vault_for_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
             signer::address_of(manager),
@@ -116,6 +132,10 @@ module satay::simple_staking_strategy {
     fun get_strategy_base_coin_balance<StrategyCoin>(vault_cap: &VaultCapability) : u64 {
         let strategy_coin_balance = base_strategy::balance<StrategyCoin>(vault_cap);
         staking_pool::get_base_coin_for_staking_coin(strategy_coin_balance)
+    }
+
+    fun get_staking_coin_for_base_coin<BaseCoin>(base_coin_amount: u64): u64 {
+        base_coin_amount
     }
 
     public fun name() : vector<u8> {
