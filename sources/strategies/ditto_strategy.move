@@ -37,7 +37,7 @@ module satay::ditto_strategy {
     // initialize vault_id to accept strategy
     public entry fun initialize(manager: &signer, vault_id: u64, debt_ratio: u64) {
         // create strategy resource account and store its capability in the manager's account
-        base_initialize<DittoStrategy, LP<StakedAptos, AptosCoin, Stable>>(manager, vault_id, debt_ratio, DittoStrategy {});
+        base_initialize<DittoStrategy, AptosCoin>(manager, vault_id, debt_ratio, DittoStrategy {});
         let (strategy_acc, strategy_cap) = account::create_resource_account(manager, b"ditto-strategy");
         move_to(manager, StrategyCapability {
             strategy_cap
@@ -166,7 +166,7 @@ module satay::ditto_strategy {
     }
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
-    public entry fun harvest<CoinType, BaseCoin>(manager: &signer, vault_id: u64) acquires StrategyCapability, CoinStore {
+    public entry fun harvest<BaseCoin>(manager: &signer, vault_id: u64) acquires StrategyCapability, CoinStore {
         let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy, BaseCoin>(
             manager,
             vault_id,
