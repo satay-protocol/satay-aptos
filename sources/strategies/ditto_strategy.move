@@ -60,7 +60,7 @@ module satay::ditto_strategy {
             freeze_cap,
             mint_cap
         ) = coin::initialize<DittoStrategyCoin>(
-            &strategy_acc,
+            manager,
             string::utf8(b"Ditto Strategy Coin"),
             string::utf8(b"DSC"),
             8,
@@ -77,7 +77,7 @@ module satay::ditto_strategy {
 
         // register strategy account to hold AptosCoin and LP coin
         coin::register<AptosCoin>(&strategy_acc);
-        coin::register<LP<StakedAptos, AptosCoin, Stable>>(&strategy_acc);
+        coin::register<LP<AptosCoin, StakedAptos, Stable>>(&strategy_acc);
     }
 
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
@@ -91,7 +91,7 @@ module satay::ditto_strategy {
             amount_aptos_needed,
             vault_cap,
             stop_handle
-        ) = base_strategy::open_vault_for_user_withdraw<DittoStrategy, AptosCoin, LP<StakedAptos, AptosCoin, Stable>>(
+        ) = base_strategy::open_vault_for_user_withdraw<DittoStrategy, AptosCoin, LP<AptosCoin, StakedAptos, Stable>>(
             user,
             manager_addr,
             vault_id,
@@ -194,15 +194,15 @@ module satay::ditto_strategy {
         // 1. exchange half of APT to stAPT
         let coin_amount = coin::value<AptosCoin>(&coins);
         let half_aptos = coin::extract(&mut coins, coin_amount / 2);
-        let stAPT = ditto_staking::exchange_aptos(half_aptos, signer::address_of(&ditto_strategy_signer));
+        let st_apt = ditto_staking::exchange_aptos(half_aptos, signer::address_of(&ditto_strategy_signer));
 
         // 2. add liquidity with APT and stAPT
         // convert stPAT using instant_exchange and send back to the vault
         let (
-            rest_st_apt,
             rest_apt,
+            rest_st_apt,
             lp
-        ) = add_liquidity<StakedAptos, AptosCoin, Stable>(stAPT, 1, coins, 1);
+        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(coins, 0, st_apt, 0);
         coin::merge(&mut rest_apt, swap_stapt_for_apt(rest_st_apt));
         coin::deposit(ditto_strategy_address, rest_apt);
 
@@ -214,7 +214,7 @@ module satay::ditto_strategy {
             lp_amount,
             &strategy_coin_caps.mint_cap
         );
-        liquidity_mining::stake<LP<StakedAptos, AptosCoin, Stable>>(
+        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
             &ditto_strategy_signer,
             lp_amount
         );
@@ -247,11 +247,11 @@ module satay::ditto_strategy {
         // let lp_to_unstake = amount * 10000 / (stapt_to_apt_amount + apt_amount);
 
         // reclaim staked LP coins
-        liquidity_mining::unstake<LP<StakedAptos, AptosCoin, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
+        liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
         // withdraw
-        let total_lp_balance = coin::balance<LP<StakedAptos, AptosCoin, Stable>>(signer::address_of(&ditto_strategy_signer));
-        let lp_coins = coin::withdraw<LP<StakedAptos, AptosCoin, Stable>>(&ditto_strategy_signer, total_lp_balance);
-        let (staked_aptos, aptos_coin) = remove_liquidity<StakedAptos, AptosCoin, Stable>(lp_coins, 1, 1);
+        let total_lp_balance = coin::balance<LP<AptosCoin, StakedAptos, Stable>>(signer::address_of(&ditto_strategy_signer));
+        let lp_coins = coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, total_lp_balance);
+        let (aptos_coin, staked_aptos) = remove_liquidity<AptosCoin, StakedAptos, Stable>(lp_coins, 1, 1);
         coin::merge(&mut aptos_coin, swap_stapt_for_apt(staked_aptos));
 
         // debug if there's such case
