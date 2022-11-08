@@ -142,7 +142,6 @@ module satay::ditto_strategy {
             DittoStrategy {}
         );
 
-        let ditto_strategy_coins = apply_position(manager_addr, to_apply);
         let aptos_coins = coin::zero<AptosCoin>();
         if(amount_needed > 0) {
             let lp_to_liquidate = get_lp_for_given_aptos_amount(amount_needed);
@@ -151,8 +150,20 @@ module satay::ditto_strategy {
                 lp_to_liquidate
             );
             let liquidated_aptos_coins = liquidate_position(manager_addr, strategy_coins_to_liquidate);
+            let liquidated_aptos_coins_amount = coin::value<AptosCoin>(&liquidated_aptos_coins);
+
+            if (liquidated_aptos_coins_amount > amount_needed) {
+                coin::merge(
+                    &mut to_apply, 
+                    coin::extract(
+                        &mut liquidated_aptos_coins, 
+                        liquidated_aptos_coins_amount - amount_needed
+                    )
+                );
+            };
             coin::merge(&mut aptos_coins, liquidated_aptos_coins)
         };
+        let ditto_strategy_coins = apply_position(manager_addr, to_apply);
 
         base_strategy::close_vault_for_harvest<DittoStrategy, AptosCoin, DittoStrategyCoin>(
             signer::address_of(manager),
@@ -291,7 +302,7 @@ module satay::ditto_strategy {
     fun get_lp_for_given_aptos_amount(amount: u64) : u64 {
         let (st_apt_amount, apt_amount) = get_reserves_for_lp_coins<StakedAptos, AptosCoin, Stable>(100);
         let stapt_to_apt_amount = get_amount_out<StakedAptos, AptosCoin, Stable>(st_apt_amount);
-        amount * 100 / (stapt_to_apt_amount + apt_amount)
+        (amount * 100 + stapt_to_apt_amount + apt_amount - 1) / (stapt_to_apt_amount + apt_amount)
     }
 
     public fun name() : vector<u8> {
