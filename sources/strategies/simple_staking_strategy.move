@@ -97,6 +97,33 @@ module satay::simple_staking_strategy {
         )
     }
 
+    // adjust the Strategy's position. The purpose of tending isn't to realize gains, but to maximize yield by reinvesting any returns
+    public entry fun tend<CoinType, BaseCoin>(manager: &signer, vault_id: u64) {
+        let (vault_cap, stop_handle, debt_out_standing) = base_strategy::open_vault_for_tend<SimpleStakingStrategy, BaseCoin>(
+            manager,
+            vault_id,
+            SimpleStakingStrategy {}
+        );
+
+        // claim rewards and swap them into BaseCoin
+        let strategy_coins = coin::zero<StakingCoin>();
+        if (debt_out_standing == 0) {
+            let coins = staking_pool::claimRewards<CoinType>();
+            let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
+            coin::merge(
+                &mut strategy_coins,
+                apply_position<BaseCoin>(want_coins)
+            );
+        };
+
+        base_strategy::close_vault_for_tend<SimpleStakingStrategy, StakingCoin>(
+            signer::address_of(manager),
+            vault_cap,
+            stop_handle,
+            strategy_coins
+        )
+    }
+
     // adds BaseCoin to 3rd party protocol to get yield
     // if 3rd party protocol returns a coin, it should be sent to the vault
     fun apply_position<BaseCoin>(coins: Coin<BaseCoin>) : Coin<StakingCoin> {
