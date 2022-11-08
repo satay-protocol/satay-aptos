@@ -255,4 +255,22 @@ module satay::base_strategy {
     ) {
         satay::unlock_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
     }
+
+    #[test_only]
+    public fun test_open_vault<StrategyType: drop>(
+        manager_addr: address,
+        vault_id: u64,
+        witness: StrategyType
+    ) : (VaultCapability, VaultCapLock) {
+        open_vault(manager_addr, vault_id, witness)
+    }
+
+    #[test_only]
+    public fun test_close_vault<StrategyType: drop>(
+        manager_addr: address,
+        vault_cap: VaultCapability,
+        stop_handle: VaultCapLock
+    ) {
+        close_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
+    }
 }
