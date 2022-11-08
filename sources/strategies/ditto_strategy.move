@@ -102,7 +102,8 @@ module satay::ditto_strategy {
         let lp_to_burn = get_lp_for_given_aptos_amount(amount_aptos_needed);
         let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
             &vault_cap,
-            lp_to_burn
+            lp_to_burn,
+            DittoStrategy {}
         );
         let coins = liquidate_position(manager_addr, strategy_coins);
 
@@ -147,7 +148,8 @@ module satay::ditto_strategy {
             let lp_to_liquidate = get_lp_for_given_aptos_amount(amount_needed);
             let strategy_coins_to_liquidate = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
                 &vault_cap,
-                lp_to_liquidate
+                lp_to_liquidate,
+                DittoStrategy {}
             );
             let liquidated_aptos_coins = liquidate_position(manager_addr, strategy_coins_to_liquidate);
             let liquidated_aptos_coins_amount = coin::value<AptosCoin>(&liquidated_aptos_coins);
