@@ -76,9 +76,16 @@ module satay::base_strategy {
     public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(vault_cap: &VaultCapability, amount: u64) : Coin<StrategyCoin> {
         let strategy_coin_type = vault::get_strategy_coin_type<StrategyType>(vault_cap);
         assert!(type_of<StrategyCoin>() == strategy_coin_type, 0);
+
+        let withdraw_amount = amount;
+        let strategy_coin_balance = vault::balance<StrategyCoin>(vault_cap);
+        if (amount > strategy_coin_balance) {
+            withdraw_amount = strategy_coin_balance;
+        };
+
         vault::withdraw<StrategyCoin>(
             vault_cap,
-            amount
+            withdraw_amount
         )
     }
 
