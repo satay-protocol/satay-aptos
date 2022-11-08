@@ -229,37 +229,24 @@ module satay::base_strategy {
         manager: &signer,
         vault_id: u64,
         witness: StrategyType,
-    ) :  (VaultCapability, VaultCapLock) {
-        open_vault<StrategyType>(
+    ) :  (VaultCapability, VaultCapLock, u64) {
+        let (vault_cap, stop_handle) = open_vault<StrategyType>(
             signer::address_of(manager),
             vault_id,
             witness
-        )
+        );
+        let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(&vault_cap);
+
+        (vault_cap, stop_handle, debt_out_standing)
     }
 
-    public fun process_tend<StrategyType: drop, BaseCoin, StrategyCoin>(
-        vault_cap: &mut VaultCapability,
-    ) : (Coin<StrategyCoin>) {
-        let debt = vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap);
-        let to_liquidate = coin::zero<StrategyCoin>();
-
-        if (debt > 0) {
-            coin::merge(
-                &mut to_liquidate,
-                vault::withdraw<StrategyCoin>(vault_cap, debt)
-            );
-        };
-
-        to_liquidate
-    }
-
-    public fun close_vault_for_tend<StrategyType: drop, BaseCoin>(
+    public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(
         manager_addr: address,
         vault_cap: VaultCapability,
         stop_handle: VaultCapLock,
-        base_coins: Coin<BaseCoin>
+        strategy_coins: Coin<StrategyCoin>
     ) {
-        vault::deposit(&vault_cap, base_coins);
+        vault::deposit(&vault_cap, strategy_coins);
         close_vault<StrategyType>(
             manager_addr,
             vault_cap,
