@@ -73,7 +73,11 @@ module satay::base_strategy {
         (amount_needed, vault_cap, stop_handle)
     }
 
-    public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(vault_cap: &VaultCapability, amount: u64) : Coin<StrategyCoin> {
+    public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(
+        vault_cap: &VaultCapability,
+        amount: u64,
+        _witness: StrategyType
+    ) : Coin<StrategyCoin> {
         let strategy_coin_type = vault::get_strategy_coin_type<StrategyType>(vault_cap);
         assert!(type_of<StrategyCoin>() == strategy_coin_type, 0);
 
