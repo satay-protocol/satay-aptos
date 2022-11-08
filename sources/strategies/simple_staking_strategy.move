@@ -53,7 +53,7 @@ module satay::simple_staking_strategy {
 
 
         let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
-        let staking_coins = base_strategy::withdraw_strategy_coin<StakingCoin>(
+        let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
             &vault_cap,
             staking_coins_needed
         );
@@ -94,7 +94,7 @@ module satay::simple_staking_strategy {
         let base_coins = coin::zero<BaseCoin>();
         if(amount_needed > 0){
             let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
-            let staking_coins = base_strategy::withdraw_strategy_coin<StakingCoin>(
+            let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
                 &vault_cap,
                 staking_coins_needed
             );

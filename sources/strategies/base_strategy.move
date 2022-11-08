@@ -7,6 +7,7 @@ module satay::base_strategy {
     use satay::vault::{Self, VaultCapability};
     use aptos_framework::coin;
     use satay::satay::VaultCapLock;
+    use aptos_std::type_info::type_of;
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
@@ -72,7 +73,9 @@ module satay::base_strategy {
         (amount_needed, vault_cap, stop_handle)
     }
 
-    public fun withdraw_strategy_coin<StrategyCoin>(vault_cap: &VaultCapability, amount: u64) : Coin<StrategyCoin> {
+    public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(vault_cap: &VaultCapability, amount: u64) : Coin<StrategyCoin> {
+        let strategy_coin_type = vault::get_strategy_coin_type<StrategyType>(vault_cap);
+        assert!(type_of<StrategyCoin>() == strategy_coin_type, 0);
         vault::withdraw<StrategyCoin>(
             vault_cap,
             amount

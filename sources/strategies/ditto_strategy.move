@@ -100,7 +100,7 @@ module satay::ditto_strategy {
         );
 
         let lp_to_burn = get_lp_for_given_aptos_amount(amount_aptos_needed);
-        let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategyCoin>(
+        let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
             &vault_cap,
             lp_to_burn
         );
@@ -146,7 +146,7 @@ module satay::ditto_strategy {
         let aptos_coins = coin::zero<AptosCoin>();
         if(amount_needed > 0) {
             let lp_to_liquidate = get_lp_for_given_aptos_amount(amount_needed);
-            let strategy_coins_to_liquidate = base_strategy::withdraw_strategy_coin<DittoStrategyCoin>(
+            let strategy_coins_to_liquidate = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
                 &vault_cap,
                 lp_to_liquidate
             );

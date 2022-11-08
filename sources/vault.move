@@ -458,6 +458,11 @@ module satay::vault {
         vault_cap.vault_addr
     }
 
+    public fun get_strategy_coin_type<StrategyType: drop>(vault_cap: &VaultCapability) : TypeInfo acquires VaultStrategy {
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.strategy_coin_type
+    }
+
     // private functions
 
     // mint vault coin shares to user
