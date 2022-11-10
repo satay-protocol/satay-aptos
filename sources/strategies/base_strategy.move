@@ -157,6 +157,7 @@ module satay::base_strategy {
 
         if (credit > 0 || debt_payment > 0) {
             vault::update_total_debt<StrategyType>(vault_cap, credit, debt_payment);
+            debt = debt - debt_payment;
         };
 
         let total_available = profit + debt_payment;
@@ -176,7 +177,7 @@ module satay::base_strategy {
             amount_needed = total_available - credit;
         };
 
-        vault::report<StrategyType>(vault_cap);
+        vault::report<StrategyType>(vault_cap, profit, loss, debt_payment, debt);
 
         (to_apply, amount_needed)
     }

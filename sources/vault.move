@@ -5,6 +5,7 @@ module satay::vault {
 
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
+    use aptos_std::event::{Self, EventHandle};
     use aptos_std::type_info::{TypeInfo};
     use aptos_std::type_info;
     use satay::dao_storage;
@@ -56,7 +57,16 @@ module satay::vault {
         total_debt: u64,
         total_gain: u64,
         total_loss: u64,
-        last_report: u64
+        last_report: u64,
+        harvest_events: EventHandle<HarvestEvent>
+    }
+
+    /// Event emitted when harvested on the strategy
+    struct HarvestEvent has drop, store {
+        profit: u64,
+        loss: u64,
+        debt_payment: u64,
+        debt_out_standing: u64
     }
 
     // for satay
@@ -164,14 +174,16 @@ module satay::vault {
 
         // create a new strategy
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
-        move_to(&vault_acc, VaultStrategy<StrategyType> { 
+        let vault_strategy = VaultStrategy<StrategyType> { 
             strategy_coin_type,
             debt_ratio,
             total_debt: 0,
             total_gain: 0,
             total_loss: 0,
-            last_report: timestamp::now_seconds()
-        });
+            last_report: timestamp::now_seconds(),
+            harvest_events: account::new_event_handle<HarvestEvent>(&vault_acc),
+        };
+        move_to(&vault_acc, vault_strategy);
 
         // update vault params
         vault.debt_ratio = vault.debt_ratio + debt_ratio;
@@ -314,10 +326,27 @@ module satay::vault {
         vault.total_debt = vault.total_debt - loss;
     }
 
-    // report time for StrategyType
-    public(friend) fun report<StrategyType: drop>(vault_cap: &mut VaultCapability) acquires VaultStrategy {
+    // report harvest for StrategyType
+    public(friend) fun report<StrategyType: drop>(
+        vault_cap: &mut VaultCapability,
+        profit: u64,
+        loss: u64,
+        debt_payment: u64,
+        debt_out_standing: u64
+    ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        
         strategy.last_report = timestamp::now_seconds();
+
+        event::emit_event<HarvestEvent>(
+            &mut strategy.harvest_events,
+            HarvestEvent {
+                profit,
+                loss,
+                debt_payment,
+                debt_out_standing
+            }
+        )
     }
 
     // getters
