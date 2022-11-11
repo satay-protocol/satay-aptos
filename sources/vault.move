@@ -61,12 +61,29 @@ module satay::vault {
         harvest_events: EventHandle<HarvestEvent>
     }
 
+    struct UserStore<phantom BaseCoin> has key {
+        deposit_events: EventHandle<DepositEvent>,
+        withdraw_events: EventHandle<WithdrawEvent>
+    }
+
     /// Event emitted when harvested on the strategy
     struct HarvestEvent has drop, store {
         profit: u64,
         loss: u64,
         debt_payment: u64,
         debt_out_standing: u64
+    }
+
+    /// Event emitted when some amount of a coin is deposited into the vault
+    struct DepositEvent has drop, store {
+        shares: u64,
+        amount: u64
+    }
+
+    /// Event emitted when some amount of a coin is withdrawn from the vault
+    struct WithdrawEvent has drop, store {
+        shares: u64,
+        amount: u64
     }
 
     // for satay
@@ -127,20 +144,30 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
-    ) acquires Vault, CoinStore, Caps {
+    ) acquires Vault, CoinStore, UserStore, Caps {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         // ensure that BaseCoin is the base coin type of the vault
         assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
 
         // mint share amount
-        let share_token_amount = coin::value(&base_coin);
+        let amount = coin::value(&base_coin);
+        let shares = amount;
         let total_base_coin_amount = total_assets<BaseCoin>(vault_cap);
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         if (total_supply != 0) {
-            share_token_amount = (total_supply as u64) * coin::value(&base_coin) / total_base_coin_amount;
+            shares = (total_supply as u64) * amount / total_base_coin_amount;
         };
-        mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
+
+        mint_vault_coin<BaseCoin>(user, vault_cap, shares);
+
+        let user_addr = signer::address_of(user);
+        let user_store = borrow_global_mut<UserStore<BaseCoin>>(user_addr);
+        event::emit_event<DepositEvent>(
+            &mut user_store.deposit_events,
+            DepositEvent { shares, amount }
+        );
+
         deposit(vault_cap, base_coin);
     }
 
@@ -149,16 +176,25 @@ module satay::vault {
     public(friend) fun withdraw_as_user<BaseCoin>(
         user: &signer,
         vault_cap: &VaultCapability,
-        amount: u64
-    ): Coin<BaseCoin> acquires CoinStore, Vault, Caps {
+        shares: u64
+    ): Coin<BaseCoin> acquires Vault, CoinStore, UserStore, Caps {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
 
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
-        let withdraw_amount = total_assets<BaseCoin>(vault_cap) * amount / (total_supply as u64);
-        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
-        withdraw<BaseCoin>(vault_cap, withdraw_amount)
+        let amount = total_assets<BaseCoin>(vault_cap) * shares / (total_supply as u64);
+
+        burn_vault_coins<BaseCoin>(user, vault_cap, shares);
+
+        let user_addr = signer::address_of(user);
+        let user_store = borrow_global_mut<UserStore<BaseCoin>>(user_addr);
+        event::emit_event<WithdrawEvent>(
+            &mut user_store.withdraw_events,
+            WithdrawEvent { shares, amount }
+        );
+
+        withdraw<BaseCoin>(vault_cap, amount)
     }
 
     // approves strategy for vault
@@ -496,18 +532,35 @@ module satay::vault {
 
     // mint vault coin shares to user
     // called by deposit_as_user
-    fun mint_vault_coin<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
+    fun mint_vault_coin<BaseCoin>(
+        user: &signer, 
+        vault_cap: &VaultCapability, 
+        amount: u64
+    ) acquires Caps {
         let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
-        let coins = coin::mint<VaultCoin<BaseCoin>>(amount, &caps.mint_cap);
-        if(!is_vault_coin_registered<BaseCoin>(signer::address_of(user))){
+        let user_addr = signer::address_of(user);
+
+        if(!is_vault_coin_registered<BaseCoin>(user_addr)){
             coin::register<VaultCoin<BaseCoin>>(user);
+
+            let user_store = UserStore<BaseCoin> {
+                deposit_events: account::new_event_handle<DepositEvent>(user),
+                withdraw_events: account::new_event_handle<WithdrawEvent>(user)
+            };
+            move_to(user, user_store);
         };
-        coin::deposit(signer::address_of(user), coins);
+
+        let coins = coin::mint<VaultCoin<BaseCoin>>(amount, &caps.mint_cap);
+        coin::deposit(user_addr, coins);
     }
 
     // burn vault coin from user
     // called by withdraw_as_user
-    fun burn_vault_coins<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
+    fun burn_vault_coins<BaseCoin>(
+        user: &signer, 
+        vault_cap: &VaultCapability, 
+        amount: u64
+    ) acquires Caps {
         let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
         coin::burn(coin::withdraw<VaultCoin<BaseCoin>>(user, amount), &caps.burn_cap);
     }
@@ -566,7 +619,7 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
-    ) acquires Vault, CoinStore, Caps {
+    ) acquires Vault, CoinStore, UserStore, Caps {
         deposit_as_user(user, vault_cap, base_coin);
     }
 
@@ -575,7 +628,7 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         amount: u64
-    ) : Coin<BaseCoin> acquires Vault, CoinStore, Caps {
+    ) : Coin<BaseCoin> acquires Vault, CoinStore, UserStore, Caps {
         withdraw_as_user(user, vault_cap, amount)
     }
 
