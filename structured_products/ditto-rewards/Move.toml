@@ -3,12 +3,11 @@ name = 'satay-ditto-rewards'
 version = '1.0.0'
 
 [addresses]
-satay_ditto_rewards = "c09622c20bdd49b2b83b7e05c264a62cfedeb45eaf5c629d0f0174917d801aef"
+satay_ditto_rewards = "0xe3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
 
 [dependencies.Liquidswap]
 git = 'https://github.com/pontem-network/liquidswap.git'
-rev = 'v0.4.0'
+rev = 'v0.4.3'
 
-[dependencies.ditto-interface]
-git = "https://github.com/ditto-research/ditto-interface.git"
-rev = "master"
+[dependencies.ditto-staking]
+local = '../../../ditto-interface/ditto-staking-interface'
