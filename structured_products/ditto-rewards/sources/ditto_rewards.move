@@ -11,11 +11,54 @@ module satay_ditto_rewards::ditto_rewards_product {
         add_liquidity,
         remove_liquidity,
         swap_exact_coin_for_coin,
-        get_reserves_size
+        get_reserves_size,
+        register_pool
     };
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
+
+    public entry fun init(
+        user: &signer,
+        amount: u64
+    ) {
+        let user_addr = signer::address_of(user);
+        // get Aptos from user
+        let apt = coin::withdraw<AptosCoin>(user, amount);
+        let amount_to_exchange = coin::value(&apt) / 2;
+        let apt_to_stapt = coin::extract(&mut apt, amount_to_exchange);
+        let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, signer::address_of(user));
+
+        // create LP<AptosCoin, StakedAptos, Stable> pool on Liquidswap
+        register_pool<AptosCoin, StakedAptos, Stable>(user);
+        // add liquidity to pool
+        let (
+            residual_apt,
+            residual_st_apt,
+            lp
+        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(apt, 0, st_apt, 0);
+        // swap residual st_apt into apt
+        if(coin::value(&residual_st_apt) == 0){
+            coin::destroy_zero(residual_st_apt);
+        } else {
+            coin::merge(&mut residual_apt, ditto_staking::exchange_staptos(residual_st_apt, user_addr));
+        };
+        //deposit residual apt
+        if(coin::value(&residual_apt) == 0){
+            coin::destroy_zero(residual_apt);
+        } else {
+            coin::deposit(user_addr, residual_apt);
+        };
+
+        coin::register<LP<AptosCoin, StakedAptos, Stable>>(user);
+        coin::deposit(user_addr, lp);
+    }
+
+    public entry fun initialize(
+        _user: &signer,
+    ) {
+
+    }
 
     public entry fun deposit(
         user: &signer,
@@ -64,7 +107,12 @@ module satay_ditto_rewards::ditto_rewards_product {
             rest_st_apt,
             lp
         ) = add_liquidity<AptosCoin, StakedAptos, Stable>(coins, 0, st_apt, 0);
-        coin::merge(&mut rest_apt, swap_stapt_for_apt(rest_st_apt));
+
+        if(coin::value(&rest_st_apt) == 0){
+            coin::destroy_zero(rest_st_apt);
+        } else {
+            coin::merge(&mut rest_apt, ditto_staking::exchange_staptos(rest_st_apt, user_addr));
+        };
         (lp, rest_apt)
     }
 

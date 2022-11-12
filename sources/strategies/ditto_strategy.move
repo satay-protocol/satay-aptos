@@ -16,12 +16,13 @@ module satay::ditto_strategy {
         get_reserves_for_lp_coins,
         get_amount_out,
         remove_liquidity,
-        swap_exact_coin_for_coin
+        swap_exact_coin_for_coin,
+        get_reserves_size
     };
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
-    use liquidity_mining::liquidity_mining;
+    // use liquidity_mining::liquidity_mining;
     use satay::base_strategy::{Self, initialize as base_initialize};
     use satay::vault::VaultCapability;
 
@@ -102,7 +103,7 @@ module satay::ditto_strategy {
         let lp_to_burn = get_lp_for_given_aptos_amount(amount_aptos_needed);
         let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
             &vault_cap,
-            lp_to_burn
+            lp_to_burn,
         );
         let coins = liquidate_position(manager_addr, strategy_coins);
 
@@ -129,14 +130,18 @@ module satay::ditto_strategy {
 
         // claim rewards and swap them into BaseCoin
         let coins = claim_rewards_from_ditto();
-        let ditto_strategy_coins = apply_position(signer::address_of(manager), coins);
-        base_strategy::deposit_strategy_coin<DittoStrategyCoin>(&vault_cap, ditto_strategy_coins);
+        if(coin::value(&coins) > 0) {
+            let ditto_strategy_coins = apply_position(signer::address_of(manager), coins);
+            base_strategy::deposit_strategy_coin<DittoStrategyCoin>(&vault_cap, ditto_strategy_coins);
+        } else {
+            coin::destroy_zero(coins);
+        };
 
         let strategy_aptos_balance = get_strategy_aptos_balance(&vault_cap);
         let (
             to_apply,
             amount_needed,
-        ) = base_strategy::process_harvest<DittoStrategy, AptosCoin, DittoStrategy>(
+        ) = base_strategy::process_harvest<DittoStrategy, AptosCoin, DittoStrategyCoin>(
             &mut vault_cap,
             strategy_aptos_balance,
             DittoStrategy {}
@@ -154,9 +159,9 @@ module satay::ditto_strategy {
 
             if (liquidated_aptos_coins_amount > amount_needed) {
                 coin::merge(
-                    &mut to_apply, 
+                    &mut to_apply,
                     coin::extract(
-                        &mut liquidated_aptos_coins, 
+                        &mut liquidated_aptos_coins,
                         liquidated_aptos_coins_amount - amount_needed
                     )
                 );
@@ -169,7 +174,9 @@ module satay::ditto_strategy {
             signer::address_of(manager),
             vault_cap,
             stop_handle,
+            // coin::zero(),
             aptos_coins,
+            // coin::zero()
             ditto_strategy_coins
         )
     }
@@ -204,8 +211,9 @@ module satay::ditto_strategy {
 
         // 1. exchange half of APT to stAPT
         let coin_amount = coin::value<AptosCoin>(&coins);
-        let half_aptos = coin::extract(&mut coins, coin_amount / 2);
-        let st_apt = ditto_staking::exchange_aptos(half_aptos, signer::address_of(&ditto_strategy_signer));
+        let (apt_reserve, st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
+        let apt_to_stapt = coin::extract(&mut coins, coin_amount * st_apt_reserve / (st_apt_reserve + apt_reserve));
+        let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, signer::address_of(&ditto_strategy_signer));
 
         // 2. add liquidity with APT and stAPT
         // convert stPAT using instant_exchange and send back to the vault
@@ -214,7 +222,11 @@ module satay::ditto_strategy {
             rest_st_apt,
             lp
         ) = add_liquidity<AptosCoin, StakedAptos, Stable>(coins, 0, st_apt, 0);
-        coin::merge(&mut rest_apt, swap_stapt_for_apt(rest_st_apt));
+        if(coin::value(&rest_st_apt) == 0){
+            coin::destroy_zero(rest_st_apt);
+        } else {
+            coin::merge(&mut rest_apt, swap_stapt_for_apt(rest_st_apt));
+        };
         coin::deposit(ditto_strategy_address, rest_apt);
 
         // 3. stake LP for Ditto pre-mine program, mint DittoStrategyCoin in proportion
@@ -225,10 +237,10 @@ module satay::ditto_strategy {
             lp_amount,
             &strategy_coin_caps.mint_cap
         );
-        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
-            &ditto_strategy_signer,
-            lp_amount
-        );
+        // liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
+        //     &ditto_strategy_signer,
+        //     lp_amount
+        // );
         strategy_coins
      }
 
@@ -258,10 +270,11 @@ module satay::ditto_strategy {
         // let lp_to_unstake = amount * 10000 / (stapt_to_apt_amount + apt_amount);
 
         // reclaim staked LP coins
-        liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
+        // liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
+
         // withdraw
-        let total_lp_balance = coin::balance<LP<AptosCoin, StakedAptos, Stable>>(signer::address_of(&ditto_strategy_signer));
-        let lp_coins = coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, total_lp_balance);
+        // let total_lp_balance = coin::balance<LP<AptosCoin, StakedAptos, Stable>>(signer::address_of(&ditto_strategy_signer));
+        let lp_coins = coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
         let (aptos_coin, staked_aptos) = remove_liquidity<AptosCoin, StakedAptos, Stable>(lp_coins, 1, 1);
         coin::merge(&mut aptos_coin, swap_stapt_for_apt(staked_aptos));
 
@@ -293,14 +306,18 @@ module satay::ditto_strategy {
         // 1. get user staked LP amount to ditto LP layer (interface missing from Ditto)
         let ditto_staked_lp_amount = base_strategy::balance<DittoStrategyCoin>(vault_cap);
         // 2. convert LP coin to aptos
-        let (stapt_amount, apt_amount) = get_reserves_for_lp_coins<StakedAptos, AptosCoin, Stable>(ditto_staked_lp_amount);
-        let stapt_to_apt = get_amount_out<StakedAptos, AptosCoin, Stable>(stapt_amount);
-        stapt_to_apt + apt_amount
+        if(ditto_staked_lp_amount > 0) {
+            let (apt_amount, st_apt_amount) = get_reserves_for_lp_coins<AptosCoin, StakedAptos, Stable>(ditto_staked_lp_amount);
+            let stapt_to_apt = get_amount_out<StakedAptos, AptosCoin, Stable>(st_apt_amount);
+            stapt_to_apt + apt_amount
+        } else {
+            0
+        }
     }
 
     // get amount of LP to represented by am
     fun get_lp_for_given_aptos_amount(amount: u64) : u64 {
-        let (st_apt_amount, apt_amount) = get_reserves_for_lp_coins<StakedAptos, AptosCoin, Stable>(100);
+        let (apt_amount, st_apt_amount) = get_reserves_for_lp_coins<AptosCoin, StakedAptos, Stable>(100);
         let stapt_to_apt_amount = get_amount_out<StakedAptos, AptosCoin, Stable>(st_apt_amount);
         (amount * 100 + stapt_to_apt_amount + apt_amount - 1) / (stapt_to_apt_amount + apt_amount)
     }
