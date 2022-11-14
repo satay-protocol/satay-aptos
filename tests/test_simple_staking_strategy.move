@@ -93,7 +93,7 @@ module satay::test_simple_staking_strategy {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @test_coins,
+        token_admin = @satay,
         pool_owner = @liquidswap,
         manager_acc = @satay,
         staking_pool_admin = @satay,
