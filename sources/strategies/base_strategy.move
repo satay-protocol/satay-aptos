@@ -234,6 +234,37 @@ module satay::base_strategy {
         (profit, loss, debt_payment)
     }
 
+    // for tend
+
+    public fun open_vault_for_tend<StrategyType: drop, BaseCoin>(
+        manager: &signer,
+        vault_id: u64,
+        witness: StrategyType,
+    ) :  (VaultCapability, VaultCapLock, u64) {
+        let (vault_cap, stop_handle) = open_vault<StrategyType>(
+            signer::address_of(manager),
+            vault_id,
+            witness
+        );
+        let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(&vault_cap);
+
+        (vault_cap, stop_handle, debt_out_standing)
+    }
+
+    public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(
+        manager_addr: address,
+        vault_cap: VaultCapability,
+        stop_handle: VaultCapLock,
+        strategy_coins: Coin<StrategyCoin>
+    ) {
+        vault::deposit(&vault_cap, strategy_coins);
+        close_vault<StrategyType>(
+            manager_addr,
+            vault_cap,
+            stop_handle
+        );
+    }
+
     public fun get_vault_address(vault_cap: &VaultCapability) : address {
         vault::get_vault_addr(vault_cap)
     }

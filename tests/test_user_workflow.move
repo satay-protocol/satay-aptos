@@ -158,5 +158,6 @@ module satay::test_user_workflow {
 
         simple_staking_strategy::withdraw_for_user<USDT>(user, signer::address_of(manager_acc), 0, 50);
         satay::withdraw<USDT>(user, signer::address_of(manager_acc), 0, 50);
+        simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
     }
 }
