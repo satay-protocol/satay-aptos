@@ -32,7 +32,6 @@ module satay::test_simple_staking_strategy {
 
         coins::register_coins(token_admin);
 
-        test_account::create_account(token_admin);
         test_account::create_account(user);
         test_account::create_account(pool_owner);
 

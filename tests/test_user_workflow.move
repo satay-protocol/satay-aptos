@@ -38,7 +38,6 @@ module satay::test_user_workflow {
 
         coins::register_coins(token_admin);
 
-        test_account::create_account(token_admin);
         test_account::create_account(user);
         test_account::create_account(pool_owner);
 
@@ -159,6 +158,5 @@ module satay::test_user_workflow {
 
         simple_staking_strategy::withdraw_for_user<USDT>(user, signer::address_of(manager_acc), 0, 50);
         satay::withdraw<USDT>(user, signer::address_of(manager_acc), 0, 50);
-        simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
     }
 }
