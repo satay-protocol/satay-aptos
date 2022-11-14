@@ -3,18 +3,11 @@ name = 'satay'
 version = '1.0.0'
 
 [addresses]
-satay = "c09622c20bdd49b2b83b7e05c264a62cfedeb45eaf5c629d0f0174917d801aef"
-staking_pool_manager = "0x2"
+satay = "e3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
 
 [dependencies.Liquidswap]
 git = 'https://github.com/pontem-network/liquidswap.git'
-rev = 'v0.4.0'
-
-[dev-dependencies.TestCoins]
-git = 'https://github.com/pontem-network/test-coins.git'
-rev = 'v0.1.2'
+rev = 'v0.4.3'
 
 [dependencies.ditto-staking]
-git = "https://github.com/ditto-research/ditto-interface.git"
-subdir = "ditto-staking-interface/"
-rev = "d4a22a4d7ed6b03f28e60237a776dc7f93f7ec01"
+local = './interfaces/ditto-staking-interface'

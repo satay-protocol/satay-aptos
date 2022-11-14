@@ -10,7 +10,7 @@ module satay::test_vault {
 
     use test_helpers::test_account;
 
-    use test_coins::coins::{
+    use satay::coins::{
         Self,
         USDT
     };
@@ -57,7 +57,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @test_coins,
+        coin_admin = @satay,
         user=@0x46,
     )]
     fun test_deposit(
@@ -77,7 +77,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @test_coins,
+        coin_admin = @satay,
         user=@0x46,
     )]
     fun test_withdraw(
@@ -102,7 +102,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @test_coins,
+        coin_admin = @satay,
         user=@0x46,
     )]
     fun test_deposit_as_user(
@@ -126,7 +126,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @test_coins,
+        coin_admin = @satay,
         user=@0x46,
     )]
     fun test_withdraw_as_user(
@@ -148,7 +148,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin = @test_coins,
+        coin_admin = @satay,
         user=@0x46,
     )]
     fun test_withdraw_as_user_after_farm(
@@ -177,7 +177,7 @@ module satay::test_vault {
 
     #[test(
         vault_manager=@satay,
-        coin_admin=@test_coins,
+        coin_admin=@satay,
         user=@0x46
     )]
     fun test_approve_strategy(
@@ -195,7 +195,7 @@ module satay::test_vault {
     // TODO: check share calculation is correct when non_USDT deposited
     #[test(
         vault_manager=@satay,
-        coin_admin=@test_coins,
+        coin_admin=@satay,
         userA=@0x46,
         userB=@0x047
     )]
