@@ -99,7 +99,7 @@ module satay_ditto_rewards::ditto_rewards_product {
         let coin_amount = coin::value<AptosCoin>(&coins);
         // STAPT and APT decimals are all 8
         let (apt_reserve, _st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
-        let apt_to_swap = sqrt(pow((apt_reserve as u128), 2) + ((coin_amount * apt_reserve) as u128)) - apt_reserve;
+        let apt_to_swap = coin_amount / 2;
         let apt_to_stapt = coin::extract(&mut coins, apt_to_swap);
         let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, user_addr);
 
