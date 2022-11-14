@@ -17,6 +17,8 @@ module satay_ditto_rewards::ditto_rewards_product {
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
+    use liquidswap::math::sqrt;
+    use aptos_std::math128::pow;
 
     public entry fun init(
         user: &signer,
@@ -96,8 +98,9 @@ module satay_ditto_rewards::ditto_rewards_product {
         // 1. exchange half of APT to stAPT
         let coin_amount = coin::value<AptosCoin>(&coins);
         // STAPT and APT decimals are all 8
-        let (st_apt_reserve, apt_reserve) = get_reserves_size<StakedAptos, AptosCoin, Stable>();
-        let apt_to_stapt = coin::extract(&mut coins, coin_amount * st_apt_reserve / (st_apt_reserve + apt_reserve));
+        let (apt_reserve, _st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
+        let apt_to_swap = sqrt(pow((apt_reserve as u128), 2) + ((coin_amount * apt_reserve) as u128)) - apt_reserve;
+        let apt_to_stapt = coin::extract(&mut coins, apt_to_swap);
         let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, user_addr);
 
         // 2. add liquidity with APT and stAPT

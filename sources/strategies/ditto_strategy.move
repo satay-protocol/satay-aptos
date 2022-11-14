@@ -25,6 +25,8 @@ module satay::ditto_strategy {
     // use liquidity_mining::liquidity_mining;
     use satay::base_strategy::{Self, initialize as base_initialize};
     use satay::vault::VaultCapability;
+    use liquidswap::math::sqrt;
+    use aptos_std::math128::pow;
 
     // witness for the strategy
     // used for checking approval when locking and unlocking vault
@@ -209,11 +211,13 @@ module satay::ditto_strategy {
             coin::withdraw<AptosCoin>(&ditto_strategy_signer, ditto_strategy_aptos_balance)
         );
 
-        // 1. exchange half of APT to stAPT
         let coin_amount = coin::value<AptosCoin>(&coins);
-        let (apt_reserve, st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
-        let apt_to_stapt = coin::extract(&mut coins, coin_amount * st_apt_reserve / (st_apt_reserve + apt_reserve));
-        let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, signer::address_of(&ditto_strategy_signer));
+        // STAPT and APT decimals are all 8
+        let (apt_reserve, _st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
+        let apt_to_swap = sqrt(pow((apt_reserve as u128), 2) + ((coin_amount * apt_reserve) as u128)) - apt_reserve;
+        let apt_to_stapt = coin::extract(&mut coins, apt_to_swap);
+        let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, ditto_strategy_address);
+
 
         // 2. add liquidity with APT and stAPT
         // convert stPAT using instant_exchange and send back to the vault
