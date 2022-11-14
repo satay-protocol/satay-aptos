@@ -9,7 +9,7 @@ module satay::test_satay {
 
     use test_helpers::test_account;
 
-    use test_coins::coins::{
+    use satay::coins::{
         Self,
         USDT
     };
@@ -35,7 +35,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47
     )]
     fun test_initialize(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -44,7 +44,7 @@ module satay::test_satay {
 
    #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47
     )]
     fun test_new_vault(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -54,7 +54,7 @@ module satay::test_satay {
 
    #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47
     )]
     fun test_update_vault_fee(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -66,7 +66,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47
     )]
     fun test_deposit(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -84,7 +84,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47
     )]
     fun test_withdraw(vault_manager : signer, coins_manager : signer, user : signer) {
@@ -109,7 +109,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47,
         aptos_framework = @aptos_framework
     )]
@@ -124,7 +124,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47,
         aptos_framework = @aptos_framework
     )]
@@ -141,7 +141,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47,
         aptos_framework = @aptos_framework
     )]
@@ -165,7 +165,7 @@ module satay::test_satay {
 
     #[test(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47,
         aptos_framework = @aptos_framework
     )]
@@ -201,7 +201,7 @@ module satay::test_satay {
 
     #[test_reject(
         vault_manager = @satay,
-        coins_manager = @test_coins,
+        coins_manager = @satay,
         user = @0x47
     )]
     fun test_reject_unapproved_strategy(vault_manager : signer, coins_manager : signer, user : signer) {

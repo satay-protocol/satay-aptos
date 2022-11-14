@@ -1,8 +1,10 @@
 #[test_only]
 module satay::test_simple_staking_strategy {
     use test_helpers::test_account;
-    use test_coins::coins;
-    use test_coins::coins::USDT;
+    use satay::coins::{
+        Self,
+        USDT
+    };
     use aptos_framework::coin;
     use std::signer;
     use liquidswap::lp_account;
@@ -79,7 +81,7 @@ module satay::test_simple_staking_strategy {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @test_coins,
+        token_admin = @satay,
         pool_owner = @liquidswap,
         manager_acc = @satay,
         staking_pool_admin = @satay,

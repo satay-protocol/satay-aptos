@@ -1,13 +1,17 @@
 #[test_only]
 module satay::test_dao_storage {
-    use satay::dao_storage::{register, has_storage, deposit, get_coin_value, withdraw};
+
+    use std::signer;
+
+    use aptos_framework::coin;
+
     use test_coin_admin::test_coins::{USDT};
     use test_helpers::test_account;
     use test_coin_admin::test_coins;
-    use aptos_framework::coin;
-    use std::signer;
+
     use satay::global_config;
     use satay::global_config::set_dao_admin;
+    use satay::dao_storage::{register, has_storage, deposit, get_coin_value, withdraw};
 
     const ENO_STORAGE: u64 = 401;
     const ERR_DEPOSIT: u64 = 402;
