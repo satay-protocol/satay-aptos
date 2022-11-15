@@ -11,15 +11,11 @@ module satay_ditto_rewards::ditto_rewards_product {
         add_liquidity,
         remove_liquidity,
         swap_exact_coin_for_coin,
-        get_reserves_size,
         register_pool
     };
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
-    use liquidswap::math::sqrt;
-    use aptos_std::math128::pow;
-
     public entry fun init(
         user: &signer,
         amount: u64
