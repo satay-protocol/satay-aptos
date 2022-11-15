@@ -17,6 +17,22 @@ module satay_ditto_rewards::ditto_rewards_product {
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
+    use satay::dao_storage;
+
+    struct FeeInfoStorage has key {
+        fee_ratio: u64
+    }
+
+    const MAX_BPS: u64 = 10000; // 100%
+    const ERR_NOT_ADMIN: u64 = 1;
+
+    public entry fun init_fee_structure(admin: &signer, fee_ratio: u64) acquires FeeInfoStorage {
+        assert!(@manager == signer::address_of(admin), ERR_NOT_ADMIN);
+        dao_storage::register<AptosCoin>(admin);
+        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(signer::address_of(admin));
+        fee_info_storage.fee_ratio = fee_ratio;
+    }
+
     public entry fun init(
         user: &signer,
         amount: u64
@@ -56,13 +72,15 @@ module satay_ditto_rewards::ditto_rewards_product {
     public entry fun initialize(
         _user: &signer,
     ) {
-
     }
 
     public entry fun deposit(
         user: &signer,
         amount: u64
-    ) {
+    ) acquires FeeInfoStorage {
+        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(@manager);
+        let fee_amount = amount * fee_info_storage.fee_ratio / MAX_BPS;
+
         let user_addr = signer::address_of(user);
 
         if(!coin::is_account_registered<LP<AptosCoin, StakedAptos, Stable>>(user_addr)){
@@ -70,6 +88,10 @@ module satay_ditto_rewards::ditto_rewards_product {
         };
 
         let aptos_coin = coin::withdraw<AptosCoin>(user, amount);
+        if (fee_amount > 0) {
+            let fee = coin::extract(&mut aptos_coin, fee_amount);
+            dao_storage::deposit<AptosCoin>(@manager, fee);
+        }
         let (lp_coins, residual_aptos_coins) = apply_position(aptos_coin, user_addr);
 
         coin::deposit(signer::address_of(user), lp_coins);
@@ -83,6 +105,12 @@ module satay_ditto_rewards::ditto_rewards_product {
         let lp_coins = coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(user, amount);
         let aptos_coin = liquidate_position(lp_coins);
         coin::deposit<AptosCoin>(signer::address_of(user), aptos_coin);
+    }
+
+    public fun fee_setter(admin: &signer, fee_ratio: u64) acquires FeeInfoStorage {
+        assert!(@manger == signer::address_of(admin), ERR_NOT_ADMIN);
+        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(signer::address_of(admin));
+        fee_info_storage.fee_ratio = fee_ratio;
     }
 
     // stakes AptosCoin on Ditto for StakedAptos
