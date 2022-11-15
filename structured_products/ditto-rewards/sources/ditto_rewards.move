@@ -11,7 +11,8 @@ module satay_ditto_rewards::ditto_rewards_product {
         add_liquidity,
         remove_liquidity,
         swap_exact_coin_for_coin,
-        register_pool
+        register_pool,
+        get_reserves_size
     };
 
     use ditto_staking::staked_coin::StakedAptos;
@@ -94,8 +95,8 @@ module satay_ditto_rewards::ditto_rewards_product {
         // 1. exchange half of APT to stAPT
         let coin_amount = coin::value<AptosCoin>(&coins);
         // STAPT and APT decimals are all 8
-        let (apt_reserve, _st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
-        let apt_to_swap = coin_amount / (apt_reserve + _st_apt_reserve) * _st_apt_reserve;
+        let (apt_reserve, st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
+        let apt_to_swap = coin_amount * st_apt_reserve / (apt_reserve + st_apt_reserve);
         let apt_to_stapt = coin::extract(&mut coins, apt_to_swap);
         let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, user_addr);
 
