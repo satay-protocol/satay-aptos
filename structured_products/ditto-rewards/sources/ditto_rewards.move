@@ -25,23 +25,27 @@ module satay_ditto_rewards::ditto_rewards_product {
 
     const MAX_BPS: u64 = 10000; // 100%
     const ERR_NOT_ADMIN: u64 = 1;
+    const ERR_NO_FEE: u64 = 2;
 
-    public entry fun init_fee_structure(admin: &signer, fee_ratio: u64) acquires FeeInfoStorage {
+    public entry fun init_fee_structure(admin: &signer, fee_ratio: u64) {
         assert!(@manager == signer::address_of(admin), ERR_NOT_ADMIN);
         dao_storage::register<AptosCoin>(admin);
-        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(signer::address_of(admin));
-        fee_info_storage.fee_ratio = fee_ratio;
+        move_to(admin, FeeInfoStorage {
+            fee_ratio
+        });
     }
 
     public entry fun init(
         user: &signer,
         amount: u64
-    ) {
+    ) acquires FeeInfoStorage {
         let user_addr = signer::address_of(user);
         // get Aptos from user
-        let apt = coin::withdraw<AptosCoin>(user, amount);
-        let amount_to_exchange = coin::value(&apt) / 2;
-        let apt_to_stapt = coin::extract(&mut apt, amount_to_exchange);
+        let aptos_coin = coin::withdraw<AptosCoin>(user, amount);
+        aptos_coin = charge_fee(aptos_coin);
+
+        let amount_to_exchange = coin::value(&aptos_coin) / 2;
+        let apt_to_stapt = coin::extract(&mut aptos_coin, amount_to_exchange);
         let st_apt = ditto_staking::exchange_aptos(apt_to_stapt, signer::address_of(user));
 
         // create LP<AptosCoin, StakedAptos, Stable> pool on Liquidswap
@@ -51,7 +55,7 @@ module satay_ditto_rewards::ditto_rewards_product {
             residual_apt,
             residual_st_apt,
             lp
-        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(apt, 0, st_apt, 0);
+        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(aptos_coin, 0, st_apt, 0);
         // swap residual st_apt into apt
         if(coin::value(&residual_st_apt) == 0){
             coin::destroy_zero(residual_st_apt);
@@ -78,9 +82,6 @@ module satay_ditto_rewards::ditto_rewards_product {
         user: &signer,
         amount: u64
     ) acquires FeeInfoStorage {
-        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(@manager);
-        let fee_amount = amount * fee_info_storage.fee_ratio / MAX_BPS;
-
         let user_addr = signer::address_of(user);
 
         if(!coin::is_account_registered<LP<AptosCoin, StakedAptos, Stable>>(user_addr)){
@@ -88,10 +89,7 @@ module satay_ditto_rewards::ditto_rewards_product {
         };
 
         let aptos_coin = coin::withdraw<AptosCoin>(user, amount);
-        if (fee_amount > 0) {
-            let fee = coin::extract(&mut aptos_coin, fee_amount);
-            dao_storage::deposit<AptosCoin>(@manager, fee);
-        }
+        aptos_coin = charge_fee(aptos_coin);
         let (lp_coins, residual_aptos_coins) = apply_position(aptos_coin, user_addr);
 
         coin::deposit(signer::address_of(user), lp_coins);
@@ -107,8 +105,18 @@ module satay_ditto_rewards::ditto_rewards_product {
         coin::deposit<AptosCoin>(signer::address_of(user), aptos_coin);
     }
 
+    fun charge_fee<CoinType>(coins: Coin<CoinType>) : Coin<CoinType> acquires FeeInfoStorage {
+        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(@manager);
+        let fee_amount = coin::value(&coins) * fee_info_storage.fee_ratio / MAX_BPS;
+        if (fee_amount > 0) {
+            let fee = coin::extract(&mut coins, fee_amount);
+            dao_storage::deposit<CoinType>(@manager, fee);
+        };
+        coins
+    }
+
     public fun fee_setter(admin: &signer, fee_ratio: u64) acquires FeeInfoStorage {
-        assert!(@manger == signer::address_of(admin), ERR_NOT_ADMIN);
+        assert!(@manager == signer::address_of(admin), ERR_NOT_ADMIN);
         let fee_info_storage = borrow_global_mut<FeeInfoStorage>(signer::address_of(admin));
         fee_info_storage.fee_ratio = fee_ratio;
     }
@@ -173,4 +181,14 @@ module satay_ditto_rewards::ditto_rewards_product {
         )
     }
 
+    #[test_only]
+    public fun charge_fee_test<CoinType>(coins: Coin<CoinType>) : Coin<CoinType> acquires FeeInfoStorage {
+        let fee_info_storage = borrow_global_mut<FeeInfoStorage>(@manager);
+        let fee_amount = coin::value(&coins) * fee_info_storage.fee_ratio / MAX_BPS;
+        if (fee_amount > 0) {
+            let fee = coin::extract(&mut coins, fee_amount);
+            dao_storage::deposit<CoinType>(@manager, fee);
+        };
+        coins
+    }
 }

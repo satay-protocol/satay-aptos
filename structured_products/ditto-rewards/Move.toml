@@ -4,14 +4,15 @@ version = '1.0.0'
 
 [addresses]
 satay_ditto_rewards = "0xe3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
-manager = ""
+manager = "0x11"
+test_helpers = "0x12"
 
 [dependencies.Liquidswap]
 git = 'https://github.com/pontem-network/liquidswap.git'
 rev = 'v0.4.3'
 
 [dependencies.ditto-staking]
-local = '../../../ditto-interface/ditto-staking-interface'
+local = '../../interfaces/ditto-staking-interface'
 
 [dependencies.satay]
-local = '../../dao_storage'
+local = '../../'
