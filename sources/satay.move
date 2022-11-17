@@ -128,7 +128,11 @@ module satay::satay {
         assert_manager_initialized(manager_addr);
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        vault::approve_strategy<Strategy>(option::borrow(&vault_info.vault_cap), position_coin_type, debt_ratio);
+        vault::approve_strategy<Strategy>(
+            option::borrow(&vault_info.vault_cap),
+            position_coin_type,
+            debt_ratio
+        );
     }
 
     // update the strategy debt ratio
@@ -143,6 +147,47 @@ module satay::satay {
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         assert!(vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
         vault::update_strategy_debt_ratio<Strategy>(option::borrow(&vault_info.vault_cap), debt_ratio)
+    }
+
+    // update strategy max report delay
+    public fun update_strategy_max_report_delay<Strategy: drop>(
+        manager: &signer,
+        vault_id: u64,
+        max_report_delay: u64
+    ) acquires ManagerAccount {
+        let manager_addr = signer::address_of(manager);
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        assert!(vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
+        vault::update_strategy_max_report_delay<Strategy>(option::borrow(&vault_info.vault_cap), max_report_delay);
+    }
+
+    // update strategy credit threshold
+    public fun update_strategy_credit_threshold<Strategy: drop>(
+        manager: &signer,
+        vault_id: u64,
+        credit_threshold: u64
+    ) acquires ManagerAccount {
+        let manager_addr = signer::address_of(manager);
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        assert!(vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
+        vault::update_strategy_credit_threshold<Strategy>(option::borrow(&vault_info.vault_cap), credit_threshold);
+    }
+
+    // set strategy force harvest trigger once
+    public fun set_strategy_force_harvest_trigger_once<Strategy: drop>(
+        manager: &signer,
+        vault_id: u64
+    ) acquires ManagerAccount {
+        let manager_addr = signer::address_of(manager);
+        assert_manager_initialized(manager_addr);
+        let account = borrow_global_mut<ManagerAccount>(manager_addr);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        assert!(vault::has_strategy<Strategy>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
+        vault::set_strategy_force_harvest_trigger_once<Strategy>(option::borrow(&vault_info.vault_cap));
     }
 
     // return vault_cap for strategies to use
