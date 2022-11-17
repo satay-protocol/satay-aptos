@@ -38,20 +38,34 @@ module satay::test_vault {
     }
 
     #[test(
-        vault_manager=@satay
+        vault_manager=@satay,
+        coin_admin = @satay,
+        user=@0x46,
     )]
-    fun test_create_vault(vault_manager : &signer) {
-        let vault_cap = vault::new_test<USDT>(vault_manager, b"test_vault", 0, 200, 5000);
+    fun test_create_vault(
+        vault_manager : signer,
+        coin_admin : signer,
+        user : signer
+    ){
+        setup_tests(&coin_admin, &user);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
         assert!(vault::vault_cap_has_id(&vault_cap, 0), 0);
         assert!(vault::has_coin<USDT>(&vault_cap), 0);
         assert!(vault::balance<USDT>(&vault_cap) == 0, 0);
     }
 
     #[test(
-        vault_manager=@satay
+        vault_manager=@satay,
+        coin_admin = @satay,
+        user=@0x46,
     )]
-    fun test_update_fee(vault_manager : &signer) {
-        let vault_cap = vault::new_test<USDT>(vault_manager, b"test_vault", 0, 200, 5000);
+    fun test_update_fee(
+        vault_manager : signer,
+        coin_admin : signer,
+        user : signer
+    ){
+        setup_tests(&coin_admin, &user);
+        let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
         vault::test_update_fee(&vault_cap, 1000, 2000);
     }
 

@@ -47,9 +47,18 @@ module satay::ditto_strategy {
     }
 
     // initialize vault_id to accept strategy
-    public entry fun initialize(manager: &signer, vault_id: u64, debt_ratio: u64) {
+    public entry fun initialize(
+        manager: &signer,
+        vault_id: u64,
+        debt_ratio: u64
+    ) {
         // initialize through base_strategy_module
-        base_initialize<DittoStrategy, DittoStrategyCoin>(manager, vault_id, debt_ratio, DittoStrategy {});
+        base_initialize<DittoStrategy, DittoStrategyCoin>(
+            manager,
+            vault_id,
+            debt_ratio,
+            DittoStrategy {}
+        );
 
         // create strategy resource account and store its capability in the manager's account
         let (strategy_acc, strategy_cap) = account::create_resource_account(manager, b"ditto-strategy");
@@ -118,12 +127,36 @@ module satay::ditto_strategy {
         );
     }
 
+    // provide a signal to the keepr that `harvest()` should be called
+    public entry fun harvest_trigger(
+        manager: &signer,
+        vault_id: u64
+    ) : bool {
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy>(
+            manager,
+            vault_id,
+            DittoStrategy {}
+        );
+
+        let harvest_trigger = base_strategy::process_harvest_trigger<DittoStrategy, AptosCoin>(
+            &vault_cap
+        );
+
+        base_strategy::close_vault_for_harvest_trigger<DittoStrategy>(
+            signer::address_of(manager),
+            vault_cap,
+            stop_handle
+        );
+
+        harvest_trigger
+    }
+
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
     public entry fun harvest(
         manager: &signer,
         vault_id: u64
     ) acquires StrategyCapability, DittoStrategyCoinCaps {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy>(
             manager,
             vault_id,
             DittoStrategy {}
@@ -184,8 +217,53 @@ module satay::ditto_strategy {
     }
 
     // update the strategy debt ratio
-    public entry fun update_debt_ratio(manager: &signer, vault_id: u64, debt_ratio: u64) {
-        satay::update_strategy_debt_ratio<DittoStrategy>(manager, vault_id, debt_ratio);
+    public entry fun update_debt_ratio(
+        manager: &signer,
+        vault_id: u64,
+        debt_ratio: u64
+    ) {
+        satay::update_strategy_debt_ratio<DittoStrategy>(
+            manager,
+            vault_id,
+            debt_ratio
+        );
+    }
+
+    // update the strategy max report delay
+    public entry fun update_max_report_delay(
+        manager: &signer,
+        vault_id: u64,
+        max_report_delay: u64
+    ) {
+        satay::update_strategy_max_report_delay<DittoStrategy>(
+            manager,
+            vault_id,
+            max_report_delay
+        );
+    }
+
+    // update the strategy credit threshold
+    public entry fun update_credit_threshold(
+        manager: &signer,
+        vault_id: u64,
+        credit_threshold: u64
+    ) {
+        satay::update_strategy_credit_threshold<DittoStrategy>(
+            manager,
+            vault_id,
+            credit_threshold
+        );
+    }
+
+    // set the strategy force harvest trigger once
+    public entry fun set_force_harvest_trigger_once(
+        manager: &signer,
+        vault_id: u64,
+    ) {
+        satay::set_strategy_force_harvest_trigger_once<DittoStrategy>(
+            manager,
+            vault_id
+        );
     }
 
     // revoke the strategy

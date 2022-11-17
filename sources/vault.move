@@ -9,6 +9,7 @@ module satay::vault {
     use aptos_std::type_info;
     use satay::dao_storage;
     use aptos_framework::timestamp;
+    use liquidswap::math;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -30,6 +31,7 @@ module satay::vault {
 
     struct Vault has key {
         base_coin_type: TypeInfo,
+        base_coin_decimals: u8,
         management_fee: u64,
         performance_fee: u64,
         debt_ratio: u64,
@@ -56,7 +58,10 @@ module satay::vault {
         total_debt: u64,
         total_gain: u64,
         total_loss: u64,
-        last_report: u64
+        last_report: u64,
+        max_report_delay: u64,
+        force_harvest_trigger_once: bool,
+        credit_threshold: u64
     }
 
     // for satay
@@ -75,10 +80,13 @@ module satay::vault {
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
         // create a new vault and move it to the vault account
+        let base_coin_type = type_info::type_of<BaseCoin>();
+        let base_coin_decimals = coin::decimals<BaseCoin>();
         let vault = Vault {
-            base_coin_type: type_info::type_of<BaseCoin>(),
-            management_fee: management_fee,
-            performance_fee: performance_fee,
+            base_coin_type,
+            base_coin_decimals,
+            management_fee,
+            performance_fee,
             debt_ratio: 0,
             total_debt: 0,
         };
@@ -170,7 +178,10 @@ module satay::vault {
             total_debt: 0,
             total_gain: 0,
             total_loss: 0,
-            last_report: timestamp::now_seconds()
+            last_report: timestamp::now_seconds(),
+            max_report_delay: 30 * 24 * 3600, // 30 days
+            force_harvest_trigger_once: false,
+            credit_threshold: 1000000 * math::pow_10(vault.base_coin_decimals)
         });
 
         // update vault params
@@ -190,6 +201,8 @@ module satay::vault {
         vault.performance_fee = performance_fee;
     }
 
+    // for strategies
+
     // update strategy debt ratio
     public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
         vault_cap: &VaultCapability,
@@ -208,7 +221,31 @@ module satay::vault {
         old_debt_ratio
     }
 
-    // for strategies
+    // update strategy max report delay
+    public(friend) fun update_strategy_max_report_delay<StrategyType: drop>(
+        vault_cap: &VaultCapability,
+        max_report_delay: u64
+    ) acquires VaultStrategy {
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.max_report_delay = max_report_delay;
+    }
+
+    // update strategy credit threshold
+    public(friend) fun update_strategy_credit_threshold<StrategyType: drop>(
+        vault_cap: &VaultCapability,
+        credit_threshold: u64
+    ) acquires VaultStrategy {
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.credit_threshold = credit_threshold;
+    }
+
+    // set strategy force harvest trigger once
+    public(friend) fun set_strategy_force_harvest_trigger_once<StrategyType: drop>(
+        vault_cap: &VaultCapability
+    ) acquires VaultStrategy {
+        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.force_harvest_trigger_once = true;
+    }
 
     // create a new CoinStore for CoinType
     public(friend) fun add_coin<CoinType>(vault_cap: &VaultCapability) {
@@ -318,6 +355,7 @@ module satay::vault {
     public(friend) fun report<StrategyType: drop>(vault_cap: &mut VaultCapability) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.last_report = timestamp::now_seconds();
+        strategy.force_harvest_trigger_once = false;
     }
 
     // getters
@@ -409,6 +447,30 @@ module satay::vault {
         strategy.debt_ratio
     }
 
+    // gets the last report for a given StrategyType
+    public fun last_report<StrategyType: drop>(vault_cap: &VaultCapability) : u64 acquires VaultStrategy {
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.last_report
+    }
+
+    // gets the max report delay for a given StrategyType
+    public fun max_report_delay<StrategyType: drop>(vault_cap: &VaultCapability) : u64 acquires VaultStrategy {
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.max_report_delay
+    }
+
+    // gets the force harvest trigger once for a given StrategyType
+    public fun force_harvest_trigger_once<StrategyType: drop>(vault_cap: &VaultCapability) : bool acquires VaultStrategy {
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.force_harvest_trigger_once
+    }
+
+    // gets the credit threshold for a given StrategyType
+    public fun credit_threshold<StrategyType: drop>(vault_cap: &VaultCapability) : u64 acquires VaultStrategy {
+        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        strategy.credit_threshold
+    }
+
     // check the CoinType balance of the vault
     public fun balance<CoinType>(vault_cap: &VaultCapability): u64 acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
@@ -497,12 +559,15 @@ module satay::vault {
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
         // create a new vault and move it to the vault account
+        let base_coin_type = type_info::type_of<BaseCoin>();
+        let base_coin_decimals = coin::decimals<BaseCoin>();
         move_to(
             &vault_acc,
             Vault {
-                base_coin_type: type_info::type_of<BaseCoin>(),
-                management_fee: management_fee,
-                performance_fee: performance_fee,
+                base_coin_type,
+                base_coin_decimals,
+                management_fee,
+                performance_fee,
                 debt_ratio: 0,
                 total_debt: 0
             }

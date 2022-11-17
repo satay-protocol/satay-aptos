@@ -68,9 +68,34 @@ module satay::simple_staking_strategy {
         );
     }
 
+
+    // provide a signal to the keepr that `harvest()` should be called
+    public entry fun harvest_trigger<BaseCoin>(
+        manager: &signer,
+        vault_id: u64
+    ) : bool {
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy>(
+            manager,
+            vault_id,
+            SimpleStakingStrategy {}
+        );
+
+        let harvest_trigger = base_strategy::process_harvest_trigger<SimpleStakingStrategy, BaseCoin>(
+            &vault_cap
+        );
+
+        base_strategy::close_vault_for_harvest_trigger<SimpleStakingStrategy>(
+            signer::address_of(manager),
+            vault_cap,
+            stop_handle
+        );
+
+        harvest_trigger
+    }
+
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
     public entry fun harvest<CoinType, BaseCoin>(manager: &signer, vault_id: u64) {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy, BaseCoin>(
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy>(
             manager,
             vault_id,
             SimpleStakingStrategy {}

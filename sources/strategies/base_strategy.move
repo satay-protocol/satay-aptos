@@ -8,15 +8,26 @@ module satay::base_strategy {
     use aptos_framework::coin;
     use satay::satay::VaultCapLock;
     use aptos_std::type_info::type_of;
+    use aptos_framework::timestamp;
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
     const ERR_LOSS: u64 = 303;
 
     // initialize vault_id to accept strategy
-    public fun initialize<StrategyType: drop, StrategyCoin>(manager: &signer, vault_id: u64, debt_ratio: u64, witness: StrategyType) {
+    public fun initialize<StrategyType: drop, StrategyCoin>(
+        manager: &signer,
+        vault_id: u64,
+        debt_ratio: u64,
+        witness: StrategyType
+    ) {
         // approve strategy on vault
-        satay::approve_strategy<StrategyType>(manager, vault_id, type_info::type_of<StrategyCoin>(), debt_ratio);
+        satay::approve_strategy<StrategyType>(
+            manager,
+            vault_id, 
+            type_info::type_of<StrategyCoin>(), 
+            debt_ratio
+        );
 
         // add a CoinStore for the StrategyCoin
         let manager_addr = signer::address_of(manager);
@@ -28,8 +39,53 @@ module satay::base_strategy {
     }
 
     // update the strategy debt ratio
-    public entry fun update_debt_ratio<StrategyType: drop>(manager: &signer, vault_id: u64, debt_ratio: u64) {
-        satay::update_strategy_debt_ratio<StrategyType>(manager, vault_id, debt_ratio);
+    public entry fun update_debt_ratio<StrategyType: drop>(
+        manager: &signer,
+        vault_id: u64,
+        debt_ratio: u64
+    ) {
+        satay::update_strategy_debt_ratio<StrategyType>(
+            manager, 
+            vault_id,
+            debt_ratio
+        );
+    }
+
+    // update the strategy max report delay
+    public entry fun update_max_report_delay<StrategyType: drop>(
+        manager: &signer,
+        vault_id: u64,
+        max_report_delay: u64
+    ) {
+        satay::update_strategy_max_report_delay<StrategyType>(
+            manager,
+            vault_id,
+            max_report_delay
+        );
+    }
+
+    // update the strategy credit threshold
+    public entry fun update_credit_threshold<StrategyType: drop>(
+        manager: &signer,
+        vault_id: u64,
+        credit_threshold: u64
+    ) {
+        satay::update_strategy_credit_threshold<StrategyType>(
+            manager,
+            vault_id,
+            credit_threshold
+        );
+    }
+
+    // set the strategy force harvest trigger once
+    public entry fun set_force_harvest_trigger_once<StrategyType: drop>(
+        manager: &signer,
+        vault_id: u64,
+    ) {
+        satay::set_strategy_force_harvest_trigger_once<StrategyType>(
+            manager,
+            vault_id
+        );
     }
 
     // revoke the strategy
@@ -108,9 +164,45 @@ module satay::base_strategy {
         close_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
     }
 
+    // for harvest trigger
+
+    public fun process_harvest_trigger<StrategyType: drop, BaseCoin>(vault_cap: &VaultCapability) : bool {
+        if (vault::force_harvest_trigger_once<StrategyType>(vault_cap)) {
+            true
+        } else {
+            let last_report = vault::last_report<StrategyType>(vault_cap);
+            let max_report_delay = vault::max_report_delay<StrategyType>(vault_cap);
+            
+            if ((timestamp::now_seconds() - last_report) >= max_report_delay) {
+                true
+            } else {
+                let credit_available = vault::credit_available<StrategyType, BaseCoin>(vault_cap);
+                let credit_threshold = vault::credit_threshold<StrategyType>(vault_cap);
+
+                if (credit_available >= credit_threshold) {
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    public fun close_vault_for_harvest_trigger<StrategyType: drop>(
+        manager_addr: address,
+        vault_cap: VaultCapability,
+        stop_handle: VaultCapLock
+    ) {
+        close_vault<StrategyType>(
+            manager_addr,
+            vault_cap,
+            stop_handle
+        );
+    }
+
     // for harvest
 
-    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin>(
+    public fun open_vault_for_harvest<StrategyType: drop>(
         manager: &signer,
         vault_id: u64,
         witness: StrategyType,

@@ -7,6 +7,7 @@ module satay::test_ditto_strategy {
     use aptos_framework::coin;
     use aptos_framework::aptos_coin;
     use aptos_framework::stake;
+    use aptos_framework::timestamp;
 
     // use liquidswap::lp_account;
     // use liquidswap::liquidity_pool;
@@ -89,6 +90,91 @@ module satay::test_ditto_strategy {
     ) {
         setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
         // ditto_strategy::harvest(manager_acc, 0);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        manager_acc = @satay,
+        pool_owner = @liquidswap,
+        user = @0x45
+    )]
+    fun test_harvest_trigger(
+        aptos_framework: &signer,
+        manager_acc: &signer,
+        pool_owner: &signer,
+        user: &signer
+    ) {
+        setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
+        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+
+        timestamp::fast_forward_seconds(1000);
+        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 1);
+
+        timestamp::fast_forward_seconds(30 * 24 * 3600);
+        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 2);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        manager_acc = @satay,
+        pool_owner = @liquidswap,
+        user = @0x45
+    )]
+    fun test_update_max_report_delay(
+        aptos_framework: &signer,
+        manager_acc: &signer,
+        pool_owner: &signer,
+        user: &signer
+    ) {
+        setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
+        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+
+        let new_max_report_delay = 10 * 24 * 3600; // 10 days
+        ditto_strategy::update_max_report_delay(manager_acc, 0, new_max_report_delay);
+
+        timestamp::fast_forward_seconds(new_max_report_delay);
+        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        manager_acc = @satay,
+        pool_owner = @liquidswap,
+        user = @0x45
+    )]
+    fun test_update_credit_threshold(
+        aptos_framework: &signer,
+        manager_acc: &signer,
+        pool_owner: &signer,
+        user: &signer
+    ) {
+        setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
+        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+
+        let new_credit_threshold = 10;
+        ditto_strategy::update_credit_threshold(manager_acc, 0, new_credit_threshold);
+
+        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        manager_acc = @satay,
+        pool_owner = @liquidswap,
+        user = @0x45
+    )]
+    fun test_set_force_harvest_trigger_once(
+        aptos_framework: &signer,
+        manager_acc: &signer,
+        pool_owner: &signer,
+        user: &signer
+    ) {
+        setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
+        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+
+        ditto_strategy::set_force_harvest_trigger_once(manager_acc, 0);
+
+        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 0);
     }
 }
 
