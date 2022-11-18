@@ -133,7 +133,7 @@ module satay::base_strategy {
         vault::deposit<StrategyCoin>(vault_cap, strategy_coins);
     }
 
-    public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
+    public fun process_harvest<StrategyType: drop, BaseCoin>(
         vault_cap: &mut VaultCapability,
         strategy_balance: u64,
         witness: StrategyType

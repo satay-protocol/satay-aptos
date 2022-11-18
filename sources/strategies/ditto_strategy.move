@@ -1,10 +1,9 @@
 module satay::ditto_strategy {
 
     use std::signer;
-    use std::string;
 
     use aptos_framework::account::{Self, SignerCapability, create_signer_with_capability};
-    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::aptos_coin::AptosCoin;
 
     use satay::satay;
@@ -12,18 +11,14 @@ module satay::ditto_strategy {
     use liquidswap_lp::lp_coin::LP;
     use liquidswap::curves::Stable;
     use liquidswap::router::{
-        add_liquidity,
         get_reserves_for_lp_coins,
         get_amount_out,
-        remove_liquidity,
-        swap_exact_coin_for_coin
     };
 
     use ditto_staking::staked_coin::StakedAptos;
-    use ditto_staking::ditto_staking;
-    use liquidity_mining::liquidity_mining;
     use satay::base_strategy::{Self, initialize as base_initialize};
     use satay::vault::VaultCapability;
+    use satay::ditto_rewards::{Self, DittoStrategyCoin};
 
     // witness for the strategy
     // used for checking approval when locking and unlocking vault
@@ -32,15 +27,6 @@ module satay::ditto_strategy {
     // acts as signer in stake LP call
     struct StrategyCapability has key {
         strategy_cap: SignerCapability,
-    }
-
-    // coin issued upon apply strategy
-    struct DittoStrategyCoin {}
-
-    struct DittoStrategyCoinCaps has key {
-        mint_cap: MintCapability<DittoStrategyCoin>,
-        burn_cap: BurnCapability<DittoStrategyCoin>,
-        freeze_cap: FreezeCapability<DittoStrategyCoin>
     }
 
     // initialize vault_id to accept strategy
@@ -54,27 +40,6 @@ module satay::ditto_strategy {
             strategy_cap
         });
 
-        // initailze DittoStrategyCoin, to be used as StrategyCoin in harvest
-        let (
-            burn_cap,
-            freeze_cap,
-            mint_cap
-        ) = coin::initialize<DittoStrategyCoin>(
-            manager,
-            string::utf8(b"Ditto Strategy Coin"),
-            string::utf8(b"DSC"),
-            8,
-            true
-        );
-        move_to(
-            &strategy_acc,
-            DittoStrategyCoinCaps {
-                mint_cap,
-                burn_cap,
-                freeze_cap
-            }
-        );
-
         // register strategy account to hold AptosCoin and LP coin
         coin::register<AptosCoin>(&strategy_acc);
         coin::register<LP<AptosCoin, StakedAptos, Stable>>(&strategy_acc);
@@ -86,7 +51,7 @@ module satay::ditto_strategy {
         manager_addr: address,
         vault_id: u64,
         share_amount: u64
-    ) acquires StrategyCapability, DittoStrategyCoinCaps {
+    ) {
         let (
             amount_aptos_needed,
             vault_cap,
@@ -100,12 +65,13 @@ module satay::ditto_strategy {
         );
 
         let lp_to_burn = get_lp_for_given_aptos_amount(amount_aptos_needed);
-        let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
+        let strategy_coins =
+        ditto_rewards::withdraw_strategy_coin_from_vault<DittoStrategy>(
             &vault_cap,
             lp_to_burn,
             DittoStrategy {}
         );
-        let coins = liquidate_position(manager_addr, strategy_coins);
+        let coins = ditto_rewards::liquidate_position(manager_addr, strategy_coins);
 
         base_strategy::close_vault_for_user_withdraw<DittoStrategy, AptosCoin>(
             manager_addr,
@@ -119,25 +85,31 @@ module satay::ditto_strategy {
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
     public entry fun harvest(
         manager: &signer,
+        ditto_rewards_manager: address,
         vault_id: u64
-    ) acquires StrategyCapability, DittoStrategyCoinCaps {
+    ) acquires StrategyCapability  {
+        let manager_addr = signer::address_of(manager);
+
+        let ditto_strategy_cap = borrow_global<StrategyCapability>(manager_addr);
+        let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.strategy_cap);
+        let ditto_strategy_address = signer::address_of(&ditto_strategy_signer);
+
         let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
             manager,
             vault_id,
             DittoStrategy {}
         );
-        let manager_addr = signer::address_of(manager);
 
         // claim rewards and swap them into BaseCoin
         let coins = claim_rewards_from_ditto();
-        let ditto_strategy_coins = apply_position(signer::address_of(manager), coins);
-        base_strategy::deposit_strategy_coin<DittoStrategyCoin>(&vault_cap, ditto_strategy_coins);
+        let ditto_strategy_coins = ditto_rewards::deposit_coin(&ditto_strategy_signer, ditto_rewards_manager, coins);
+        base_strategy::deposit_strategy_coin(&vault_cap, ditto_strategy_coins);
 
         let strategy_aptos_balance = get_strategy_aptos_balance(&vault_cap);
         let (
             to_apply,
             amount_needed,
-        ) = base_strategy::process_harvest<DittoStrategy, AptosCoin, DittoStrategy>(
+        ) = base_strategy::process_harvest<DittoStrategy, AptosCoin>(
             &mut vault_cap,
             strategy_aptos_balance,
             DittoStrategy {}
@@ -146,12 +118,8 @@ module satay::ditto_strategy {
         let aptos_coins = coin::zero<AptosCoin>();
         if(amount_needed > 0) {
             let lp_to_liquidate = get_lp_for_given_aptos_amount(amount_needed);
-            let strategy_coins_to_liquidate = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoStrategyCoin>(
-                &vault_cap,
-                lp_to_liquidate,
-                DittoStrategy {}
-            );
-            let liquidated_aptos_coins = liquidate_position(manager_addr, strategy_coins_to_liquidate);
+            let strategy_coins_to_liquidate = ditto_rewards::withdraw_strategy_coin_from_vault(&vault_cap, lp_to_liquidate, DittoStrategy {});
+            let liquidated_aptos_coins = ditto_rewards::liquidate_position(manager_addr, strategy_coins_to_liquidate);
             let liquidated_aptos_coins_amount = coin::value<AptosCoin>(&liquidated_aptos_coins);
 
             if (liquidated_aptos_coins_amount > amount_needed) {
@@ -165,8 +133,8 @@ module satay::ditto_strategy {
             };
             coin::merge(&mut aptos_coins, liquidated_aptos_coins)
         };
-        let ditto_strategy_coins = apply_position(manager_addr, to_apply);
-
+        let (ditto_strategy_coins, rest_apt) = ditto_rewards::apply_position(to_apply, ditto_strategy_address, manager_addr,);
+        coin::deposit(ditto_strategy_address, rest_apt);
         base_strategy::close_vault_for_harvest<DittoStrategy, AptosCoin, DittoStrategyCoin>(
             signer::address_of(manager),
             vault_cap,
@@ -184,92 +152,6 @@ module satay::ditto_strategy {
     // revoke the strategy
     public entry fun revoke(manager: &signer, vault_id: u64) {
         satay::update_strategy_debt_ratio<DittoStrategy>(manager, vault_id, 0);
-    }
-
-    // stakes AptosCoin on Ditto for StakedAptos
-    // adds AptosCoin and StakedAptos to Liquidswap LP
-    // stakes LP<StakedAptos, AptosCoin> to Ditto liquidity_mining
-    fun apply_position(
-        manager_addr: address,
-        coins: Coin<AptosCoin>
-    ) : Coin<DittoStrategyCoin> acquires StrategyCapability, DittoStrategyCoinCaps {
-        let ditto_strategy_cap = borrow_global<StrategyCapability>(manager_addr);
-        let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.strategy_cap);
-        let ditto_strategy_address = signer::address_of(&ditto_strategy_signer);
-
-        // add residual aptos when applying strategy
-        let ditto_strategy_aptos_balance = coin::balance<AptosCoin>(ditto_strategy_address);
-        coin::merge(
-            &mut coins,
-            coin::withdraw<AptosCoin>(&ditto_strategy_signer, ditto_strategy_aptos_balance)
-        );
-
-        // 1. exchange half of APT to stAPT
-        let coin_amount = coin::value<AptosCoin>(&coins);
-        let half_aptos = coin::extract(&mut coins, coin_amount / 2);
-        let st_apt = ditto_staking::exchange_aptos(half_aptos, signer::address_of(&ditto_strategy_signer));
-
-        // 2. add liquidity with APT and stAPT
-        // convert stPAT using instant_exchange and send back to the vault
-        let (
-            rest_apt,
-            rest_st_apt,
-            lp
-        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(coins, 0, st_apt, 0);
-        coin::merge(&mut rest_apt, swap_stapt_for_apt(rest_st_apt));
-        coin::deposit(ditto_strategy_address, rest_apt);
-
-        // 3. stake LP for Ditto pre-mine program, mint DittoStrategyCoin in proportion
-        let lp_amount = coin::value(&lp);
-        coin::deposit(ditto_strategy_address, lp);
-        let strategy_coin_caps = borrow_global<DittoStrategyCoinCaps>(ditto_strategy_address);
-        let strategy_coins = coin::mint<DittoStrategyCoin>(
-            lp_amount,
-            &strategy_coin_caps.mint_cap
-        );
-        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
-            &ditto_strategy_signer,
-            lp_amount
-        );
-        strategy_coins
-     }
-
-    // removes Apto from 3rd party protocol to get yield
-    // @param amount: aptos amount
-    // @dev BaseCoin should be AptosCoin
-    fun liquidate_position(
-        manager_addr: address,
-        strategy_coin: Coin<DittoStrategyCoin>
-    ): Coin<AptosCoin> acquires StrategyCapability, DittoStrategyCoinCaps {
-        let ditto_strategy_cap = borrow_global<StrategyCapability>(manager_addr);
-        let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.strategy_cap);
-        let ditto_strategy_coin_caps = borrow_global<DittoStrategyCoinCaps>(
-            signer::address_of(&ditto_strategy_signer)
-        );
-
-        let strategy_coin_amount = coin::value(&strategy_coin);
-        coin::burn(strategy_coin, &ditto_strategy_coin_caps.burn_cap);
-
-        // withdraw and get apt coin
-        // 1. redeem DTO token and convert to APT
-        // liquidity_mining::redeem<LP<StakedAptos, AptosCoin, Stable>, DTOCoinType>()
-
-        // calcuate required LP token amount to withdraw
-        // let (st_apt_amount, apt_amount) = get_reserves_for_lp_coins<StakedAptos, AptosCoin, Stable>(strategy_coin_amount);
-        // let stapt_to_apt_amount = get_amount_out<StakedAptos, AptosCoin, Stable>(st_apt_amount);
-        // let lp_to_unstake = amount * 10000 / (stapt_to_apt_amount + apt_amount);
-
-        // reclaim staked LP coins
-        liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
-        // withdraw
-        let total_lp_balance = coin::balance<LP<AptosCoin, StakedAptos, Stable>>(signer::address_of(&ditto_strategy_signer));
-        let lp_coins = coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, total_lp_balance);
-        let (aptos_coin, staked_aptos) = remove_liquidity<AptosCoin, StakedAptos, Stable>(lp_coins, 1, 1);
-        coin::merge(&mut aptos_coin, swap_stapt_for_apt(staked_aptos));
-
-        // debug if there's such case
-        // assert!(coin::value(&aptos_coin) >= amount, 1);
-        aptos_coin
     }
 
     fun claim_rewards_from_ditto(): Coin<AptosCoin> {
@@ -314,14 +196,4 @@ module satay::ditto_strategy {
     public fun version() : vector<u8> {
         b"0.0.1"
     }
-
-    // simple swap from CoinType to BaseCoin on Liquidswap
-    fun swap_stapt_for_apt(stAPT: Coin<StakedAptos>) : Coin<AptosCoin> {
-        // swap on liquidswap AMM
-        swap_exact_coin_for_coin<StakedAptos, AptosCoin, Stable>(
-            stAPT,
-            0
-        )
-    }
-
 }

@@ -85,7 +85,7 @@ module satay::simple_staking_strategy {
         base_strategy::deposit_strategy_coin<StakingCoin>(&mut vault_cap, strategy_coins);
 
         let strategy_base_coin_balance = get_strategy_base_coin_balance<StakingCoin>(&vault_cap);
-        let (to_apply, amount_needed) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
+        let (to_apply, amount_needed) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin>(
             &mut vault_cap,
             strategy_base_coin_balance,
             SimpleStakingStrategy {}
