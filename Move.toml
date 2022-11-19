@@ -9,5 +9,5 @@ satay = "e3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
 git = 'https://github.com/pontem-network/liquidswap.git'
 rev = 'v0.4.3'
 
-[dependencies.ditto-staking]
-local = './interfaces/ditto-staking-interface'
+[dependencies.satay-ditto-farming]
+local = './structured_products/ditto_farming'

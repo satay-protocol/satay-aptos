@@ -16,7 +16,7 @@ module satay::test_ditto_strategy {
 
     use satay::satay;
     use satay::global_config;
-    use satay::ditto_strategy;
+    use satay::ditto_farming_strategy;
     // use ditto_staking::staked_coin::StakedAptos;
     // use liquidswap::curves::Stable;
     // use liquidswap_lp::lp_coin::LP;
@@ -72,7 +72,7 @@ module satay::test_ditto_strategy {
         setup_tests(aptos_framework, manager_acc, pool_owner, user);
         satay::initialize(manager_acc);
         satay::new_vault<AptosCoin>(manager_acc, b"aptos_vault", 200, 5000);
-        ditto_strategy::initialize(manager_acc, 0,  1000);
+        ditto_farming_strategy::initialize(manager_acc, 0,  1000);
         satay::deposit<AptosCoin>(user, signer::address_of(manager_acc), 0, 1000);
     }
 
@@ -105,13 +105,13 @@ module satay::test_ditto_strategy {
         user: &signer
     ) {
         setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
-        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(!ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
 
         timestamp::fast_forward_seconds(1000);
-        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 1);
+        assert!(!ditto_farming_strategy::harvest_trigger(manager_acc, 0), 1);
 
         timestamp::fast_forward_seconds(30 * 24 * 3600);
-        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 2);
+        assert!(ditto_farming_strategy::harvest_trigger(manager_acc, 0), 2);
     }
 
     #[test(
@@ -127,13 +127,13 @@ module satay::test_ditto_strategy {
         user: &signer
     ) {
         setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
-        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(!ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
 
         let new_max_report_delay = 10 * 24 * 3600; // 10 days
-        ditto_strategy::update_max_report_delay(manager_acc, 0, new_max_report_delay);
+        ditto_farming_strategy::update_max_report_delay(manager_acc, 0, new_max_report_delay);
 
         timestamp::fast_forward_seconds(new_max_report_delay);
-        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
     }
 
     #[test(
@@ -149,12 +149,12 @@ module satay::test_ditto_strategy {
         user: &signer
     ) {
         setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
-        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(!ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
 
         let new_credit_threshold = 10;
-        ditto_strategy::update_credit_threshold(manager_acc, 0, new_credit_threshold);
+        ditto_farming_strategy::update_credit_threshold(manager_acc, 0, new_credit_threshold);
 
-        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
     }
 
     #[test(
@@ -170,11 +170,11 @@ module satay::test_ditto_strategy {
         user: &signer
     ) {
         setup_strategy_vault(aptos_framework, manager_acc, pool_owner, user);
-        assert!(!ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(!ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
 
-        ditto_strategy::set_force_harvest_trigger_once(manager_acc, 0);
+        ditto_farming_strategy::set_force_harvest_trigger_once(manager_acc, 0);
 
-        assert!(ditto_strategy::harvest_trigger(manager_acc, 0), 0);
+        assert!(ditto_farming_strategy::harvest_trigger(manager_acc, 0), 0);
     }
 }
 

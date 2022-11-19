@@ -1,9 +1,9 @@
 [package]
-name = 'satay-ditto-rewards'
+name = 'satay-ditto-farming'
 version = '1.0.0'
 
 [addresses]
-satay_ditto_rewards = "0xe3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
+satay_ditto_farming = "0xe3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
 
 [dependencies.Liquidswap]
 git = 'https://github.com/pontem-network/liquidswap.git'
