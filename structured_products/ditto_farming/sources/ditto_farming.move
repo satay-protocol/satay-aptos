@@ -38,11 +38,13 @@ module satay_ditto_farming::ditto_farming {
     }
 
     const MAX_BPS: u64 = 10000; // 100%
+
     const ERR_NOT_ADMIN: u64 = 1;
     const ERR_NO_FEE: u64 = 2;
 
     // initialize the product
     public entry fun initialize(manager: &signer) {
+        assert!(signer::address_of(manager) == @satay_ditto_farming, ERR_NOT_ADMIN);
         // create strategy resource account and store its capability in the manager's account
         let (strategy_acc, strategy_cap) = account::create_resource_account(manager, b"ditto-strategy");
         move_to(manager, StrategyCapability {
