@@ -5,9 +5,10 @@ version = '1.0.0'
 [addresses]
 satay = "e3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce055c07afac"
 
-[dependencies.Liquidswap]
-git = 'https://github.com/pontem-network/liquidswap.git'
+[dependencies.LiquidswapRouterV2]
+git = 'https://github.com/pontem-network/liquidswap'
 rev = 'v0.4.3'
+subdir = './liquidswap_router_v2'
 
 [dependencies.satay-ditto-farming]
 local = './structured_products/ditto_farming'

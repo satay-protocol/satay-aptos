@@ -7,7 +7,7 @@ module satay_ditto_farming::ditto_farming {
 
     use liquidswap_lp::lp_coin::LP;
     use liquidswap::curves::Stable;
-    use liquidswap::router::{
+    use liquidswap::router_v2::{
         add_liquidity,
         remove_liquidity,
         swap_exact_coin_for_coin,
@@ -192,7 +192,6 @@ module satay_ditto_farming::ditto_farming {
         manager_addr: address,
     ) acquires StrategyCapability, DittoStrategyCoinCaps {
         let (dito_farming_coins, residual_aptos_coins) = reinvest_returns(user, manager_addr);
-
         coin::deposit(signer::address_of(user), dito_farming_coins);
         coin::deposit(signer::address_of(user), residual_aptos_coins);
     }
