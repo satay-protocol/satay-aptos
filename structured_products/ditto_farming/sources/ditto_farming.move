@@ -21,7 +21,7 @@ module satay_ditto_farming::ditto_farming {
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
-    // use liquidity_mining::liquidity_mining;
+    use liquidity_mining::liquidity_mining;
 
     // acts as signer in stake LP call
     struct StrategyCapability has key {
@@ -128,7 +128,7 @@ module satay_ditto_farming::ditto_farming {
                 ditto_strategy_addr
             );
             // stake LP token and mint DittoFarmingCoin
-            let ditto_farming_coins = stake_lp_and_mint(lp, ditto_strategy_addr);
+            let ditto_farming_coins = stake_lp_and_mint(lp, &ditto_strategy_signer);
             (ditto_farming_coins, residual_aptos)
         } else {
             (coin::zero(), aptos_coins)
@@ -164,15 +164,16 @@ module satay_ditto_farming::ditto_farming {
 
     fun stake_lp_and_mint(
         lp: Coin<LP<AptosCoin, StakedAptos, Stable>>,
-        product_address: address,
+        product_signer: &signer,
     ) : Coin<DittoFarmingCoin> acquires DittoFarmingCoinCaps {
+        let product_address = signer::address_of(product_signer);
         let strategy_coin_caps = borrow_global<DittoFarmingCoinCaps>(product_address);
         let lp_amount = coin::value(&lp);
         coin::deposit(product_address, lp);
-        // liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
-        //     &ditto_strategy_signer,
-        //     lp_amount
-        // );
+        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
+            product_signer,
+            lp_amount
+        );
         coin::mint<DittoFarmingCoin>(
             lp_amount,
             &strategy_coin_caps.mint_cap
@@ -195,7 +196,7 @@ module satay_ditto_farming::ditto_farming {
         coin::burn(strategy_coin, &ditto_strategy_coin_caps.burn_cap);
 
         // withdraw and get apt coin
-        // liquidity_mining::redeem<LP<StakedAptos, AptosCoin, Stable>, DTOCoinType>()
+        liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(&ditto_strategy_signer, strategy_coin_amount);
 
         let lp_coins = coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(
             &ditto_strategy_signer,
