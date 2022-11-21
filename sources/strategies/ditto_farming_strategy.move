@@ -5,12 +5,11 @@ module satay::ditto_farming_strategy {
     use aptos_framework::coin::{Self};
     use aptos_framework::aptos_coin::AptosCoin;
 
-
     use satay::satay;
     use satay::base_strategy::{Self, initialize as base_initialize};
     use satay::vault::VaultCapability;
 
-    use satay_ditto_farming::ditto_farming::{Self, DittoFarmingCoin, reinvest_returns};
+    use satay_ditto_farming::ditto_farming::{Self, DittoFarmingCoin};
 
     // witness for the strategy
     // used for checking approval when locking and unlocking vault
@@ -102,12 +101,14 @@ module satay::ditto_farming_strategy {
         );
         let manager_addr = signer::address_of(manager);
 
+        // TODO: add reinvest_returns once ditto farming is implemented
         // claim rewards and swap them into BaseCoin
-        let (
-            ditto_farming_coin,
-            aptos_coins
-        ) = reinvest_returns(manager);
-        base_strategy::deposit_strategy_coin<DittoFarmingCoin>(&vault_cap, ditto_farming_coin);
+        // let (
+        //     ditto_farming_coin,
+        //     aptos_coins
+        // ) = ditto_farming::reinvest_returns(manager);
+        // base_strategy::deposit_strategy_coin<DittoFarmingCoin>(&vault_cap, ditto_farming_coin);
+
 
         let strategy_aptos_balance = get_strategy_aptos_balance(&vault_cap);
         let (
@@ -119,10 +120,12 @@ module satay::ditto_farming_strategy {
             DittoStrategy {}
         );
 
-        let residual_apt_amount = coin::value(&aptos_coins);
-        if(amount_needed > residual_apt_amount){
-            amount_needed = amount_needed - residual_apt_amount;
-        };
+        // TODO: once reinvest returns is implemented, this will be replaced by the returned aptos
+        let aptos_coins = coin::zero<AptosCoin>();
+        // let residual_apt_amount = coin::value(&aptos_coins);
+        // if(amount_needed > residual_apt_amount){
+        //     amount_needed = amount_needed - residual_apt_amount;
+        // };
 
         if(amount_needed > 0) {
             let lp_to_liquidate = ditto_farming::get_strategy_coin_amount_for_apt_amount(amount_needed);

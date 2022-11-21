@@ -112,21 +112,26 @@ module satay_ditto_farming::mock_ditto_farming {
         aptos_coins: Coin<AptosCoin>,
         user_addr: address,
     ): (Coin<DittoFarmingCoin>, Coin<AptosCoin>) acquires StrategyCapability, DittoFarmingCoinCaps {
-        let ditto_strategy_cap = borrow_global<StrategyCapability>(@satay_ditto_farming);
-        let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.strategy_cap);
-        let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
+        let deposit_amount = coin::value(&aptos_coins);
+        if(deposit_amount > 0){
+            let ditto_strategy_cap = borrow_global<StrategyCapability>(@satay_ditto_farming);
+            let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.strategy_cap);
+            let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
 
-        // exchange optimal amount of apt for stAPT
-        let st_apt = swap_apt_for_stapt(&mut aptos_coins, user_addr);
-        // add apt and stAPT to LP
-        let (lp, residual_aptos) = add_apt_st_apt_lp(
-            aptos_coins,
-            st_apt,
-            ditto_strategy_addr
-        );
-        // stake LP token and mint DittoFarmingCoin
-        let ditto_farming_coins = stake_lp_and_mint(lp, ditto_strategy_addr);
-        (ditto_farming_coins, residual_aptos)
+            // exchange optimal amount of apt for stAPT
+            let st_apt = swap_apt_for_stapt(&mut aptos_coins, user_addr);
+            // add apt and stAPT to LP
+            let (lp, residual_aptos) = add_apt_st_apt_lp(
+                aptos_coins,
+                st_apt,
+                ditto_strategy_addr
+            );
+            // stake LP token and mint DittoFarmingCoin
+            let ditto_farming_coins = stake_lp_and_mint(lp, ditto_strategy_addr);
+            (ditto_farming_coins, residual_aptos)
+        } else {
+            (coin::zero(), aptos_coins)
+        }
     }
 
     fun swap_apt_for_stapt(aptos_coins: &mut Coin<AptosCoin>, user_addr: address) : Coin<StakedAptos> {

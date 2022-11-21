@@ -104,6 +104,30 @@ module satay_ditto_farming::test_ditto_farming {
         ditto_staking = @ditto_staking,
         user = @0x99
     )]
+    public fun test_deposit_zero(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        user: &signer
+    ) {
+        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, user);
+        mock_ditto_farming::deposit(user, 0);
+
+        let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
+        let farming_account_lp_balance = mock_ditto_farming::get_lp_reserves_amount();
+
+        assert!(user_farming_coin_balance == 0, 1);
+        assert!(farming_account_lp_balance == 0, 2);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        user = @0x99
+    )]
     public fun test_withdraw(
         aptos_framework: &signer,
         pool_owner: &signer,
