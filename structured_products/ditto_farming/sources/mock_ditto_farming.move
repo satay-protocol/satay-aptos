@@ -1,4 +1,5 @@
-module satay_ditto_farming::ditto_farming {
+#[test_only]
+module satay_ditto_farming::mock_ditto_farming {
 
     use std::signer;
     use std::string;
@@ -18,8 +19,7 @@ module satay_ditto_farming::ditto_farming {
         get_amount_out
     };
 
-    use ditto_staking::staked_coin::StakedAptos;
-    use ditto_staking::ditto_staking;
+    use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
     // use liquidity_mining::liquidity_mining;
 
     // acts as signer in stake LP call
@@ -133,7 +133,7 @@ module satay_ditto_farming::ditto_farming {
         let (apt_reserve, st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
         let apt_to_swap = coin::value(aptos_coins) * st_apt_reserve / (apt_reserve + st_apt_reserve);
         let apt_to_stapt = coin::extract(aptos_coins, apt_to_swap);
-        ditto_staking::exchange_aptos(apt_to_stapt, user_addr)
+        mock_ditto_staking::exchange_aptos(apt_to_stapt, user_addr)
     }
 
     fun add_apt_st_apt_lp(
@@ -150,7 +150,7 @@ module satay_ditto_farming::ditto_farming {
         if(coin::value(&rest_st_apt) == 0){
             coin::destroy_zero(rest_st_apt);
         } else {
-            coin::merge(&mut rest_apt, ditto_staking::exchange_staptos(rest_st_apt, product_address));
+            coin::merge(&mut rest_apt, mock_ditto_staking::exchange_staptos(rest_st_apt, product_address));
         };
 
         (lp, rest_apt)
@@ -265,5 +265,11 @@ module satay_ditto_farming::ditto_farming {
             stAPT,
             0
         )
+    }
+
+    public fun get_lp_reserves_amount() : u64 acquires StrategyCapability {
+        let ditto_strategy_cap = borrow_global<StrategyCapability>(@satay_ditto_farming);
+        let ditto_strategy_address = account::get_signer_capability_address(&ditto_strategy_cap.strategy_cap);
+        coin::balance<LP<AptosCoin, StakedAptos, Stable>>(ditto_strategy_address)
     }
 }
