@@ -55,7 +55,7 @@ module satay::ditto_farming_strategy {
             &vault_cap,
             lp_to_burn,
         );
-        let coins = ditto_farming::liquidate_position(strategy_coins, @satay_ditto_farming);
+        let coins = ditto_farming::liquidate_position(strategy_coins);
 
         base_strategy::close_vault_for_user_withdraw<DittoStrategy, AptosCoin>(
             manager_addr,
@@ -106,7 +106,7 @@ module satay::ditto_farming_strategy {
         let (
             ditto_farming_coin,
             aptos_coins
-        ) = reinvest_returns(manager, manager_addr);
+        ) = reinvest_returns(manager);
         base_strategy::deposit_strategy_coin<DittoFarmingCoin>(&vault_cap, ditto_farming_coin);
 
         let strategy_aptos_balance = get_strategy_aptos_balance(&vault_cap);
@@ -132,7 +132,6 @@ module satay::ditto_farming_strategy {
             );
             let liquidated_aptos_coins = ditto_farming::liquidate_position(
                 strategy_coins,
-                @satay_ditto_farming
             );
             let liquidated_aptos_coins_amount = coin::value<AptosCoin>(&liquidated_aptos_coins);
 
@@ -151,7 +150,6 @@ module satay::ditto_farming_strategy {
         let (ditto_strategy_coins, residual_apt) = ditto_farming::apply_position(
             to_apply,
             manager_addr,
-            @satay_ditto_farming
         );
         coin::merge(&mut aptos_coins, residual_apt);
 
