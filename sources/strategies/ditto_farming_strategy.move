@@ -49,7 +49,7 @@ module satay::ditto_farming_strategy {
             DittoStrategy {}
         );
 
-        let lp_to_burn = ditto_farming::get_strategy_coin_amount_for_apt_amount(amount_aptos_needed);
+        let lp_to_burn = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_aptos_needed);
         let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
             &vault_cap,
             lp_to_burn,
@@ -128,7 +128,7 @@ module satay::ditto_farming_strategy {
         // };
 
         if(amount_needed > 0) {
-            let lp_to_liquidate = ditto_farming::get_strategy_coin_amount_for_apt_amount(amount_needed);
+            let lp_to_liquidate = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_needed);
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
                 lp_to_liquidate
@@ -225,7 +225,7 @@ module satay::ditto_farming_strategy {
         // 1. get user staked LP amount to ditto LP layer (interface missing from Ditto)
         let ditto_staked_lp_amount = base_strategy::balance<DittoFarmingCoin>(vault_cap);
         // 2. convert LP coin to aptos
-        ditto_farming::get_apt_amount_for_strategy_coin_amount(ditto_staked_lp_amount)
+        ditto_farming::get_apt_amount_for_farming_coin_amount(ditto_staked_lp_amount)
     }
 
     public fun name() : vector<u8> {
