@@ -22,7 +22,7 @@ module satay::test_user_workflow {
     use liquidswap_lp::lp_coin::LP;
     use liquidswap::curves::Uncorrelated;
 
-    use test_coins::coins::{Self, USDT};
+    use satay::coins::{Self, USDT};
     use test_helpers::test_account;
 
     #[test_only]
@@ -38,7 +38,6 @@ module satay::test_user_workflow {
 
         coins::register_coins(token_admin);
 
-        test_account::create_account(token_admin);
         test_account::create_account(user);
         test_account::create_account(pool_owner);
 
@@ -89,10 +88,10 @@ module satay::test_user_workflow {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @test_coins,
+        token_admin = @satay,
         pool_owner = @liquidswap,
         manager_acc = @satay,
-        staking_pool_admin = @staking_pool_manager,
+        staking_pool_admin = @satay,
         user = @0x45,
         userB = @0x46
     )]
@@ -136,10 +135,10 @@ module satay::test_user_workflow {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @test_coins,
+        token_admin = @satay,
         pool_owner = @liquidswap,
         manager_acc = @satay,
-        staking_pool_admin = @staking_pool_manager,
+        staking_pool_admin = @satay,
         user = @0x45,
         userB = @0x46
     )]
