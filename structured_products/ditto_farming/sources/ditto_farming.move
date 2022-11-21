@@ -17,6 +17,7 @@ module satay_ditto_farming::ditto_farming {
         get_reserves_for_lp_coins,
         get_amount_out
     };
+    use liquidswap::math::mul_div;
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
@@ -60,9 +61,9 @@ module satay_ditto_farming::ditto_farming {
             mint_cap
         ) = coin::initialize<DittoFarmingCoin>(
             manager,
-            string::utf8(b"Ditto Strategy Coin"),
-            string::utf8(b"DSC"),
-            8,
+            string::utf8(b"Ditto Farming Coin"),
+            string::utf8(b"DFC"),
+            6,
             true
         );
         move_to(
@@ -136,7 +137,7 @@ module satay_ditto_farming::ditto_farming {
 
     fun swap_apt_for_stapt(aptos_coins: &mut Coin<AptosCoin>, user_addr: address) : Coin<StakedAptos> {
         let (apt_reserve, st_apt_reserve) = get_reserves_size<AptosCoin, StakedAptos, Stable>();
-        let apt_to_swap = coin::value(aptos_coins) * st_apt_reserve / (apt_reserve + st_apt_reserve);
+        let apt_to_swap = mul_div(coin::value(aptos_coins), st_apt_reserve, (apt_reserve + st_apt_reserve));
         let apt_to_stapt = coin::extract(aptos_coins, apt_to_swap);
         ditto_staking::exchange_aptos(apt_to_stapt, user_addr)
     }
