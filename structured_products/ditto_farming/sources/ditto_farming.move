@@ -216,7 +216,8 @@ module satay_ditto_farming::ditto_farming {
             farming_coin_amount
         );
         // burn farming coin
-        let farming_coin_caps = borrow_global<DittoFarmingCoinCaps>(@satay_ditto_farming);
+        let farming_account_addr = signer::address_of(ditto_farming_signer);
+        let farming_coin_caps = borrow_global<DittoFarmingCoinCaps>(farming_account_addr);
         coin::burn(ditto_farming_coins, &farming_coin_caps.burn_cap);
         // return proportionate amount of LP coin
         coin::withdraw<LP<AptosCoin, StakedAptos, Stable>>(ditto_farming_signer, farming_coin_amount)
