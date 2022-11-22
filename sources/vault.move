@@ -15,8 +15,8 @@ module satay::vault {
     friend satay::base_strategy;
 
     const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
-    const MAX_MANAGEMENT_FEE: u64 = 3000; // 30%
-    const MAX_PERFORMANCE_FEE: u64 = 3000; // 30%
+    const MAX_MANAGEMENT_FEE: u64 = 5000; // 30%
+    const MAX_PERFORMANCE_FEE: u64 = 5000; // 30%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
 
     const ERR_NO_USER_POSITION: u64 = 101;
@@ -76,7 +76,7 @@ module satay::vault {
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
-        assert!(management_fee < MAX_MANAGEMENT_FEE && performance_fee < MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
+        assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
 
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
@@ -204,7 +204,7 @@ module satay::vault {
         management_fee: u64,
         performance_fee: u64
     ) acquires Vault {
-        assert!(management_fee < MAX_MANAGEMENT_FEE && performance_fee < MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
+        assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
 
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         vault.management_fee = management_fee;
