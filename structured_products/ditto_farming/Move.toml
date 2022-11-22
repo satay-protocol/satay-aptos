@@ -1,0 +1,14 @@
+[package]
+name = 'satay-ditto-farming'
+version = '1.0.0'
+
+[addresses]
+satay_ditto_farming = "0x895cff28180ccdd3746a22a5e8ff929060d4ae58510a97662d90339100ed75c7"
+
+[dependencies.LiquidswapRouterV2]
+git = 'https://github.com/pontem-network/liquidswap'
+rev = 'v0.4.3'
+subdir = './liquidswap_router_v2'
+
+[dependencies.ditto-staking]
+local = '../../interfaces/ditto-staking-interface'
