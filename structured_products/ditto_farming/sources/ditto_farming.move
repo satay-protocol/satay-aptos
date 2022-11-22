@@ -21,7 +21,6 @@ module satay_ditto_farming::ditto_farming {
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
-    use liquidity_mining::liquidity_mining;
 
     // acts as signer in stake LP call
     struct FarmingAccountCapability has key {
@@ -181,10 +180,6 @@ module satay_ditto_farming::ditto_farming {
         let lp_coin_amount = coin::value(&lp_coins);
 
         coin::deposit(ditto_farming_addr, lp_coins);
-        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
-            ditto_farming_signer,
-            lp_coin_amount
-        );
         coin::mint<DittoFarmingCoin>(
             lp_coin_amount,
             &farming_coin_caps.mint_cap
@@ -211,10 +206,6 @@ module satay_ditto_farming::ditto_farming {
     ) : Coin<LP<AptosCoin, StakedAptos, Stable>> acquires DittoFarmingCoinCaps {
         // unstake amount of LP for given amount of DittoFarmingCoin
         let farming_coin_amount = coin::value<DittoFarmingCoin>(&ditto_farming_coins);
-        liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(
-            ditto_farming_signer,
-            farming_coin_amount
-        );
         // burn farming coin
         let farming_coin_caps = borrow_global<DittoFarmingCoinCaps>(@satay_ditto_farming);
         coin::burn(ditto_farming_coins, &farming_coin_caps.burn_cap);

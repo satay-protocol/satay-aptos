@@ -12,6 +12,3 @@ subdir = './liquidswap_router_v2'
 
 [dependencies.ditto-staking]
 local = '../../interfaces/ditto-staking-interface'
-
-[dependencies.liquidity-mining]
-local = '../../interfaces/ditto-lm-interface'
