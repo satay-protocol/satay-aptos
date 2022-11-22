@@ -45,7 +45,10 @@ module satay_ditto_farming::ditto_farming {
         assert!(signer::address_of(manager) == @satay_ditto_farming, ERR_NOT_ADMIN);
 
         // create resource account and store its SignerCapability in the manager's account
-        let (farming_acc, signer_cap) = account::create_resource_account(manager, b"ditto-strategy");
+        let (farming_acc, signer_cap) = account::create_resource_account(
+            manager,
+            b"ditto_farming_product"
+        );
         move_to(manager, FarmingAccountCapability {
             signer_cap
         });
