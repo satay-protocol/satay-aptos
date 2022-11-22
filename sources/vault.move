@@ -205,8 +205,6 @@ module satay::vault {
         vault.performance_fee = performance_fee;
     }
 
-    // for strategies
-
     // update strategy debt ratio
     public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
         vault_cap: &VaultCapability,
@@ -259,6 +257,8 @@ module satay::vault {
             CoinStore<CoinType> { coin: coin::zero() }
         );
     }
+
+    // for strategies
 
     // deposit coin of CoinType into the vault
     public(friend) fun deposit<CoinType>(vault_cap: &VaultCapability, coin: Coin<CoinType>) acquires CoinStore {
