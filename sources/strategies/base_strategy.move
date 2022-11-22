@@ -268,7 +268,7 @@ module satay::base_strategy {
             amount_needed = total_available - credit;
         };
 
-        vault::report<StrategyType>(vault_cap);
+        vault::report_timestamp<StrategyType>(vault_cap);
 
         (to_apply, amount_needed)
     }

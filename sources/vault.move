@@ -14,7 +14,10 @@ module satay::vault {
     friend satay::satay;
     friend satay::base_strategy;
 
+  
     const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
+    const MAX_MANAGEMENT_FEE: u64 = 5000; // 30%
+    const MAX_PERFORMANCE_FEE: u64 = 5000; // 30%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
 
     const ERR_NO_USER_POSITION: u64 = 101;
@@ -74,6 +77,8 @@ module satay::vault {
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
+        assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
+
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
 
@@ -200,6 +205,8 @@ module satay::vault {
         management_fee: u64,
         performance_fee: u64
     ) acquires Vault {
+        assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
+
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         vault.management_fee = management_fee;
         vault.performance_fee = performance_fee;
@@ -317,10 +324,6 @@ module satay::vault {
         dao_storage::deposit<VaultCoin<BaseCoin>>(vault_cap.vault_addr, coins);
     }
 
-    public fun get_storage_signer(vault_cap: &VaultCapability): signer {
-        account::create_signer_with_capability(&vault_cap.storage_cap)
-    }
-
     // update vault and strategy total_debt, given credit and debt_payment amounts
     public(friend) fun update_total_debt<StrategyType: drop>(vault_cap: &mut VaultCapability, credit: u64, debt_payment: u64) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
@@ -356,7 +359,7 @@ module satay::vault {
     }
 
     // report time for StrategyType
-    public(friend) fun report<StrategyType: drop>(vault_cap: &mut VaultCapability) acquires VaultStrategy {
+    public(friend) fun report_timestamp<StrategyType: drop>(vault_cap: &mut VaultCapability) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.last_report = timestamp::now_seconds();
         strategy.force_harvest_trigger_once = false;
