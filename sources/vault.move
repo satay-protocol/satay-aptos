@@ -14,7 +14,8 @@ module satay::vault {
     friend satay::satay;
     friend satay::base_strategy;
 
-    const MAX_BPS: u64 = 10000; // 100%
+  
+    const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
     const MAX_MANAGEMENT_FEE: u64 = 5000; // 30%
     const MAX_PERFORMANCE_FEE: u64 = 5000; // 30%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
@@ -46,10 +47,10 @@ module satay::vault {
         vault_addr: address,
     }
 
-    struct Caps<phantom CoinType> has key {
-        mint_cap: MintCapability<CoinType>,
-        freeze_cap: FreezeCapability<CoinType>,
-        burn_cap: BurnCapability<CoinType>
+    struct VaultCoinCaps<phantom BaseCoin> has key {
+        mint_cap: MintCapability<VaultCoin<BaseCoin>>,
+        freeze_cap: FreezeCapability<VaultCoin<BaseCoin>>,
+        burn_cap: BurnCapability<VaultCoin<BaseCoin>>
     }
 
     struct VaultCoin<phantom BaseCoin> has key {}
@@ -94,18 +95,26 @@ module satay::vault {
         };
         move_to(&vault_acc, vault);
 
+        // create vault coin name
+        let vault_coin_name = coin::name<BaseCoin>();
+        string::append_utf8(&mut vault_coin_name, b"vault");
+
+        // create vault coin symbol
+        let vault_coin_symbol = string::utf8(b"s");
+        string::append(&mut vault_coin_symbol, coin::symbol<BaseCoin>());
+
         // initialize vault coin and move vault caps to vault owner
         let (burn_cap,
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
             vault_owner,
-            string::utf8(b"Vault Token"),
-            string::utf8(b"Vault"),
+            vault_coin_name,
+            vault_coin_symbol,
             8,
             true
         );
-        move_to(&vault_acc, Caps<VaultCoin<BaseCoin>> { mint_cap, freeze_cap, burn_cap});
+        move_to(&vault_acc, VaultCoinCaps<BaseCoin> { mint_cap, freeze_cap, burn_cap});
 
         // create vault capability and use it to add BaseCoin to coin storage
         let vault_cap = VaultCapability {
@@ -127,7 +136,7 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
-    ) acquires Vault, CoinStore, Caps {
+    ) acquires Vault, CoinStore, VaultCoinCaps {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         // ensure that BaseCoin is the base coin type of the vault
@@ -150,7 +159,7 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         amount: u64
-    ): Coin<BaseCoin> acquires CoinStore, Vault, Caps {
+    ): Coin<BaseCoin> acquires CoinStore, Vault, VaultCoinCaps {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
@@ -170,7 +179,7 @@ module satay::vault {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         // check if the strategy's updated debt ratio is valid
-        assert!(vault.debt_ratio + debt_ratio <= MAX_BPS, ERR_INVALID_DEBT_RATIO);
+        assert!(vault.debt_ratio + debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
 
         // create a new strategy
         let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
@@ -218,7 +227,7 @@ module satay::vault {
         strategy.debt_ratio = debt_ratio;
 
         // check if the strategy's updated debt ratio is valid
-        assert!(vault.debt_ratio <= MAX_BPS, ERR_INVALID_DEBT_RATIO);
+        assert!(vault.debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
 
         old_debt_ratio
     }
@@ -276,7 +285,7 @@ module satay::vault {
         delegated_assets: u64,
         vault_cap: &VaultCapability,
         _witness: StrategyType
-    ) acquires VaultStrategy, Vault, CoinStore, Caps {
+    ) acquires VaultStrategy, Vault, CoinStore, VaultCoinCaps {
         let vault = borrow_global<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
@@ -292,10 +301,10 @@ module satay::vault {
                     * duration
                     * vault.management_fee
             )
-                / MAX_BPS
+                / MAX_DEBT_RATIO_BPS
                 / SECS_PER_YEAR
         );
-        let performance_fee_amount = gain * vault.performance_fee / MAX_BPS;
+        let performance_fee_amount = gain * vault.performance_fee / MAX_DEBT_RATIO_BPS;
 
         let total_fee_amount = management_fee_amount + performance_fee_amount;
         if (total_fee_amount > gain) {
@@ -310,7 +319,7 @@ module satay::vault {
         };
 
         // mint vault coins to dao storage
-        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
+        let caps = borrow_global<VaultCoinCaps<BaseCoin>>(vault_cap.vault_addr);
         let coins = coin::mint<VaultCoin<BaseCoin>>(share_token_amount, &caps.mint_cap);
         dao_storage::deposit<VaultCoin<BaseCoin>>(vault_cap.vault_addr, coins);
     }
@@ -390,8 +399,8 @@ module satay::vault {
         let vault_debt_ratio = vault.debt_ratio;
         let vault_total_debt = vault.total_debt;
         let vault_total_assets = total_assets<CoinType>(vault_cap);
-        let vault_debt_limit = vault_debt_ratio * vault_total_assets / MAX_BPS;
-        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_BPS;
+        let vault_debt_limit = vault_debt_ratio * vault_total_assets / MAX_DEBT_RATIO_BPS;
+        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_DEBT_RATIO_BPS;
         let strategy_total_debt = strategy.total_debt;
 
         if (strategy_debt_limit <= strategy_total_debt || vault_debt_limit <= vault_total_debt) {
@@ -423,7 +432,7 @@ module satay::vault {
         };
 
         let vault_total_assets = total_assets<CoinType>(vault_cap);
-        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_BPS;
+        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_DEBT_RATIO_BPS;
         let strategy_total_debt = strategy.total_debt;
 
         if (strategy_total_debt <= strategy_debt_limit) {
@@ -527,8 +536,8 @@ module satay::vault {
 
     // mint vault coin shares to user
     // called by deposit_as_user
-    fun mint_vault_coin<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
-        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
+    fun mint_vault_coin<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires VaultCoinCaps {
+        let caps = borrow_global<VaultCoinCaps<BaseCoin>>(vault_cap.vault_addr);
         let coins = coin::mint<VaultCoin<BaseCoin>>(amount, &caps.mint_cap);
         if(!is_vault_coin_registered<BaseCoin>(signer::address_of(user))){
             coin::register<VaultCoin<BaseCoin>>(user);
@@ -538,8 +547,8 @@ module satay::vault {
 
     // burn vault coin from user
     // called by withdraw_as_user
-    fun burn_vault_coins<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires Caps {
-        let caps = borrow_global<Caps<VaultCoin<BaseCoin>>>(vault_cap.vault_addr);
+    fun burn_vault_coins<BaseCoin>(user: &signer, vault_cap: &VaultCapability, amount: u64) acquires VaultCoinCaps {
+        let caps = borrow_global<VaultCoinCaps<BaseCoin>>(vault_cap.vault_addr);
         coin::burn(coin::withdraw<VaultCoin<BaseCoin>>(user, amount), &caps.burn_cap);
     }
 
@@ -583,7 +592,7 @@ module satay::vault {
             8,
             true
         );
-        move_to(&vault_acc, Caps<VaultCoin<BaseCoin>> { mint_cap, freeze_cap, burn_cap});
+        move_to(&vault_acc, VaultCoinCaps<BaseCoin> { mint_cap, freeze_cap, burn_cap});
 
         // create vault capability with storage cap and mint/burn capability
         let vault_cap = VaultCapability {
@@ -600,7 +609,7 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
-    ) acquires Vault, CoinStore, Caps {
+    ) acquires Vault, CoinStore, VaultCoinCaps {
         deposit_as_user(user, vault_cap, base_coin);
     }
 
@@ -609,7 +618,7 @@ module satay::vault {
         user: &signer,
         vault_cap: &VaultCapability,
         amount: u64
-    ) : Coin<BaseCoin> acquires Vault, CoinStore, Caps {
+    ) : Coin<BaseCoin> acquires Vault, CoinStore, VaultCoinCaps {
         withdraw_as_user(user, vault_cap, amount)
     }
 
