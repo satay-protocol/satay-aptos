@@ -6,7 +6,7 @@ module satay::ditto_farming_strategy {
     use aptos_framework::aptos_coin::AptosCoin;
 
     use satay::satay;
-    use satay::base_strategy::{Self, initialize as base_initialize};
+    use satay::base_strategy::{Self};
     use satay::vault::VaultCapability;
 
     use satay_ditto_farming::ditto_farming::{Self, DittoFarmingCoin};
@@ -22,71 +22,12 @@ module satay::ditto_farming_strategy {
         debt_ratio: u64
     ) {
         // initialize through base_strategy_module
-        base_initialize<DittoStrategy, DittoFarmingCoin>(
+        base_strategy::initialize<DittoStrategy, DittoFarmingCoin>(
             manager,
             vault_id,
             debt_ratio,
             DittoStrategy {}
         );
-    }
-
-    // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
-    public entry fun withdraw_for_user(
-        user: &signer,
-        manager_addr: address,
-        vault_id: u64,
-        share_amount: u64
-    ) {
-        let (
-            amount_aptos_needed,
-            vault_cap,
-            stop_handle
-        ) = base_strategy::open_vault_for_user_withdraw<DittoStrategy, AptosCoin, DittoFarmingCoin>(
-            user,
-            manager_addr,
-            vault_id,
-            share_amount,
-            DittoStrategy {}
-        );
-
-        let lp_to_burn = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_aptos_needed);
-        let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
-            &vault_cap,
-            lp_to_burn,
-        );
-        let coins = ditto_farming::liquidate_position(strategy_coins);
-
-        base_strategy::close_vault_for_user_withdraw<DittoStrategy, AptosCoin>(
-            manager_addr,
-            vault_cap,
-            stop_handle,
-            coins,
-            amount_aptos_needed
-        );
-    }
-
-    // provide a signal to the keeper that `harvest()` should be called
-    public entry fun harvest_trigger(
-        manager: &signer,
-        vault_id: u64
-    ) : bool {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy>(
-            manager,
-            vault_id,
-            DittoStrategy {}
-        );
-
-        let harvest_trigger = base_strategy::process_harvest_trigger<DittoStrategy, AptosCoin>(
-            &vault_cap
-        );
-
-        base_strategy::close_vault_for_harvest_trigger<DittoStrategy>(
-            signer::address_of(manager),
-            vault_cap,
-            stop_handle
-        );
-
-        harvest_trigger
     }
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
@@ -131,7 +72,8 @@ module satay::ditto_farming_strategy {
             let lp_to_liquidate = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_needed);
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
-                lp_to_liquidate
+                lp_to_liquidate,
+                DittoStrategy {}
             );
             let liquidated_aptos_coins = ditto_farming::liquidate_position(
                 strategy_coins,
@@ -163,6 +105,70 @@ module satay::ditto_farming_strategy {
             aptos_coins,
             ditto_strategy_coins
         )
+    }
+
+    // provide a signal to the keeper that `harvest()` should be called
+    public entry fun harvest_trigger(
+        manager: &signer,
+        vault_id: u64
+    ): bool {
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy>(
+            manager,
+            vault_id,
+            DittoStrategy {}
+        );
+
+        let harvest_trigger = base_strategy::process_harvest_trigger<DittoStrategy, AptosCoin>(
+            &vault_cap
+        );
+
+        base_strategy::close_vault_for_harvest_trigger<DittoStrategy>(
+            signer::address_of(manager),
+            vault_cap,
+            stop_handle
+        );
+
+        harvest_trigger
+    }
+
+    // tend
+
+    // admin functions
+
+    // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
+    public entry fun withdraw_for_user(
+        user: &signer,
+        manager_addr: address,
+        vault_id: u64,
+        share_amount: u64
+    ) {
+        let (
+            amount_aptos_needed,
+            vault_cap,
+            stop_handle
+        ) = base_strategy::open_vault_for_user_withdraw<DittoStrategy, AptosCoin, DittoFarmingCoin>(
+            user,
+            manager_addr,
+            vault_id,
+            share_amount,
+            DittoStrategy {}
+        );
+
+        let lp_to_burn = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_aptos_needed);
+        let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
+            &vault_cap,
+            lp_to_burn,
+            DittoStrategy {}
+        );
+        let coins = ditto_farming::liquidate_position(strategy_coins);
+
+        base_strategy::close_vault_for_user_withdraw<DittoStrategy, AptosCoin>(
+            manager_addr,
+            vault_cap,
+            stop_handle,
+            coins,
+            amount_aptos_needed
+        );
     }
 
     // update the strategy debt ratio
@@ -235,5 +241,4 @@ module satay::ditto_farming_strategy {
     public fun version() : vector<u8> {
         b"0.0.1"
     }
-
 }
