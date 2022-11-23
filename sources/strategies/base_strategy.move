@@ -14,6 +14,7 @@ module satay::base_strategy {
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
     const ERR_LOSS: u64 = 303;
+    const ERR_DEBT_OUT_STANDING: u64 = 304;
 
     // initialize vault_id to accept strategy
     public fun initialize<StrategyType: drop, StrategyCoin>(
@@ -205,15 +206,16 @@ module satay::base_strategy {
         manager: &signer,
         vault_id: u64,
         witness: StrategyType,
-    ) :  (VaultCapability, VaultCapLock<StrategyType>, u64) {
+    ) :  (VaultCapability, VaultCapLock<StrategyType>) {
         let (vault_cap, stop_handle) = open_vault<StrategyType>(
             signer::address_of(manager),
             vault_id,
             witness
         );
         let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(&vault_cap);
+        assert!(debt_out_standing == 0, ERR_DEBT_OUT_STANDING);
 
-        (vault_cap, stop_handle, debt_out_standing)
+        (vault_cap, stop_handle)
     }
 
     public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(
