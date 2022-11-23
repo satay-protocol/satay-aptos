@@ -84,10 +84,7 @@ module satay::base_strategy {
         stop_handle: &VaultCapLock<StrategyType>,
     ) : (Coin<BaseCoin>, u64) {
 
-        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(
-            vault_cap,
-            strategy_balance
-        );
+        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(vault_cap, strategy_balance);
 
         // profit to report
         if (profit > 0) {
@@ -107,14 +104,27 @@ module satay::base_strategy {
             debt_payment = debt;
         };
 
+        if (credit > 0 || debt_payment > 0) {
+            vault::update_total_debt<StrategyType>(
+                vault_cap,
+                credit,
+                debt_payment,
+                satay::get_strategy_witness(stop_handle)
+            );
+        };
+
         let total_available = profit + debt_payment;
+
+        if (profit > 0) {
+            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, stop_handle);
+        };
 
         let to_apply= coin::zero<BaseCoin>();
         let amount_needed = 0;
         if (total_available < credit) { // credit surplus, give to Strategy
             coin::merge(
                 &mut to_apply,
-                strategy_withdraw_base_coin<StrategyType, BaseCoin>(
+                withdraw_base_coin<StrategyType, BaseCoin>(
                     vault_cap,
                     credit - total_available,
                     stop_handle
@@ -122,14 +132,6 @@ module satay::base_strategy {
             );
         } else { // credit deficit, take from Strategy
             amount_needed = total_available - credit;
-        };
-
-        if (profit > 0) {
-            assess_fees<StrategyType, BaseCoin>(
-                profit,
-                vault_cap,
-                stop_handle
-            );
         };
 
         vault::report_timestamp<StrategyType>(vault_cap);
@@ -144,7 +146,7 @@ module satay::base_strategy {
         base_coins: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
-        strategy_deposit_base_coin<StrategyType, BaseCoin>(
+        deposit_base_coin<StrategyType, BaseCoin>(
             &mut vault_cap,
             base_coins,
             &stop_handle
@@ -276,7 +278,13 @@ module satay::base_strategy {
             vault::report_loss<StrategyType>(&mut vault_cap, amount_needed - value);
         };
 
-        strategy_deposit_base_coin(
+        vault::update_total_debt<StrategyType>(
+            &mut vault_cap,
+            0,
+            value,
+            satay::get_strategy_witness(&stop_handle)
+        );
+        deposit_base_coin(
             &mut vault_cap,
             coins,
             &stop_handle
@@ -288,7 +296,7 @@ module satay::base_strategy {
     // admin functions
 
     // update the strategy debt ratio
-    public entry fun update_debt_ratio<StrategyType: drop>(
+    public fun update_debt_ratio<StrategyType: drop>(
         manager: &signer,
         vault_id: u64,
         debt_ratio: u64
@@ -301,7 +309,7 @@ module satay::base_strategy {
     }
 
     // update the strategy max report delay
-    public entry fun update_max_report_delay<StrategyType: drop>(
+    public fun update_max_report_delay<StrategyType: drop>(
         manager: &signer,
         vault_id: u64,
         max_report_delay: u64
@@ -314,7 +322,7 @@ module satay::base_strategy {
     }
 
     // update the strategy credit threshold
-    public entry fun update_credit_threshold<StrategyType: drop>(
+    public fun update_credit_threshold<StrategyType: drop>(
         manager: &signer,
         vault_id: u64,
         credit_threshold: u64
@@ -327,7 +335,7 @@ module satay::base_strategy {
     }
 
     // set the strategy force harvest trigger once
-    public entry fun set_force_harvest_trigger_once<StrategyType: drop>(
+    public fun set_force_harvest_trigger_once<StrategyType: drop>(
         manager: &signer,
         vault_id: u64,
     ) {
@@ -338,7 +346,7 @@ module satay::base_strategy {
     }
 
     // revoke the strategy
-    public entry fun revoke<StrategyType: drop>(
+    public fun revoke<StrategyType: drop>(
         manager: &signer,
         vault_id: u64
     ) {
@@ -346,7 +354,7 @@ module satay::base_strategy {
     }
 
     // migrate to new strategy
-    public entry fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(
+    public fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(
         manager: &signer,
         vault_id: u64,
         witness: NewStrategy
@@ -430,24 +438,24 @@ module satay::base_strategy {
         (profit, loss, debt_payment)
     }
 
-    fun strategy_deposit_base_coin<StrategyType: drop, BaseCoin>(
+    fun deposit_base_coin<StrategyType: drop, BaseCoin>(
         vault_cap: &mut VaultCapability,
         coins: Coin<BaseCoin>,
         stop_handle: &VaultCapLock<StrategyType>
     ) {
-        vault::strategy_deposit_base_coin<StrategyType, BaseCoin>(
+        vault::deposit_base_coin<StrategyType, BaseCoin>(
             vault_cap,
             coins,
             satay::get_strategy_witness(stop_handle)
         );
     }
 
-    fun strategy_withdraw_base_coin<StrategyType: drop, BaseCoin>(
+    fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
         vault_cap: &mut VaultCapability,
         amount: u64,
         stop_handle: &VaultCapLock<StrategyType>
     ): Coin<BaseCoin> {
-        vault::strategy_withdraw_base_coin<StrategyType, BaseCoin>(
+        vault::withdraw_base_coin<StrategyType, BaseCoin>(
             vault_cap,
             amount,
             satay::get_strategy_witness(stop_handle)

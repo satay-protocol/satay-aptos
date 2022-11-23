@@ -269,23 +269,17 @@ module satay::vault {
     }
 
     // deposit base_coin into Vault from StrategyType
-    public(friend) fun strategy_deposit_base_coin<StrategyType: drop, BaseCoin>(
+    public(friend) fun deposit_base_coin<StrategyType: drop, BaseCoin>(
         vault_cap: &mut VaultCapability,
         base_coin: Coin<BaseCoin>,
         _witness: &StrategyType
-    ) acquires CoinStore, Vault, VaultStrategy {
+    ) acquires CoinStore, Vault {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
-        let base_coin_amount = coin::value(&base_coin);
         deposit(vault_cap, base_coin);
-        update_total_debt<StrategyType>(
-            vault_cap,
-            0,
-            base_coin_amount
-        );
     }
 
     // withdraw base_coin from Vault to StrategyType
-    public(friend) fun strategy_withdraw_base_coin<StrategyType: drop, BaseCoin>(
+    public(friend) fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
         vault_cap: &mut VaultCapability,
         amount: u64,
         _witness: &StrategyType
@@ -294,11 +288,6 @@ module satay::vault {
 
         assert!(credit_available<StrategyType, BaseCoin>(vault_cap) >= amount, ERR_INSUFFICIENT_CREDIT);
 
-        update_total_debt<StrategyType>(
-            vault_cap,
-            amount,
-            0
-        );
         withdraw(vault_cap, amount)
     }
 
@@ -379,7 +368,8 @@ module satay::vault {
     public(friend) fun update_total_debt<StrategyType: drop>(
         vault_cap: &mut VaultCapability,
         credit: u64,
-        debt_payment: u64
+        debt_payment: u64,
+        _witness: &StrategyType
     ) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);

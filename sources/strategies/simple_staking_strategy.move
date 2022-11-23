@@ -16,9 +16,6 @@ module satay::simple_staking_strategy {
     // used for checking approval when locking and unlocking vault
     struct SimpleStakingStrategy has drop {}
 
-    // To be replaced by the PositionCoin which will be returned by the strategy
-    struct PoolBaseCoin has store {}
-
     // initialize vault_id to accept strategy
     public entry fun initialize(
         manager: &signer,
