@@ -1,16 +1,14 @@
 #[test_only]
-module satay::simple_staking_strategy {
+module satay::mock_simple_staking_strategy {
 
     use std::signer;
 
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::coin;
 
     use satay::base_strategy;
     use satay::vault::VaultCapability;
-    use satay::staking_pool::{Self, StakingCoin};
 
-    use liquidswap::router;
-    use liquidswap::curves::Uncorrelated;
+    use satay::staking_pool::{Self, StakingCoin};
 
     // witness for the strategy
     // used for checking approval when locking and unlocking vault
@@ -56,7 +54,7 @@ module satay::simple_staking_strategy {
             staking_coins_needed,
             &stop_handle
         );
-        let coins = liquidate_position<BaseCoin>(staking_coins);
+        let coins = staking_pool::liquidate_position<BaseCoin>(staking_coins);
 
         base_strategy::close_vault_for_user_withdraw<SimpleStakingStrategy, BaseCoin>(
             manager_addr,
@@ -101,13 +99,10 @@ module satay::simple_staking_strategy {
         );
 
         // claim rewards and swap them into BaseCoin
-        let coins = staking_pool::claimRewards<CoinType>();
-        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
-        let strategy_coins = apply_position<BaseCoin>(want_coins);
-
+        let staking_coins = staking_pool::reinvest_returns<CoinType, BaseCoin>();
         base_strategy::deposit_strategy_coin<SimpleStakingStrategy, StakingCoin>(
             &mut vault_cap,
-            strategy_coins,
+            staking_coins,
             &stop_handle
         );
 
@@ -118,7 +113,7 @@ module satay::simple_staking_strategy {
             &stop_handle
         );
 
-        let staking_coins = apply_position<BaseCoin>(to_apply);
+        let staking_coins = staking_pool::apply_position<BaseCoin>(to_apply);
         let base_coins = coin::zero<BaseCoin>();
         if(amount_needed > 0){
             let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
@@ -129,7 +124,7 @@ module satay::simple_staking_strategy {
             );
             coin::merge(
                 &mut base_coins,
-                liquidate_position<BaseCoin>(staking_coins)
+                staking_pool::liquidate_position<BaseCoin>(staking_coins)
             );
         };
 
@@ -151,32 +146,14 @@ module satay::simple_staking_strategy {
         );
 
         // claim rewards and swap them into BaseCoin
-        let coins = staking_pool::claimRewards<CoinType>();
-        let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
-        let strategy_coins = apply_position<BaseCoin>(want_coins);
+        let staking_coins = staking_pool::reinvest_returns<CoinType, BaseCoin>();
 
         base_strategy::close_vault_for_tend<SimpleStakingStrategy, StakingCoin>(
             signer::address_of(manager),
             vault_cap,
             stop_handle,
-            strategy_coins
+            staking_coins
         )
-    }
-
-    // adds BaseCoin to 3rd party protocol to get yield
-    // if 3rd party protocol returns a coin, it should be sent to the vault
-    fun apply_position<BaseCoin>(coins: Coin<BaseCoin>) : Coin<StakingCoin> {
-        staking_pool::deposit(coins)
-    }
-
-    // removes BaseCoin from 3rd party protocol to get yield
-    fun liquidate_position<BaseCoin>(coins: Coin<StakingCoin>): Coin<BaseCoin> {
-        if(coin::value(&coins) > 0) {
-            staking_pool::withdraw<BaseCoin>(coins)
-        } else {
-            coin::destroy_zero(coins);
-            coin::zero<BaseCoin>()
-        }
     }
 
     fun get_strategy_base_coin_balance<StrategyCoin>(vault_cap: &VaultCapability) : u64 {
@@ -194,14 +171,5 @@ module satay::simple_staking_strategy {
 
     public fun version() : vector<u8> {
         b"0.0.1"
-    }
-
-    // simple swap from CoinType to BaseCoin on Liquidswap
-    fun swap_to_want_token<CoinType, BaseCoin>(coins: Coin<CoinType>) : Coin<BaseCoin> {
-        // swap on liquidswap AMM
-        router::swap_exact_coin_for_coin<CoinType, BaseCoin, Uncorrelated>(
-            coins,
-            0
-        )
     }
 }
