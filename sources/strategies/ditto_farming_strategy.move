@@ -35,7 +35,10 @@ module satay::ditto_farming_strategy {
         manager: &signer,
         vault_id: u64
     ) {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy>(
+        let (
+            vault_cap,
+            stop_handle
+        ) = base_strategy::open_vault_for_harvest<DittoStrategy>(
             manager,
             vault_id,
             DittoStrategy {}
@@ -58,7 +61,7 @@ module satay::ditto_farming_strategy {
         ) = base_strategy::process_harvest<DittoStrategy, AptosCoin, DittoFarmingCoin>(
             &mut vault_cap,
             strategy_aptos_balance,
-            DittoStrategy {}
+            &stop_handle,
         );
 
         // TODO: once reinvest returns is implemented, this will be replaced by the returned aptos
@@ -73,7 +76,7 @@ module satay::ditto_farming_strategy {
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
                 lp_to_liquidate,
-                DittoStrategy {}
+                &stop_handle
             );
             let liquidated_aptos_coins = ditto_farming::liquidate_position(
                 strategy_coins,
@@ -158,7 +161,7 @@ module satay::ditto_farming_strategy {
         let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
             &vault_cap,
             lp_to_burn,
-            DittoStrategy {}
+            &stop_handle
         );
         let coins = ditto_farming::liquidate_position(strategy_coins);
 

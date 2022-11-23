@@ -28,7 +28,10 @@ module satay::satay {
     }
 
     // returned by lock_vault to ensure a subsequent call to unlock_vault
-    struct VaultCapLock { vault_id: u64 }
+    struct VaultCapLock<StrategyType: drop> {
+        vault_id: u64,
+        strategy_type: StrategyType
+    }
 
     // called by managers
 
@@ -148,8 +151,8 @@ module satay::satay {
     public fun lock_vault<StrategyType: drop>(
         manager_addr: address,
         vault_id: u64,
-        _witness: StrategyType
-    ): (VaultCapability, VaultCapLock) acquires ManagerAccount {
+        witness: StrategyType
+    ): (VaultCapability, VaultCapLock<StrategyType>) acquires ManagerAccount {
         assert_manager_initialized(manager_addr);
 
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
@@ -162,17 +165,25 @@ module satay::satay {
         );
 
         let vault_cap = option::extract(&mut vault_info.vault_cap);
-        (vault_cap, VaultCapLock { vault_id })
+        let stop_handle = VaultCapLock {
+            vault_id,
+            strategy_type: witness,
+        };
+        (vault_cap, stop_handle)
     }
 
     // returns vault_cap to vault after strategy has completed operation
     public fun unlock_vault<StrategyType: drop>(
         manager_addr: address,
         vault_capability: VaultCapability,
-        stop_handle: VaultCapLock
+        stop_handle: VaultCapLock<StrategyType>
     ) acquires ManagerAccount {
+        let VaultCapLock<StrategyType> {
+            vault_id,
+            strategy_type: _
+        } = stop_handle;
+
         // assert that correct VaultCapLock for VaultCapability is passed
-        let VaultCapLock { vault_id } = stop_handle;
         assert!(
             vault::vault_cap_has_id(&vault_capability, vault_id),
             ERR_VAULT_CAP
@@ -278,6 +289,12 @@ module satay::satay {
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         let vault_cap = option::borrow(&mut vault_info.vault_cap);
         vault::total_assets<CoinType>(vault_cap)
+    }
+
+    public fun get_strategy_witness<StrategyType: drop>(
+        vault_cap_lock: &VaultCapLock<StrategyType>
+    ): &StrategyType {
+        &vault_cap_lock.strategy_type
     }
 
     fun assert_manager_initialized(manager_addr: address) {

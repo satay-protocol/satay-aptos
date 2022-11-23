@@ -57,7 +57,7 @@ module satay::simple_staking_strategy {
         let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
             &vault_cap,
             staking_coins_needed,
-            SimpleStakingStrategy {}
+            &stop_handle
         );
         let coins = liquidate_position<BaseCoin>(staking_coins);
 
@@ -108,13 +108,17 @@ module satay::simple_staking_strategy {
         let want_coins = swap_to_want_token<CoinType, BaseCoin>(coins);
         let strategy_coins = apply_position<BaseCoin>(want_coins);
 
-        base_strategy::deposit_strategy_coin<StakingCoin>(&mut vault_cap, strategy_coins);
+        base_strategy::deposit_strategy_coin<SimpleStakingStrategy, StakingCoin>(
+            &mut vault_cap,
+            strategy_coins,
+            &stop_handle
+        );
 
         let strategy_base_coin_balance = get_strategy_base_coin_balance<StakingCoin>(&vault_cap);
         let (to_apply, amount_needed) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
             &mut vault_cap,
             strategy_base_coin_balance,
-            SimpleStakingStrategy {}
+            &stop_handle
         );
 
         let staking_coins = apply_position<BaseCoin>(to_apply);
@@ -124,7 +128,7 @@ module satay::simple_staking_strategy {
             let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
                 &vault_cap,
                 staking_coins_needed,
-                SimpleStakingStrategy {}
+                &stop_handle
             );
             coin::merge(
                 &mut base_coins,

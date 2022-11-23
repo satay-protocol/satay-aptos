@@ -1,14 +1,15 @@
 module satay::base_strategy {
 
-    use aptos_framework::coin::{Coin};
     use std::signer;
-    use satay::satay;
+
     use aptos_std::type_info;
-    use satay::vault::{Self, VaultCapability};
+
+    use aptos_framework::coin::{Coin};
     use aptos_framework::coin;
-    use satay::satay::VaultCapLock;
-    use aptos_std::type_info::type_of;
     use aptos_framework::timestamp;
+
+    use satay::vault::{Self, VaultCapability};
+    use satay::satay::{Self, VaultCapLock};
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
@@ -38,25 +39,28 @@ module satay::base_strategy {
         satay::unlock_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
     }
 
-    // withdraw StrategyCoin from vault
-    // assert that type of StrategyCoin is the same as strategy_coin_type of StrategyType
+    // strategy coin deposit and withdraw
+    public fun deposit_strategy_coin<StrategyType: drop, StrategyCoin>(
+        vault_cap: &VaultCapability,
+        strategy_coins: Coin<StrategyCoin>,
+        stop_handle: &VaultCapLock<StrategyType>
+    ) {
+        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
+            vault_cap,
+            strategy_coins,
+            satay::get_strategy_witness(stop_handle)
+        );
+    }
+
     public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(
         vault_cap: &VaultCapability,
         amount: u64,
-        _witness: StrategyType
+        stop_handle: &VaultCapLock<StrategyType>
     ): Coin<StrategyCoin> {
-        let strategy_coin_type = vault::get_strategy_coin_type<StrategyType>(vault_cap);
-        assert!(type_of<StrategyCoin>() == strategy_coin_type, 0);
-
-        let withdraw_amount = amount;
-        let strategy_coin_balance = vault::balance<StrategyCoin>(vault_cap);
-        if (amount > strategy_coin_balance) {
-            withdraw_amount = strategy_coin_balance;
-        };
-
-        vault::withdraw<StrategyCoin>(
+        vault::withdraw_strategy_coin<StrategyType, StrategyCoin>(
             vault_cap,
-            withdraw_amount
+            amount,
+            satay::get_strategy_witness(stop_handle),
         )
     }
 
@@ -66,7 +70,7 @@ module satay::base_strategy {
         manager: &signer,
         vault_id: u64,
         witness: StrategyType,
-    ) :  (VaultCapability, VaultCapLock) {
+    ) :  (VaultCapability, VaultCapLock<StrategyType>) {
         open_vault<StrategyType>(
             signer::address_of(manager),
             vault_id,
@@ -77,10 +81,13 @@ module satay::base_strategy {
     public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
         vault_cap: &mut VaultCapability,
         strategy_balance: u64,
-        witness: StrategyType
+        stop_handle: &VaultCapLock<StrategyType>,
     ) : (Coin<BaseCoin>, u64) {
 
-        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(vault_cap, strategy_balance);
+        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(
+            vault_cap,
+            strategy_balance
+        );
 
         // profit to report
         if (profit > 0) {
@@ -100,25 +107,29 @@ module satay::base_strategy {
             debt_payment = debt;
         };
 
-        if (credit > 0 || debt_payment > 0) {
-            vault::update_total_debt<StrategyType>(vault_cap, credit, debt_payment);
-        };
-
         let total_available = profit + debt_payment;
-
-        if (profit > 0) {
-            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, witness);
-        };
 
         let to_apply= coin::zero<BaseCoin>();
         let amount_needed = 0;
         if (total_available < credit) { // credit surplus, give to Strategy
             coin::merge(
                 &mut to_apply,
-                vault::withdraw<BaseCoin>(vault_cap, credit - total_available)
+                strategy_withdraw_base_coin<StrategyType, BaseCoin>(
+                    vault_cap,
+                    credit - total_available,
+                    stop_handle
+                )
             );
         } else { // credit deficit, take from Strategy
             amount_needed = total_available - credit;
+        };
+
+        if (profit > 0) {
+            assess_fees<StrategyType, BaseCoin>(
+                profit,
+                vault_cap,
+                stop_handle
+            );
         };
 
         vault::report_timestamp<StrategyType>(vault_cap);
@@ -126,22 +137,23 @@ module satay::base_strategy {
         (to_apply, amount_needed)
     }
 
-    public fun deposit_strategy_coin<StrategyCoin>(
-        vault_cap: &VaultCapability,
-        strategy_coins: Coin<StrategyCoin>
-    ) {
-        vault::deposit<StrategyCoin>(vault_cap, strategy_coins);
-    }
-
     public fun close_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
         manager_addr: address,
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock,
+        stop_handle: VaultCapLock<StrategyType>,
         base_coins: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
-        vault::deposit(&vault_cap, base_coins);
-        vault::deposit(&vault_cap, strategy_coins);
+        strategy_deposit_base_coin<StrategyType, BaseCoin>(
+            &mut vault_cap,
+            base_coins,
+            &stop_handle
+        );
+        deposit_strategy_coin<StrategyType, StrategyCoin>(
+            &vault_cap,
+            strategy_coins,
+            &stop_handle
+        );
         close_vault<StrategyType>(
             manager_addr,
             vault_cap,
@@ -176,7 +188,7 @@ module satay::base_strategy {
     public fun close_vault_for_harvest_trigger<StrategyType: drop>(
         manager_addr: address,
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock
+        stop_handle: VaultCapLock<StrategyType>
     ) {
         close_vault<StrategyType>(
             manager_addr,
@@ -191,7 +203,7 @@ module satay::base_strategy {
         manager: &signer,
         vault_id: u64,
         witness: StrategyType,
-    ) :  (VaultCapability, VaultCapLock, u64) {
+    ) :  (VaultCapability, VaultCapLock<StrategyType>, u64) {
         let (vault_cap, stop_handle) = open_vault<StrategyType>(
             signer::address_of(manager),
             vault_id,
@@ -205,10 +217,14 @@ module satay::base_strategy {
     public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(
         manager_addr: address,
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock,
+        stop_handle: VaultCapLock<StrategyType>,
         strategy_coins: Coin<StrategyCoin>
     ) {
-        vault::deposit(&vault_cap, strategy_coins);
+        deposit_strategy_coin<StrategyType, StrategyCoin>(
+            &vault_cap,
+            strategy_coins,
+            &stop_handle
+        );
         close_vault<StrategyType>(
             manager_addr,
             vault_cap,
@@ -226,7 +242,7 @@ module satay::base_strategy {
         vault_id: u64,
         share_amount: u64,
         witness: StrategyType
-    ): (u64, VaultCapability, VaultCapLock) {
+    ): (u64, VaultCapability, VaultCapLock<StrategyType>) {
         let (vault_cap, stop_handle) = open_vault<StrategyType>(manager_addr, vault_id, witness);
 
         // check if user is eligible to withdraw
@@ -250,7 +266,7 @@ module satay::base_strategy {
     public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
         manager_addr: address,
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock,
+        stop_handle: VaultCapLock<StrategyType>,
         coins: Coin<BaseCoin>,
         amount_needed: u64,
     ) {
@@ -260,8 +276,11 @@ module satay::base_strategy {
             vault::report_loss<StrategyType>(&mut vault_cap, amount_needed - value);
         };
 
-        vault::update_total_debt<StrategyType>(&mut vault_cap, 0, value);
-        vault::deposit<BaseCoin>(&vault_cap, coins);
+        strategy_deposit_base_coin(
+            &mut vault_cap,
+            coins,
+            &stop_handle
+        );
 
         close_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
     }
@@ -345,22 +364,31 @@ module satay::base_strategy {
     }
 
     // calls a vault's assess_fees function for a specified gain amount
-    fun assess_fees<StrategyType: drop, BaseCoin>(gain: u64, vault_cap: &VaultCapability, witness: StrategyType) {
-        vault::assess_fees<StrategyType, BaseCoin>(gain, 0, vault_cap, witness);
+    fun assess_fees<StrategyType: drop, BaseCoin>(
+        gain: u64,
+        vault_cap: &VaultCapability,
+        stop_handle: &VaultCapLock<StrategyType>
+    ) {
+        vault::assess_fees<StrategyType, BaseCoin>(
+            gain,
+            0,
+            vault_cap,
+            satay::get_strategy_witness(stop_handle)
+        );
     }
 
     fun open_vault<StrategyType: drop>(
         manager_addr: address,
         vault_id: u64,
         witness: StrategyType
-    ): (VaultCapability, VaultCapLock) {
+    ): (VaultCapability, VaultCapLock<StrategyType>) {
         satay::lock_vault<StrategyType>(manager_addr, vault_id, witness)
     }
 
     fun close_vault<StrategyType: drop>(
         manager_addr: address,
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock
+        stop_handle: VaultCapLock<StrategyType>
     ) {
         satay::unlock_vault<StrategyType>(manager_addr, vault_cap, stop_handle);
     }
@@ -400,5 +428,29 @@ module satay::base_strategy {
         };
 
         (profit, loss, debt_payment)
+    }
+
+    fun strategy_deposit_base_coin<StrategyType: drop, BaseCoin>(
+        vault_cap: &mut VaultCapability,
+        coins: Coin<BaseCoin>,
+        stop_handle: &VaultCapLock<StrategyType>
+    ) {
+        vault::strategy_deposit_base_coin<StrategyType, BaseCoin>(
+            vault_cap,
+            coins,
+            satay::get_strategy_witness(stop_handle)
+        );
+    }
+
+    fun strategy_withdraw_base_coin<StrategyType: drop, BaseCoin>(
+        vault_cap: &mut VaultCapability,
+        amount: u64,
+        stop_handle: &VaultCapLock<StrategyType>
+    ): Coin<BaseCoin> {
+        vault::strategy_withdraw_base_coin<StrategyType, BaseCoin>(
+            vault_cap,
+            amount,
+            satay::get_strategy_witness(stop_handle)
+        )
     }
 }

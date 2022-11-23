@@ -24,6 +24,7 @@ module satay::test_user_workflow {
 
     use satay::coins::{Self, USDT};
     use test_helpers::test_account;
+    use aptos_std::debug;
 
     #[test_only]
     fun setup_tests(
@@ -114,6 +115,7 @@ module satay::test_user_workflow {
         simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
         // management fee 9/2 = 4 removed for fee
         // userA balance on the vault is 109 + 9 - 4 = 114
+        debug::print(&satay::get_vault_total_asset<USDT>(signer::address_of(manager_acc), 0));
         assert!(satay::get_vault_total_asset<USDT>(signer::address_of(manager_acc), 0) == 118, 1);
         assert!(check_dao_fee(vault_address) == 3, 1);
 
