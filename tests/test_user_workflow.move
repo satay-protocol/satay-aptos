@@ -123,14 +123,14 @@ module satay::test_user_workflow {
         satay::deposit<USDT>(userB, signer::address_of(manager_acc), 0, 50);
         assert!(coin::balance<vault::VaultCoin<USDT>>(signer::address_of(userB)) == 43, 1);
         simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
-        assert!(check_dao_fee(vault_address) == 5, 1);
+        assert!(check_dao_fee(vault_address) == 6, 1);
 
         // userA withdraws 100 share token
         let user_before_amount = coin::balance<USDT>(signer::address_of(user));
         simple_staking_strategy::withdraw_for_user<USDT>(user, signer::address_of(manager_acc), 0, 100);
         satay::withdraw<USDT>(user, signer::address_of(manager_acc), 0, 100);
         let user_after_amount = coin::balance<USDT>(signer::address_of(user));
-        assert!(user_after_amount - user_before_amount == 119, 1);
+        assert!(user_after_amount - user_before_amount == 118, 1);
     }
 
     #[test(

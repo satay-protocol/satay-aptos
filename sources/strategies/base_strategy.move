@@ -105,20 +105,7 @@ module satay::base_strategy {
             debt_payment = debt;
         };
 
-        if (credit > 0 || debt_payment > 0) {
-            vault::update_total_debt<StrategyType>(
-                vault_cap,
-                credit,
-                debt_payment,
-                satay::get_strategy_witness(stop_handle)
-            );
-        };
-
         let total_available = profit + debt_payment;
-
-        if (profit > 0) {
-            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, stop_handle);
-        };
 
         let to_apply= coin::zero<BaseCoin>();
         let amount_needed = 0;
@@ -133,6 +120,20 @@ module satay::base_strategy {
             );
         } else { // credit deficit, take from Strategy
             amount_needed = total_available - credit;
+        };
+
+        if (credit > 0 || debt_payment > 0) {
+            vault::update_total_debt<StrategyType>(
+                vault_cap,
+                credit,
+                debt_payment,
+                satay::get_strategy_witness(stop_handle)
+            );
+        };
+
+
+        if (profit > 0) {
+            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, stop_handle);
         };
 
         vault::report_timestamp<StrategyType>(vault_cap);
