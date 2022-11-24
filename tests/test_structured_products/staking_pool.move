@@ -1,9 +1,13 @@
+#[test_only]
 module satay::staking_pool {
 
     use aptos_framework::coin::{Self, Coin, BurnCapability, FreezeCapability, MintCapability};
 
     use std::signer;
     use std::string;
+
+    use liquidswap::router;
+    use liquidswap::curves::Uncorrelated;
 
     const ERR_NOT_REGISTERED_USER: u64 = 501;
 
@@ -51,7 +55,25 @@ module satay::staking_pool {
         coin::merge(&mut coinStore.coin, coins);
     }
 
-    public fun deposit<CoinType>(coins: Coin<CoinType>) : Coin<StakingCoin> acquires CoinStore, StakingCoinCaps {
+    public fun apply_position<CoinType>(
+        coins: Coin<CoinType>
+    ) : Coin<StakingCoin> acquires CoinStore, StakingCoinCaps {
+        deposit(coins)
+    }
+
+    public fun liquidate_position<CoinType>(
+        coins: Coin<StakingCoin>
+    ): Coin<CoinType> acquires CoinStore, StakingCoinCaps {
+        withdraw(coins)
+    }
+
+    public fun reinvest_returns<RewardCoin, BaseCoin>(): Coin<StakingCoin> acquires CoinStore, StakingCoinCaps {
+        let reward_coins = claimRewards<RewardCoin>();
+        let base_coins = swap_to_want_token<RewardCoin, BaseCoin>(reward_coins);
+        apply_position(base_coins)
+    }
+
+    fun deposit<CoinType>(coins: Coin<CoinType>) : Coin<StakingCoin> acquires CoinStore, StakingCoinCaps {
         let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
         let coin_caps = borrow_global_mut<StakingCoinCaps>(@satay);
         let amount = coin::value(&coins);
@@ -59,7 +81,7 @@ module satay::staking_pool {
         coin::mint<StakingCoin>(amount, &coin_caps.mint_cap)
     }
 
-    public fun withdraw<CoinType>(coins: Coin<StakingCoin>) : Coin<CoinType> acquires CoinStore, StakingCoinCaps {
+    fun withdraw<CoinType>(coins: Coin<StakingCoin>) : Coin<CoinType> acquires CoinStore, StakingCoinCaps {
         let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
         let coin_caps = borrow_global_mut<StakingCoinCaps>(@satay);
         let amount = coin::value(&coins);
@@ -67,12 +89,25 @@ module satay::staking_pool {
         coin::extract(&mut coinStore.coin, amount)
     }
 
-    public fun claimRewards<CoinType>() : Coin<CoinType> acquires CoinStore {
+    fun claimRewards<CoinType>() : Coin<CoinType> acquires CoinStore {
         let coinStore = borrow_global_mut<CoinStore<CoinType>>(@satay);
         coin::extract(&mut coinStore.coin, 10)
     }
 
     public fun get_base_coin_for_staking_coin(share_token_amount: u64) : u64 {
         share_token_amount
+    }
+
+    public fun get_staking_coin_for_base_coin(base_token_amount: u64) : u64 {
+        base_token_amount
+    }
+
+    // simple swap from CoinType to BaseCoin on Liquidswap
+    fun swap_to_want_token<CoinType, BaseCoin>(coins: Coin<CoinType>) : Coin<BaseCoin> {
+        // swap on liquidswap AMM
+        router::swap_exact_coin_for_coin<CoinType, BaseCoin, Uncorrelated>(
+            coins,
+            0
+        )
     }
 }
