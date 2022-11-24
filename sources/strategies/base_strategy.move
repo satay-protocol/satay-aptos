@@ -14,6 +14,7 @@ module satay::base_strategy {
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
     const ERR_LOSS: u64 = 303;
+    const ERR_DEBT_OUT_STANDING: u64 = 304;
 
     // initialize vault_id to accept strategy
     public fun initialize<StrategyType: drop, StrategyCoin>(
@@ -104,20 +105,7 @@ module satay::base_strategy {
             debt_payment = debt;
         };
 
-        if (credit > 0 || debt_payment > 0) {
-            vault::update_total_debt<StrategyType>(
-                vault_cap,
-                credit,
-                debt_payment,
-                satay::get_strategy_witness(stop_handle)
-            );
-        };
-
         let total_available = profit + debt_payment;
-
-        if (profit > 0) {
-            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, stop_handle);
-        };
 
         let to_apply= coin::zero<BaseCoin>();
         let amount_needed = 0;
@@ -132,6 +120,20 @@ module satay::base_strategy {
             );
         } else { // credit deficit, take from Strategy
             amount_needed = total_available - credit;
+        };
+
+        if (credit > 0 || debt_payment > 0) {
+            vault::update_total_debt<StrategyType>(
+                vault_cap,
+                credit,
+                debt_payment,
+                satay::get_strategy_witness(stop_handle)
+            );
+        };
+
+
+        if (profit > 0) {
+            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, stop_handle);
         };
 
         vault::report_timestamp<StrategyType>(vault_cap);
@@ -205,15 +207,16 @@ module satay::base_strategy {
         manager: &signer,
         vault_id: u64,
         witness: StrategyType,
-    ) :  (VaultCapability, VaultCapLock<StrategyType>, u64) {
+    ) :  (VaultCapability, VaultCapLock<StrategyType>) {
         let (vault_cap, stop_handle) = open_vault<StrategyType>(
             signer::address_of(manager),
             vault_id,
             witness
         );
         let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(&vault_cap);
+        assert!(debt_out_standing == 0, ERR_DEBT_OUT_STANDING);
 
-        (vault_cap, stop_handle, debt_out_standing)
+        (vault_cap, stop_handle)
     }
 
     public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(

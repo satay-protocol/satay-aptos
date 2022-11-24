@@ -17,7 +17,8 @@ module satay::test_vault {
     use satay::vault::VaultCoin;
 
     use aptos_std::type_info;
-    use satay::simple_staking_strategy::SimpleStakingStrategy;
+
+    struct TestStrategy has drop {}
 
     const ERR_INCORRECT_AMOUNT: u64 = 1001;
 
@@ -202,8 +203,8 @@ module satay::test_vault {
         setup_tests(&coin_admin, &user);
 
         let vault_cap = vault::new_test<USDT>(&vault_manager, b"test_vault", 0, 200, 5000);
-        vault::test_approve_strategy<SimpleStakingStrategy>(&vault_cap, type_info::type_of<SimpleStakingStrategy>(), 1000);
-        assert!(vault::has_strategy<SimpleStakingStrategy>(&vault_cap), 2);
+        vault::test_approve_strategy<TestStrategy>(&vault_cap, type_info::type_of<TestStrategy>(), 1000);
+        assert!(vault::has_strategy<TestStrategy>(&vault_cap), 2);
     }
 
     // TODO: check share calculation is correct when non_USDT deposited
