@@ -1,23 +1,26 @@
 #[test_only]
 module satay::test_simple_staking_strategy {
-    use test_helpers::test_account;
-    use satay::coins::{
-        Self,
-        USDT
-    };
-    use aptos_framework::coin;
+
     use std::signer;
+
+    use aptos_framework::coin;
+    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::stake;
+    use aptos_framework::aptos_coin;
+
     use liquidswap::lp_account;
     use liquidswap::liquidity_pool;
-    use aptos_framework::aptos_coin::AptosCoin;
     use liquidswap::curves::Uncorrelated;
-    use aptos_framework::aptos_coin;
+
+    use liquidswap_lp::lp_coin::{LP};
+
     use satay::satay;
     use satay::global_config;
-    use aptos_framework::stake;
-    use liquidswap_lp::lp_coin::{LP};
+    use satay::coins::{Self, USDT};
     use satay::staking_pool;
-    use satay::simple_staking_strategy;
+    use satay::mock_simple_staking_strategy;
+
+    use test_helpers::test_account;
 
     #[test_only]
     fun setup_tests(
@@ -71,7 +74,7 @@ module satay::test_simple_staking_strategy {
         test_account::create_account(staking_pool_admin);
         satay::initialize(manager_acc);
         satay::new_vault<USDT>(manager_acc, b"aptos_vault", 200, 5000);
-        simple_staking_strategy::initialize(manager_acc, 0,  1000);
+        mock_simple_staking_strategy::initialize(manager_acc, 0,  1000);
         coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
         satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
         staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);
@@ -88,7 +91,7 @@ module satay::test_simple_staking_strategy {
     )]
     fun test_harvest(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
         setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
-        simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
+        mock_simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
     }
 
     #[test(
@@ -101,7 +104,7 @@ module satay::test_simple_staking_strategy {
     )]
     fun test_tend(aptos_framework: &signer, token_admin: &signer, pool_owner: &signer, manager_acc: &signer, staking_pool_admin: &signer, user: &signer) {
         setup_strategy_vault(aptos_framework, token_admin, pool_owner, manager_acc, staking_pool_admin, user);
-        simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
+        mock_simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
     }
 }
 
