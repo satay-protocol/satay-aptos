@@ -72,7 +72,7 @@ module satay::vault {
 
     // create new vault with BaseCoin as its base coin type
     public(friend) fun new<BaseCoin>(
-        vault_owner: &signer, 
+        governance: &signer, 
         seed: vector<u8>, 
         vault_id: u64,
         management_fee: u64,
@@ -81,7 +81,7 @@ module satay::vault {
         assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
 
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -109,7 +109,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            vault_owner,
+            governance,
             vault_coin_name,
             vault_coin_symbol,
             8,
@@ -683,14 +683,14 @@ module satay::vault {
 
     #[test_only]
     public fun new_test<BaseCoin>(
-        vault_owner: &signer, 
+        governance: &signer, 
         seed: vector<u8>, 
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -713,7 +713,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            vault_owner,
+            governance,
             string::utf8(b"Vault Token"),
             string::utf8(b"Vault"),
             8,

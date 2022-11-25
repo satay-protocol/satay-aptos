@@ -7,14 +7,14 @@ module satay::test_satay {
 
     use satay::satay;
 
+    use satay::base_strategy;
+
     use test_helpers::test_account;
 
     use satay::coins::{
         Self,
         USDT
     };
-    use aptos_std::type_info;
-    use satay::global_config;
     use aptos_framework::timestamp::set_time_has_started_for_testing;
 
     struct TestStrategy has drop {}
@@ -25,7 +25,6 @@ module satay::test_satay {
         coins_manager: &signer,
         user: &signer,
     ) {
-        global_config::initialize(vault_manager);
         satay::initialize(vault_manager);
         coins::register_coins(coins_manager);
 
@@ -49,7 +48,10 @@ module satay::test_satay {
     )]
     fun test_new_vault(vault_manager : signer, coins_manager : signer, user : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
+
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
     }
 
    #[test(
@@ -59,9 +61,12 @@ module satay::test_satay {
     )]
     fun test_update_vault_fee(vault_manager : signer, coins_manager : signer, user : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
 
-        satay::update_vault_fee(&vault_manager, 0, 1000, 2000);
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
+
+        satay::update_vault_fee(&vault_manager, manager_addr, 0, 1000, 2000);
     }
 
     #[test(
@@ -71,7 +76,10 @@ module satay::test_satay {
     )]
     fun test_deposit(vault_manager : signer, coins_manager : signer, user : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
+
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
         coins::mint_coin<USDT>(&coins_manager, signer::address_of(&user), 100);
         satay::deposit<USDT>(
@@ -89,7 +97,10 @@ module satay::test_satay {
     )]
     fun test_withdraw(vault_manager : signer, coins_manager : signer, user : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
+
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
         coins::mint_coin<USDT>(&coins_manager, signer::address_of(&user), 100);
         satay::deposit<USDT>(
@@ -116,9 +127,12 @@ module satay::test_satay {
     fun test_approve_strategy(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
         set_time_has_started_for_testing(&aptos_framework);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(), 1000);
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
+
+        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
         assert!(satay::has_strategy<TestStrategy>(&vault_manager, 0), 3);
     }
 
@@ -130,11 +144,15 @@ module satay::test_satay {
     )]
     fun test_approve_multiple_strategies(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
+
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
+
         set_time_has_started_for_testing(&aptos_framework);
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(),1000);
+        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
         assert!(satay::has_strategy<TestStrategy>(&vault_manager, 0), 3);
-        satay::approve_strategy<TestStrategy2>(&vault_manager, 0, type_info::type_of<USDT>(), 1000);
+        base_strategy::initialize<TestStrategy2, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
         assert!(satay::has_strategy<TestStrategy2>(&vault_manager, 0), 3);
 
     }
@@ -148,16 +166,19 @@ module satay::test_satay {
     fun test_lock_unlock_vault(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
         set_time_has_started_for_testing(&aptos_framework);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(), 1000   );
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
+
+        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
-            signer::address_of(&vault_manager),
+            manager_addr,
             0,
             TestStrategy{}
         );
         satay::unlock_vault<TestStrategy>(
-            signer::address_of(&vault_manager),
+            manager_addr,
             vault_cap,
             vault_lock
         )
@@ -172,10 +193,13 @@ module satay::test_satay {
     fun test_lock_unlock_vault_multiple_strategies(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
         set_time_has_started_for_testing(&aptos_framework);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
 
-        satay::approve_strategy<TestStrategy>(&vault_manager, 0, type_info::type_of<USDT>(),1000);
-        satay::approve_strategy<TestStrategy2>(&vault_manager, 0, type_info::type_of<USDT>(), 1000);
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
+
+        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
+        base_strategy::initialize<TestStrategy2, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
             signer::address_of(&vault_manager),
             0,
@@ -206,7 +230,10 @@ module satay::test_satay {
     )]
     fun test_reject_unapproved_strategy(vault_manager : signer, coins_manager : signer, user : signer) {
         setup_tests(&vault_manager, &coins_manager, &user);
-        satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
+
+        let manager_addr = signer::address_of(&vault_manager);
+
+        satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
             signer::address_of(&vault_manager),

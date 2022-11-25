@@ -6,7 +6,6 @@ module satay::ditto_farming_strategy {
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::account::{Self, SignerCapability};
 
-    use satay::satay;
     use satay::base_strategy::{Self};
     use satay::vault::VaultCapability;
 
@@ -23,13 +22,13 @@ module satay::ditto_farming_strategy {
 
     // initialize vault_id to accept strategy
     public entry fun initialize(
-        manager: &signer,
+        governance: &signer,
         vault_id: u64,
         debt_ratio: u64
     ) {
         // initialize through base_strategy_module
         base_strategy::initialize<DittoStrategy, DittoFarmingCoin>(
-            manager,
+            governance,
             vault_id,
             debt_ratio,
             DittoStrategy {}
@@ -37,10 +36,10 @@ module satay::ditto_farming_strategy {
 
         // create resource account to store residual aptos during harvest
         let (strategy_account, signer_cap) = account::create_resource_account(
-            manager,
+            governance,
             b"ditto strategy account",
         );
-        move_to(manager, DittoStrategyAccount {
+        move_to(governance, DittoStrategyAccount {
             signer_cap
         });
         coin::register<AptosCoin>(&strategy_account);
@@ -49,19 +48,20 @@ module satay::ditto_farming_strategy {
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
     public entry fun harvest(
-        manager: &signer,
+        keeper: &signer,
+        manager_addr: address,
         vault_id: u64
     ) acquires DittoStrategyAccount {
         let (
             vault_cap,
             stop_handle
-        ) = base_strategy::open_vault_for_harvest<DittoStrategy>(
-            manager,
+        ) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
+            keeper,
+            manager_addr,
             vault_id,
             DittoStrategy {}
         );
 
-        let manager_addr = signer::address_of(manager);
         let ditto_strategy_cap = borrow_global_mut<DittoStrategyAccount>(manager_addr);
         let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.signer_cap);
         let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
@@ -70,7 +70,7 @@ module satay::ditto_farming_strategy {
         let (
             ditto_farming_coin,
             residual_aptos_coin
-        ) = ditto_farming::reinvest_returns(manager);
+        ) = ditto_farming::reinvest_returns(keeper);
         base_strategy::deposit_strategy_coin<DittoStrategy, DittoFarmingCoin>(
             &vault_cap,
             ditto_farming_coin,
@@ -153,7 +153,7 @@ module satay::ditto_farming_strategy {
         coin::deposit(ditto_strategy_addr, residual);
 
         base_strategy::close_vault_for_harvest<DittoStrategy, AptosCoin, DittoFarmingCoin>(
-            signer::address_of(manager),
+            manager_addr,
             vault_cap,
             stop_handle,
             to_return,
@@ -163,11 +163,13 @@ module satay::ditto_farming_strategy {
 
     // provide a signal to the keeper that `harvest()` should be called
     public entry fun harvest_trigger(
-        manager: &signer,
+        keeper: &signer,
+        manager_addr: address,
         vault_id: u64
     ): bool {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy>(
-            manager,
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
+            keeper,
+            manager_addr,
             vault_id,
             DittoStrategy {}
         );
@@ -177,7 +179,7 @@ module satay::ditto_farming_strategy {
         );
 
         base_strategy::close_vault_for_harvest_trigger<DittoStrategy>(
-            signer::address_of(manager),
+            manager_addr,
             vault_cap,
             stop_handle
         );
@@ -188,16 +190,16 @@ module satay::ditto_farming_strategy {
     // tend
 
     public entry fun tend(
-        manager: &signer,
+        keeper: &signer,
+        manager_addr: address,
         vault_id: u64
     ) acquires DittoStrategyAccount {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_tend<DittoStrategy, DittoFarmingCoin>(
-            manager,
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_tend<DittoStrategy, AptosCoin>(
+            keeper,
+            manager_addr,
             vault_id,
             DittoStrategy {}
         );
-
-        let manager_addr = signer::address_of(manager);
 
         let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(manager_addr);
         let ditto_strategy_addr = account::get_signer_capability_address(&ditto_strategy_account.signer_cap);
@@ -205,11 +207,11 @@ module satay::ditto_farming_strategy {
         let (
             ditto_farming_coin,
             residual_aptos_coin
-        ) = ditto_farming::reinvest_returns(manager);
+        ) = ditto_farming::reinvest_returns(keeper);
         coin::deposit(ditto_strategy_addr, residual_aptos_coin);
 
         base_strategy::close_vault_for_tend<DittoStrategy, DittoFarmingCoin>(
-            signer::address_of(manager),
+            manager_addr,
             vault_cap,
             stop_handle,
             ditto_farming_coin
@@ -281,38 +283,29 @@ module satay::ditto_farming_strategy {
 
     // update the strategy debt ratio
     public entry fun update_debt_ratio(
-        manager: &signer,
+        vault_manager: &signer,
+        manager_addr: address,
         vault_id: u64,
         debt_ratio: u64
     ) {
-        satay::update_strategy_debt_ratio<DittoStrategy>(
-            manager,
+        base_strategy::update_debt_ratio<DittoStrategy, AptosCoin>(
+            vault_manager,
+            manager_addr,
             vault_id,
             debt_ratio
         );
     }
 
-    // update the strategy max report delay
-    public entry fun update_max_report_delay(
-        manager: &signer,
-        vault_id: u64,
-        max_report_delay: u64
-    ) {
-        satay::update_strategy_max_report_delay<DittoStrategy>(
-            manager,
-            vault_id,
-            max_report_delay
-        );
-    }
-
     // update the strategy credit threshold
     public entry fun update_credit_threshold(
-        manager: &signer,
+        vault_manager: &signer,
+        manager_addr: address,
         vault_id: u64,
         credit_threshold: u64
     ) {
-        satay::update_strategy_credit_threshold<DittoStrategy>(
-            manager,
+        base_strategy::update_credit_threshold<DittoStrategy, AptosCoin>(
+            vault_manager,
+            manager_addr,
             vault_id,
             credit_threshold
         );
@@ -320,18 +313,43 @@ module satay::ditto_farming_strategy {
 
     // set the strategy force harvest trigger once
     public entry fun set_force_harvest_trigger_once(
-        manager: &signer,
+        vault_manager: &signer,
+        manager_addr: address,
         vault_id: u64,
     ) {
-        satay::set_strategy_force_harvest_trigger_once<DittoStrategy>(
-            manager,
+        base_strategy::set_force_harvest_trigger_once<DittoStrategy, AptosCoin>(
+            vault_manager,
+            manager_addr,
             vault_id
         );
     }
 
+    // update the strategy max report delay
+    public entry fun update_max_report_delay(
+        strategist: &signer,
+        manager_addr: address,
+        vault_id: u64,
+        max_report_delay: u64
+    ) {
+        base_strategy::update_max_report_delay<DittoStrategy, AptosCoin>(
+            strategist,
+            manager_addr,
+            vault_id,
+            max_report_delay
+        );
+    }
+
     // revoke the strategy
-    public entry fun revoke(manager: &signer, vault_id: u64) {
-        satay::update_strategy_debt_ratio<DittoStrategy>(manager, vault_id, 0);
+    public entry fun revoke(
+        governance: &signer,
+        manager_addr: address,
+        vault_id: u64
+    ) {
+        base_strategy::revoke<DittoStrategy>(
+            governance,
+            manager_addr,
+            vault_id
+        );
     }
 
     // get total AptosCoin balance for strategy

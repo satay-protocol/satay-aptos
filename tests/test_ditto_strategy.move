@@ -8,7 +8,6 @@ module satay::test_ditto_strategy {
     use aptos_framework::stake;
     use aptos_framework::aptos_coin::AptosCoin;
 
-    use satay::global_config;
     use satay::satay;
     use satay::dao_storage;
     use satay::vault;
@@ -40,11 +39,12 @@ module satay::test_ditto_strategy {
         ditto_staking: &signer,
         user: &signer
     ) {
-        global_config::initialize(manager_acc);
+        let manager_addr = signer::address_of(manager_acc);
+
         stake::initialize_for_test(aptos_framework);
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
         satay::initialize(manager_acc);
-        satay::new_vault<AptosCoin>(manager_acc, b"aptos_vault", 200, 5000);
+        satay::new_vault<AptosCoin>(manager_acc, manager_addr, b"aptos_vault", 200, 5000);
 
         coins::register_coins(token_admin);
 
@@ -138,11 +138,13 @@ module satay::test_ditto_strategy {
         setup_strategy_vault(aptos_framework, token_admin, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
         test_account::create_account(userB);
 
-        let vault_address = satay::get_vault_address_by_id(signer::address_of(manager_acc), 0);
+        let manager_addr = signer::address_of(manager_acc);
+        let vault_address = satay::get_vault_address_by_id(manager_addr, 0);
+
         aptos_coin::mint(aptos_framework, signer::address_of(user), 100);
-        satay::deposit<AptosCoin>(user, signer::address_of(manager_acc), 0, 100);
+        satay::deposit<AptosCoin>(user, manager_addr, 0, 100);
         // userA balance on the vault is 100
-        mock_ditto_farming_strategy::harvest(manager_acc, 0);
+        mock_ditto_farming_strategy::harvest(manager_acc, manager_addr, 0);
         // first time to do harvest so no fees removed
         // userA balance on the vault is 100 + 9 (reward)
         assert!(check_dao_fee(vault_address) == 0, 1);
@@ -173,14 +175,16 @@ module satay::test_ditto_strategy {
         setup_strategy_vault(aptos_framework, token_admin, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
         test_account::create_account(userB);
 
-        let vault_address = satay::get_vault_address_by_id(signer::address_of(manager_acc), 0);
+        let manager_addr = signer::address_of(manager_acc);
+        let vault_address = satay::get_vault_address_by_id(manager_addr, 0);
+
         aptos_coin::mint(aptos_framework, signer::address_of(user), 100);
-        satay::deposit<AptosCoin>(user, signer::address_of(manager_acc), 0, 100);
+        satay::deposit<AptosCoin>(user, manager_addr, 0, 100);
         // userA balance on the vault is 100
-        mock_ditto_farming_strategy::harvest(manager_acc, 0);
+        mock_ditto_farming_strategy::harvest(manager_acc, manager_addr, 0);
         // first time to do harvest so no fees removed
         // userA balance on the vault is 100 + 9 (reward)
         assert!(check_dao_fee(vault_address) == 0, 1);
-        mock_ditto_farming_strategy::tend(manager_acc, 0);
+        mock_ditto_farming_strategy::tend(manager_acc, manager_addr, 0);
     }
 }

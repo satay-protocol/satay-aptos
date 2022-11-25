@@ -1,8 +1,6 @@
 #[test_only]
 module satay::mock_simple_staking_strategy {
 
-    use std::signer;
-
     use aptos_framework::coin;
 
     use satay::base_strategy;
@@ -16,12 +14,12 @@ module satay::mock_simple_staking_strategy {
 
     // initialize vault_id to accept strategy
     public entry fun initialize(
-        manager: &signer,
+        governance: &signer,
         vault_id: u64,
         debt_ratio: u64
     ) {
         base_strategy::initialize<SimpleStakingStrategy, StakingCoin>(
-            manager,
+            governance,
             vault_id,
             debt_ratio,
             SimpleStakingStrategy{}
@@ -68,11 +66,13 @@ module satay::mock_simple_staking_strategy {
 
     // provide a signal to the keepr that `harvest()` should be called
     public entry fun harvest_trigger<BaseCoin>(
-        manager: &signer,
+        keeper: &signer,
+        manager_addr: address,
         vault_id: u64
     ) : bool {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy>(
-            manager,
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy, BaseCoin>(
+            keeper,
+            manager_addr,
             vault_id,
             SimpleStakingStrategy {}
         );
@@ -82,7 +82,7 @@ module satay::mock_simple_staking_strategy {
         );
 
         base_strategy::close_vault_for_harvest_trigger<SimpleStakingStrategy>(
-            signer::address_of(manager),
+            manager_addr,
             vault_cap,
             stop_handle
         );
@@ -91,9 +91,14 @@ module satay::mock_simple_staking_strategy {
     }
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
-    public entry fun harvest<CoinType, BaseCoin>(manager: &signer, vault_id: u64) {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy>(
-            manager,
+    public entry fun harvest<CoinType, BaseCoin>(
+        keeper: &signer,
+        manager_addr: address,
+        vault_id: u64
+    ) {
+        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy, BaseCoin>(
+            keeper,
+            manager_addr,
             vault_id,
             SimpleStakingStrategy {}
         );
@@ -129,7 +134,7 @@ module satay::mock_simple_staking_strategy {
         };
 
         base_strategy::close_vault_for_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
-            signer::address_of(manager),
+            manager_addr,
             vault_cap,
             stop_handle,
             base_coins,
@@ -138,9 +143,14 @@ module satay::mock_simple_staking_strategy {
     }
 
     // adjust the Strategy's position. The purpose of tending isn't to realize gains, but to maximize yield by reinvesting any returns
-    public entry fun tend<CoinType, BaseCoin>(manager: &signer, vault_id: u64) {
+    public entry fun tend<CoinType, BaseCoin>(
+        keeper: &signer,
+        manager_addr: address,
+        vault_id: u64
+    ) {
         let (vault_cap, stop_handle) = base_strategy::open_vault_for_tend<SimpleStakingStrategy, BaseCoin>(
-            manager,
+            keeper,
+            manager_addr,
             vault_id,
             SimpleStakingStrategy {}
         );
@@ -149,7 +159,7 @@ module satay::mock_simple_staking_strategy {
         let staking_coins = staking_pool::reinvest_returns<CoinType, BaseCoin>();
 
         base_strategy::close_vault_for_tend<SimpleStakingStrategy, StakingCoin>(
-            signer::address_of(manager),
+            manager_addr,
             vault_cap,
             stop_handle,
             staking_coins

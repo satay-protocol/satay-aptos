@@ -8,6 +8,7 @@ module satay::base_strategy {
     use aptos_framework::coin;
     use aptos_framework::timestamp;
 
+    use satay::global_config;
     use satay::vault::{Self, VaultCapability};
     use satay::satay::{Self, VaultCapLock};
 
@@ -18,21 +19,22 @@ module satay::base_strategy {
 
     // initialize vault_id to accept strategy
     public fun initialize<StrategyType: drop, StrategyCoin>(
-        manager: &signer,
+        governance: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType
     ) {
+
         // approve strategy on vault
         satay::approve_strategy<StrategyType>(
-            manager,
+            governance,
             vault_id, 
             type_info::type_of<StrategyCoin>(), 
             debt_ratio
         );
 
         // add a CoinStore for the StrategyCoin
-        let manager_addr = signer::address_of(manager);
+        let manager_addr = signer::address_of(governance);
         let (vault_cap, stop_handle) = satay::lock_vault<StrategyType>(manager_addr, vault_id, witness);
         if (!vault::has_coin<StrategyCoin>(&vault_cap)) {
             vault::add_coin<StrategyCoin>(&vault_cap);
@@ -67,13 +69,16 @@ module satay::base_strategy {
 
     // for harvest
 
-    public fun open_vault_for_harvest<StrategyType: drop>(
-        manager: &signer,
+    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin>(
+        keeper: &signer,
+        manager_addr: address,
         vault_id: u64,
         witness: StrategyType,
     ) :  (VaultCapability, VaultCapLock<StrategyType>) {
+        global_config::assert_keeper<StrategyType, BaseCoin>(keeper);
+
         open_vault<StrategyType>(
-            signer::address_of(manager),
+            manager_addr,
             vault_id,
             witness
         )
@@ -204,12 +209,15 @@ module satay::base_strategy {
     // for tend
 
     public fun open_vault_for_tend<StrategyType: drop, BaseCoin>(
-        manager: &signer,
+        keeper: &signer,
+        manager_addr: address,
         vault_id: u64,
         witness: StrategyType,
     ) :  (VaultCapability, VaultCapLock<StrategyType>) {
+        global_config::assert_keeper<StrategyType, BaseCoin>(keeper);
+
         let (vault_cap, stop_handle) = open_vault<StrategyType>(
-            signer::address_of(manager),
+            manager_addr,
             vault_id,
             witness
         );
@@ -299,71 +307,103 @@ module satay::base_strategy {
     // admin functions
 
     // update the strategy debt ratio
-    public fun update_debt_ratio<StrategyType: drop>(
-        manager: &signer,
+    public fun update_debt_ratio<StrategyType: drop, BaseCoin>(
+        vault_manager: &signer,
+        manager_addr: address,
         vault_id: u64,
         debt_ratio: u64
     ) {
+        global_config::assert_vault_manager<BaseCoin>(vault_manager);
+
         satay::update_strategy_debt_ratio<StrategyType>(
-            manager,
+            manager_addr,
             vault_id,
             debt_ratio
         );
     }
 
-    // update the strategy max report delay
-    public fun update_max_report_delay<StrategyType: drop>(
-        manager: &signer,
-        vault_id: u64,
-        max_report_delay: u64
-    ) {
-        satay::update_strategy_max_report_delay<StrategyType>(
-            manager,
-            vault_id,
-            max_report_delay
-        );
-    }
-
     // update the strategy credit threshold
-    public fun update_credit_threshold<StrategyType: drop>(
-        manager: &signer,
+    public fun update_credit_threshold<StrategyType: drop, BaseCoin>(
+        vault_manager: &signer,
+        manager_addr: address,
         vault_id: u64,
         credit_threshold: u64
     ) {
+        global_config::assert_vault_manager<BaseCoin>(vault_manager);
+
         satay::update_strategy_credit_threshold<StrategyType>(
-            manager,
+            manager_addr,
             vault_id,
             credit_threshold
         );
     }
 
     // set the strategy force harvest trigger once
-    public fun set_force_harvest_trigger_once<StrategyType: drop>(
-        manager: &signer,
+    public fun set_force_harvest_trigger_once<StrategyType: drop, BaseCoin>(
+        vault_manager: &signer,
+        manager_addr: address,
         vault_id: u64,
     ) {
+        global_config::assert_vault_manager<BaseCoin>(vault_manager);
+
         satay::set_strategy_force_harvest_trigger_once<StrategyType>(
-            manager,
+            manager_addr,
             vault_id
+        );
+    }
+
+    // update the strategy max report delay
+    public fun update_max_report_delay<StrategyType: drop, BaseCoin>(
+        strategist: &signer,
+        manager_addr: address,
+        vault_id: u64,
+        max_report_delay: u64
+    ) {
+        global_config::assert_strategist<StrategyType, BaseCoin>(strategist);
+
+        satay::update_strategy_max_report_delay<StrategyType>(
+            manager_addr,
+            vault_id,
+            max_report_delay
         );
     }
 
     // revoke the strategy
     public fun revoke<StrategyType: drop>(
-        manager: &signer,
+        governance: &signer,
+        manager_addr: address,
         vault_id: u64
     ) {
-        satay::update_strategy_debt_ratio<StrategyType>(manager, vault_id, 0);
+        global_config::assert_governance(governance);
+
+        satay::update_strategy_debt_ratio<StrategyType>(
+            manager_addr,
+            vault_id,
+            0
+        );
     }
 
     // migrate to new strategy
     public fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(
-        manager: &signer,
+        governance: &signer,
+        manager_addr: address,
         vault_id: u64,
         witness: NewStrategy
     ) {
-        let debt_ratio = satay::update_strategy_debt_ratio<OldStrategy>(manager, vault_id, 0);
-        initialize<NewStrategy, NewStrategyCoin>(manager, vault_id, debt_ratio, witness);
+        global_config::assert_governance(governance);
+
+        let debt_ratio = satay::update_strategy_debt_ratio<OldStrategy>(
+            manager_addr,
+            vault_id,
+            0
+        );
+
+        initialize<NewStrategy, NewStrategyCoin>(
+            governance,
+            vault_id,
+            debt_ratio,
+            witness
+        );
     }
 
     public fun get_vault_address(vault_cap: &VaultCapability) : address {

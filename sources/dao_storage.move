@@ -5,7 +5,7 @@ module satay::dao_storage {
     use aptos_framework::coin::{Self, Coin};
     use aptos_std::event;
     use aptos_std::event::EventHandle;
-    use satay::global_config::get_dao_admin;
+    use satay::global_config;
 
     const ERR_NOT_REGISTERED: u64 = 301;
     const ERR_NOT_DAO_ADMIN: u64 = 302;
@@ -65,7 +65,7 @@ module satay::dao_storage {
     // withdraw CoinType from DAO storage for vault_addr
     public entry fun withdraw<CoinType>(dao_admin: &signer, vault_addr: address, amount: u64): Coin<CoinType> acquires Storage, EventsStore {
         // assert that signer is the DAO admin
-        assert!(get_dao_admin() == signer::address_of(dao_admin), ERR_NOT_DAO_ADMIN);
+        global_config::assert_dao_admin(dao_admin);
 
         let storage = borrow_global_mut<Storage<CoinType>>(vault_addr);
         let asset = coin::extract(&mut storage.coin, amount);

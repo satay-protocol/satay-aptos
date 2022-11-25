@@ -9,8 +9,8 @@ module satay::test_dao_storage {
     use test_helpers::test_account;
     use test_coin_admin::test_coins;
 
+    use satay::satay;
     use satay::global_config;
-    use satay::global_config::set_dao_admin;
     use satay::dao_storage::{register, has_storage, deposit, get_coin_value, withdraw};
 
     const ENO_STORAGE: u64 = 401;
@@ -36,14 +36,16 @@ module satay::test_dao_storage {
 
     #[test(dao_admin=@0x64, satay=@satay)]
     fun test_withdraw(dao_admin: &signer, satay: &signer) {
-        global_config::initialize(satay);
+        satay::initialize(satay);
+
         let owner = test_coins::create_admin_with_coins();
         register<USDT>(&owner);
 
         let usdt_coins = test_coins::mint<USDT>(&owner, 1000);
         deposit<USDT>(signer::address_of(&owner), usdt_coins);
 
-        set_dao_admin(satay, signer::address_of(dao_admin));
+        global_config::set_dao_admin(satay, signer::address_of(dao_admin));
+        global_config::accept_dao_admin(dao_admin);
 
         let withdrawn_coin = withdraw<USDT>(dao_admin, signer::address_of(&owner), 200);
         assert!(coin::value(&withdrawn_coin) == 200, ERR_WITHDRAW);
