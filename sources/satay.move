@@ -38,11 +38,11 @@ module satay::satay {
 
     // create manager account and store in sender's account
     public entry fun initialize(
-        manager: &signer
+        satay: &signer
     ) {
-        move_to(manager, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
-
-        global_config::initialize(manager);
+        // asserts that signer::address_of(satay) == @satay
+        global_config::initialize(satay);
+        move_to(satay, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
 
     // create new vault for BaseCoin under Manager resource
