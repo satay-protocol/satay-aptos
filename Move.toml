@@ -12,3 +12,6 @@ subdir = './liquidswap_router_v2'
 
 [dependencies.satay-ditto-farming]
 local = './structured_products/ditto_farming'
+
+[dependencies.satay-tortuga-farming]
+local='./structured_products/tortuga_farming'

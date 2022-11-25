@@ -1,0 +1,11 @@
+[package]
+name = "tortuga-staking"
+version = "0.0.0"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[addresses]
+tortuga_staking = "0x3cf126fc1e6066d7c7841d998be87b432f27ddbab2ef9cc8c2172800c70e9aae"
