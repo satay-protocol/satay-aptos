@@ -1,14 +1,16 @@
 module satay::dao_storage {
+
     use std::signer;
+
+    use aptos_std::event::EventHandle;
 
     use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
-    use aptos_std::event;
-    use aptos_std::event::EventHandle;
+    use aptos_framework::event;
+
     use satay::global_config;
 
     const ERR_NOT_REGISTERED: u64 = 301;
-    const ERR_NOT_DAO_ADMIN: u64 = 302;
 
     struct Storage<phantom CoinType> has key {
         coin: Coin<CoinType>
@@ -47,9 +49,12 @@ module satay::dao_storage {
     }
 
     // deposit CoinType into Storage for vault_addr
-    public fun deposit<CoinType>(vault_addr: address, asset: Coin<CoinType>) acquires Storage, EventsStore {
+    public fun deposit<CoinType>(
+        vault_addr: address,
+        asset: Coin<CoinType>
+    ) acquires Storage, EventsStore {
         // assert that Storage for CoinType exists for vault_address
-        assert!(exists<Storage<CoinType>>(vault_addr), ERR_NOT_REGISTERED);
+        assert_has_storage<CoinType>(vault_addr);
 
         let asset_amount = coin::value(&asset);
         let storage = borrow_global_mut<Storage<CoinType>>(vault_addr);
@@ -63,7 +68,11 @@ module satay::dao_storage {
     }
 
     // withdraw CoinType from DAO storage for vault_addr
-    public entry fun withdraw<CoinType>(dao_admin: &signer, vault_addr: address, amount: u64): Coin<CoinType> acquires Storage, EventsStore {
+    public entry fun withdraw<CoinType>(
+        dao_admin: &signer,
+        vault_addr: address,
+        amount: u64
+    ) acquires Storage, EventsStore {
         // assert that signer is the DAO admin
         global_config::assert_dao_admin(dao_admin);
 
@@ -76,25 +85,22 @@ module satay::dao_storage {
             CoinWithdrawEvent<CoinType> {amount}
         );
 
-        asset
+        coin::deposit(signer::address_of(dao_admin), asset);
     }
 
     // gets the Storage balance for CoinType of a given vault_addr
-    public fun balance<CoinType>(vault_addr: address): u64 acquires Storage {
+    public fun balance<CoinType>(owner_addr: address): u64 acquires Storage {
         // assert that Storage for CoinType exists for vault_address
-        assert!(exists<Storage<CoinType>>(vault_addr), ERR_NOT_REGISTERED);
-        let storage = borrow_global<Storage<CoinType>>(vault_addr);
+        assert_has_storage<CoinType>(owner_addr);
+        let storage = borrow_global<Storage<CoinType>>(owner_addr);
         coin::value<CoinType>(&storage.coin)
     }
 
-    #[test_only]
-    public fun has_storage<CoinType>(owner: &signer): bool {
-        exists<Storage<CoinType>>(signer::address_of(owner))
+    public fun has_storage<CoinType>(owner_addr: address): bool {
+        exists<Storage<CoinType>>(owner_addr)
     }
 
-    #[test_only]
-    public fun get_coin_value<CoinType>(owner: &signer): u64 acquires Storage {
-        let storage = borrow_global<Storage<CoinType>>(signer::address_of(owner));
-        coin::value(&storage.coin)
+    fun assert_has_storage<CoinType>(owner_addr: address) {
+        assert!(has_storage<CoinType>(owner_addr), ERR_NOT_REGISTERED);
     }
 }
