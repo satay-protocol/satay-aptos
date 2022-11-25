@@ -28,7 +28,7 @@ module satay::mock_ditto_farming_strategy {
         debt_ratio: u64
     ) {
         // initialize through base_strategy_module
-        base_strategy::initialize<DittoStrategy, DittoFarmingCoin>(
+        base_strategy::initialize<DittoStrategy, DittoFarmingCoin, AptosCoin>(
             governance,
             vault_id,
             debt_ratio,

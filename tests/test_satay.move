@@ -132,7 +132,7 @@ module satay::test_satay {
 
         satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
-        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
+        base_strategy::initialize<TestStrategy, USDT, USDT>(&vault_manager, 0, 1000, TestStrategy {});
         assert!(satay::has_strategy<TestStrategy>(&vault_manager, 0), 3);
     }
 
@@ -150,9 +150,9 @@ module satay::test_satay {
         satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
         set_time_has_started_for_testing(&aptos_framework);
-        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
+        base_strategy::initialize<TestStrategy, USDT, USDT>(&vault_manager, 0, 1000, TestStrategy {});
         assert!(satay::has_strategy<TestStrategy>(&vault_manager, 0), 3);
-        base_strategy::initialize<TestStrategy2, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
+        base_strategy::initialize<TestStrategy2, USDT, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
         assert!(satay::has_strategy<TestStrategy2>(&vault_manager, 0), 3);
 
     }
@@ -171,7 +171,7 @@ module satay::test_satay {
 
         satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
-        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
+        base_strategy::initialize<TestStrategy, USDT, USDT>(&vault_manager, 0, 1000, TestStrategy {});
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
             manager_addr,
             0,
@@ -198,8 +198,8 @@ module satay::test_satay {
 
         satay::new_vault<USDT>(&vault_manager, manager_addr, b"USDT vault", 200, 5000);
 
-        base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
-        base_strategy::initialize<TestStrategy2, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
+        base_strategy::initialize<TestStrategy, USDT, USDT>(&vault_manager, 0, 1000, TestStrategy {});
+        base_strategy::initialize<TestStrategy2, USDT, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
         let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
             signer::address_of(&vault_manager),
             0,

@@ -74,7 +74,7 @@ module satay::test_simple_staking_strategy {
         let manager_addr = signer::address_of(manager_acc);
 
         satay::new_vault<USDT>(manager_acc, manager_addr, b"aptos_vault", 200, 5000);
-        mock_simple_staking_strategy::initialize(manager_acc, 0, 1000);
+        mock_simple_staking_strategy::initialize<USDT>(manager_acc, 0, 1000);
         coins::mint_coin<USDT>(token_admin, signer::address_of(user), 100);
         satay::deposit<USDT>(user, signer::address_of(manager_acc), 0, 100);
         staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);

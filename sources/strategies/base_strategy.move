@@ -18,7 +18,7 @@ module satay::base_strategy {
     const ERR_DEBT_OUT_STANDING: u64 = 304;
 
     // initialize vault_id to accept strategy
-    public fun initialize<StrategyType: drop, StrategyCoin>(
+    public fun initialize<StrategyType: drop, StrategyCoin, BaseCoin>(
         governance: &signer,
         vault_id: u64,
         debt_ratio: u64,
@@ -26,7 +26,7 @@ module satay::base_strategy {
     ) {
 
         // approve strategy on vault
-        satay::approve_strategy<StrategyType>(
+        satay::approve_strategy<StrategyType, BaseCoin>(
             governance,
             vault_id, 
             type_info::type_of<StrategyCoin>(), 
@@ -384,7 +384,7 @@ module satay::base_strategy {
     }
 
     // migrate to new strategy
-    public fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(
+    public fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin, BaseCoin>(
         governance: &signer,
         manager_addr: address,
         vault_id: u64,
@@ -398,7 +398,7 @@ module satay::base_strategy {
             0
         );
 
-        initialize<NewStrategy, NewStrategyCoin>(
+        initialize<NewStrategy, NewStrategyCoin, BaseCoin>(
             governance,
             vault_id,
             debt_ratio,

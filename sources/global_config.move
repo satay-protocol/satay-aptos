@@ -45,7 +45,7 @@ module satay::global_config {
     }
 
     /// The strategy configuration
-    struct StrategyConfig<phantom StrategyType> has key {
+    struct StrategyConfig<phantom StrategyType, phantom BaseCoin> has key {
         strategist_address: address,
         keeper_address: address,
         new_strategist_address: address,
@@ -75,10 +75,10 @@ module satay::global_config {
     }
 
     /// Initialize admin contracts when initializing the strategy
-    public(friend) fun initialize_strategy<StrategyType: drop>(governance: &signer) acquires GlobalConfig {
+    public(friend) fun initialize_strategy<StrategyType: drop, BaseCoin>(governance: &signer) acquires GlobalConfig {
         assert_governance(governance);
 
-        move_to(governance, StrategyConfig<StrategyType> {
+        move_to(governance, StrategyConfig<StrategyType, BaseCoin> {
             strategist_address: @satay,
             keeper_address: @satay,
             new_strategist_address: @0x0,
@@ -111,18 +111,18 @@ module satay::global_config {
     }
 
     /// Get strategist address
-    public fun get_strategist_address<StrategyType: drop>(): address acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+    public fun get_strategist_address<StrategyType: drop, BaseCoin>(): address acquires StrategyConfig {
+        assert!(exists<StrategyConfig<StrategyType, BaseCoin>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<StrategyConfig<StrategyType>>(@satay);
+        let config = borrow_global<StrategyConfig<StrategyType, BaseCoin>>(@satay);
         config.strategist_address
     }
 
     /// Get keeper address
-    public fun get_keeper_address<StrategyType: drop>(): address acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+    public fun get_keeper_address<StrategyType: drop, BaseCoin>(): address acquires StrategyConfig {
+        assert!(exists<StrategyConfig<StrategyType, BaseCoin>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<StrategyConfig<StrategyType>>(@satay);
+        let config = borrow_global<StrategyConfig<StrategyType, BaseCoin>>(@satay);
         config.keeper_address
     }
 
@@ -166,13 +166,13 @@ module satay::global_config {
         assert!(
             exists<GlobalConfig>(@satay) && 
             exists<VaultConfig<BaseCoin>>(@satay) && 
-            exists<StrategyConfig<StrategyType>>(@satay),
+            exists<StrategyConfig<StrategyType, BaseCoin>>(@satay),
             ERROR_CONFIG_DOES_NOT_EXIST);
 
         let addr = signer::address_of(strategist);
         let global_config = borrow_global<GlobalConfig>(@satay);
         let vault_config = borrow_global<VaultConfig<BaseCoin>>(@satay);
-        let strategy_config = borrow_global<StrategyConfig<StrategyType>>(@satay);
+        let strategy_config = borrow_global<StrategyConfig<StrategyType, BaseCoin>>(@satay);
 
         assert!(
             global_config.governance_address == addr || 
@@ -186,13 +186,13 @@ module satay::global_config {
         assert!(
             exists<GlobalConfig>(@satay) && 
             exists<VaultConfig<BaseCoin>>(@satay) && 
-            exists<StrategyConfig<StrategyType>>(@satay),
+            exists<StrategyConfig<StrategyType, BaseCoin>>(@satay),
             ERROR_CONFIG_DOES_NOT_EXIST);
 
         let addr = signer::address_of(keeper);
         let global_config = borrow_global<GlobalConfig>(@satay);
         let vault_config = borrow_global<VaultConfig<BaseCoin>>(@satay);
-        let strategy_config = borrow_global<StrategyConfig<StrategyType>>(@satay);
+        let strategy_config = borrow_global<StrategyConfig<StrategyType, BaseCoin>>(@satay);
 
         assert!(
             global_config.governance_address == addr || 
@@ -272,17 +272,17 @@ module satay::global_config {
     public entry fun set_strategist<StrategyType: drop, BaseCoin>(strategist: &signer, new_addr: address) acquires GlobalConfig, VaultConfig, StrategyConfig {
         assert_strategist<StrategyType, BaseCoin>(strategist);
 
-        let config = borrow_global_mut<StrategyConfig<StrategyType>>(@satay);
+        let config = borrow_global_mut<StrategyConfig<StrategyType, BaseCoin>>(@satay);
 
         config.new_strategist_address = new_addr;
     }
 
     /// accept new Strategist address
-    public entry fun accept_strategist<StrategyType: drop>(strategist: &signer) acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+    public entry fun accept_strategist<StrategyType: drop, BaseCoin>(strategist: &signer) acquires StrategyConfig {
+        assert!(exists<StrategyConfig<StrategyType, BaseCoin>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(strategist);
-        let config = borrow_global_mut<StrategyConfig<StrategyType>>(@satay);
+        let config = borrow_global_mut<StrategyConfig<StrategyType, BaseCoin>>(@satay);
 
         assert!(config.new_strategist_address == new_addr, ERR_NOT_MANAGER);
 
@@ -294,17 +294,17 @@ module satay::global_config {
     public entry fun set_keeper<StrategyType: drop, BaseCoin>(keeper: &signer, new_addr: address) acquires GlobalConfig, VaultConfig, StrategyConfig {
         assert_keeper<StrategyType, BaseCoin>(keeper);
 
-        let config = borrow_global_mut<StrategyConfig<StrategyType>>(@satay);
+        let config = borrow_global_mut<StrategyConfig<StrategyType, BaseCoin>>(@satay);
 
         config.new_keeper_address = new_addr;
     }
 
     /// accept new Keeper address
-    public entry fun accept_keeper<StrategyType: drop>(keeper: &signer) acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+    public entry fun accept_keeper<StrategyType: drop, BaseCoin>(keeper: &signer) acquires StrategyConfig {
+        assert!(exists<StrategyConfig<StrategyType, BaseCoin>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(keeper);
-        let config = borrow_global_mut<StrategyConfig<StrategyType>>(@satay);
+        let config = borrow_global_mut<StrategyConfig<StrategyType, BaseCoin>>(@satay);
 
         assert!(config.new_keeper_address == new_addr, ERR_NOT_MANAGER);
 

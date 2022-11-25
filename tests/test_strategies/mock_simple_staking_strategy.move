@@ -13,12 +13,12 @@ module satay::mock_simple_staking_strategy {
     struct SimpleStakingStrategy has drop {}
 
     // initialize vault_id to accept strategy
-    public entry fun initialize(
+    public entry fun initialize<BaseCoin>(
         governance: &signer,
         vault_id: u64,
         debt_ratio: u64
     ) {
-        base_strategy::initialize<SimpleStakingStrategy, StakingCoin>(
+        base_strategy::initialize<SimpleStakingStrategy, StakingCoin, BaseCoin>(
             governance,
             vault_id,
             debt_ratio,

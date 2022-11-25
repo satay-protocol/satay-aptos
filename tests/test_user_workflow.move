@@ -76,7 +76,7 @@ module satay::test_user_workflow {
         let manager_addr = signer::address_of(manager_acc);
 
         satay::new_vault<USDT>(manager_acc, manager_addr, b"aptos_vault", 200, 5000);
-        mock_simple_staking_strategy::initialize(manager_acc, 0, 10000);
+        mock_simple_staking_strategy::initialize<USDT>(manager_acc, 0, 10000);
         staking_pool::initialize<USDT, AptosCoin>(manager_acc);
         staking_pool::deposit_rewards<AptosCoin>(user, 10000);
     }

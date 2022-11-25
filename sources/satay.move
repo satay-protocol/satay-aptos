@@ -133,14 +133,14 @@ module satay::satay {
     // called by strategies
 
     // allows Strategy to get VaultCapability of vault_id of manager_addr
-    public(friend) fun approve_strategy<StrategyType: drop>(
+    public(friend) fun approve_strategy<StrategyType: drop, BaseCoin>(
         governance: &signer,
         vault_id: u64,
         position_coin_type: TypeInfo,
         debt_ratio: u64
     ) acquires ManagerAccount {
         global_config::assert_governance(governance);
-        global_config::initialize_strategy<StrategyType>(governance);
+        global_config::initialize_strategy<StrategyType, BaseCoin>(governance);
 
         let manager_addr = signer::address_of(governance);
         assert_manager_initialized(manager_addr);
