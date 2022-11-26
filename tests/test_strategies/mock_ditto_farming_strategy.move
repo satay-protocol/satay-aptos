@@ -11,6 +11,7 @@ module satay::mock_ditto_farming_strategy {
     use satay::vault::VaultCapability;
 
     use satay_ditto_farming::mock_ditto_farming::{Self, DittoFarmingCoin};
+    use satay::global_config;
 
     // witness for the strategy
     // used for checking approval when locking and unlocking vault
@@ -50,7 +51,6 @@ module satay::mock_ditto_farming_strategy {
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
     public entry fun harvest(
         keeper: &signer,
-        manager_addr: address,
         vault_id: u64
     ) acquires DittoStrategyAccount {
         let (
@@ -58,12 +58,13 @@ module satay::mock_ditto_farming_strategy {
             stop_handle
         ) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
             keeper,
-            manager_addr,
             vault_id,
             DittoStrategy {}
         );
 
-        let ditto_strategy_cap = borrow_global_mut<DittoStrategyAccount>(manager_addr);
+        // TODO: what happens if the governor address is changed?
+        let governor_addr = global_config::get_governance_address();
+        let ditto_strategy_cap = borrow_global_mut<DittoStrategyAccount>(governor_addr);
         let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.signer_cap);
         let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
 
@@ -94,7 +95,7 @@ module satay::mock_ditto_farming_strategy {
             to_apply,
             amount_needed,
         ) = base_strategy::process_harvest<DittoStrategy, AptosCoin, DittoFarmingCoin>(
-            &mut vault_cap,
+            &vault_cap,
             strategy_aptos_balance,
             &stop_handle,
         );
@@ -148,13 +149,12 @@ module satay::mock_ditto_farming_strategy {
         // deploy to_apply AptosCoin to ditto_farming structured product
         let (ditto_strategy_coins, residual) = mock_ditto_farming::apply_position(
             to_apply,
-            manager_addr,
+            governor_addr,
         );
         // store residual amount on strategy account
         coin::deposit(ditto_strategy_addr, residual);
 
         base_strategy::close_vault_for_harvest<DittoStrategy, AptosCoin, DittoFarmingCoin>(
-            manager_addr,
             vault_cap,
             stop_handle,
             to_return,
@@ -165,12 +165,10 @@ module satay::mock_ditto_farming_strategy {
     // provide a signal to the keeper that `harvest()` should be called
     public entry fun harvest_trigger(
         keeper: &signer,
-        manager_addr: address,
         vault_id: u64
     ): bool {
         let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
             keeper,
-            manager_addr,
             vault_id,
             DittoStrategy {}
         );
@@ -180,7 +178,6 @@ module satay::mock_ditto_farming_strategy {
         );
 
         base_strategy::close_vault_for_harvest_trigger<DittoStrategy>(
-            manager_addr,
             vault_cap,
             stop_handle
         );
@@ -192,17 +189,16 @@ module satay::mock_ditto_farming_strategy {
 
     public entry fun tend(
         keeper: &signer,
-        manager_addr: address,
         vault_id: u64
     ) acquires DittoStrategyAccount {
         let (vault_cap, stop_handle) = base_strategy::open_vault_for_tend<DittoStrategy, AptosCoin>(
             keeper,
-            manager_addr,
             vault_id,
             DittoStrategy {}
         );
 
-        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(manager_addr);
+        let governor_addr = global_config::get_governance_address();
+        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(governor_addr);
         let ditto_strategy_addr = account::get_signer_capability_address(&ditto_strategy_account.signer_cap);
 
         let (
@@ -212,7 +208,6 @@ module satay::mock_ditto_farming_strategy {
         coin::deposit(ditto_strategy_addr, residual_aptos_coin);
 
         base_strategy::close_vault_for_tend<DittoStrategy, DittoFarmingCoin>(
-            manager_addr,
             vault_cap,
             stop_handle,
             ditto_farming_coin
@@ -224,7 +219,6 @@ module satay::mock_ditto_farming_strategy {
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
     public entry fun withdraw_for_user(
         user: &signer,
-        manager_addr: address,
         vault_id: u64,
         share_amount: u64
     ) acquires DittoStrategyAccount {
@@ -234,13 +228,13 @@ module satay::mock_ditto_farming_strategy {
             stop_handle
         ) = base_strategy::open_vault_for_user_withdraw<DittoStrategy, AptosCoin, DittoFarmingCoin>(
             user,
-            manager_addr,
             vault_id,
             share_amount,
             DittoStrategy {}
         );
 
-        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(manager_addr);
+        let governor_addr = global_config::get_governance_address();
+        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(governor_addr);
         let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_account.signer_cap);
         let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
 
@@ -274,7 +268,6 @@ module satay::mock_ditto_farming_strategy {
         };
 
         base_strategy::close_vault_for_user_withdraw<DittoStrategy, AptosCoin>(
-            manager_addr,
             vault_cap,
             stop_handle,
             to_return,
@@ -285,13 +278,11 @@ module satay::mock_ditto_farming_strategy {
     // update the strategy debt ratio
     public entry fun update_debt_ratio(
         vault_manager: &signer,
-        manager_addr: address,
         vault_id: u64,
         debt_ratio: u64
     ) {
         base_strategy::update_debt_ratio<DittoStrategy, AptosCoin>(
             vault_manager,
-            manager_addr,
             vault_id,
             debt_ratio
         );
@@ -300,13 +291,11 @@ module satay::mock_ditto_farming_strategy {
     // update the strategy credit threshold
     public entry fun update_credit_threshold(
         vault_manager: &signer,
-        manager_addr: address,
         vault_id: u64,
         credit_threshold: u64
     ) {
         base_strategy::update_credit_threshold<DittoStrategy, AptosCoin>(
             vault_manager,
-            manager_addr,
             vault_id,
             credit_threshold
         );
@@ -315,12 +304,10 @@ module satay::mock_ditto_farming_strategy {
     // set the strategy force harvest trigger once
     public entry fun set_force_harvest_trigger_once(
         vault_manager: &signer,
-        manager_addr: address,
         vault_id: u64,
     ) {
         base_strategy::set_force_harvest_trigger_once<DittoStrategy, AptosCoin>(
             vault_manager,
-            manager_addr,
             vault_id
         );
     }
@@ -328,13 +315,11 @@ module satay::mock_ditto_farming_strategy {
     // update the strategy max report delay
     public entry fun update_max_report_delay(
         strategist: &signer,
-        manager_addr: address,
         vault_id: u64,
         max_report_delay: u64
     ) {
         base_strategy::update_max_report_delay<DittoStrategy, AptosCoin>(
             strategist,
-            manager_addr,
             vault_id,
             max_report_delay
         );
@@ -343,12 +328,10 @@ module satay::mock_ditto_farming_strategy {
     // revoke the strategy
     public entry fun revoke(
         governance: &signer,
-        manager_addr: address,
         vault_id: u64
     ) {
         base_strategy::revoke<DittoStrategy>(
             governance,
-            manager_addr,
             vault_id
         );
     }

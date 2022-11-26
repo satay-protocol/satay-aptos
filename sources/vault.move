@@ -270,7 +270,7 @@ module satay::vault {
 
     // deposit base_coin into Vault from StrategyType
     public(friend) fun deposit_base_coin<StrategyType: drop, BaseCoin>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>,
         _witness: &StrategyType
     ) acquires CoinStore, Vault {
@@ -280,7 +280,7 @@ module satay::vault {
 
     // withdraw base_coin from Vault to StrategyType
     public(friend) fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         amount: u64,
         _witness: &StrategyType
     ): Coin<BaseCoin> acquires CoinStore, Vault, VaultStrategy {
@@ -366,7 +366,7 @@ module satay::vault {
 
     // update vault and strategy total_debt, given credit and debt_payment amounts
     public(friend) fun update_total_debt<StrategyType: drop>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         credit: u64,
         debt_payment: u64,
         _witness: &StrategyType
@@ -380,7 +380,7 @@ module satay::vault {
 
     // report time for StrategyType
     public(friend) fun report_timestamp<StrategyType: drop>(
-        vault_cap: &mut VaultCapability
+        vault_cap: &VaultCapability
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.last_report = timestamp::now_seconds();
@@ -389,7 +389,7 @@ module satay::vault {
 
     // report a gain for StrategyType
     public(friend) fun report_gain<StrategyType: drop>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         profit: u64
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
@@ -398,7 +398,7 @@ module satay::vault {
 
     // report a loss for StrategyType
     public(friend) fun report_loss<StrategyType: drop>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         loss: u64
     ) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
