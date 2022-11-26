@@ -10,6 +10,9 @@ git = "https://github.com/aptos-labs/aptos-core.git"
 rev = "main"
 subdir = "aptos-move/framework/aptos-framework"
 
+[dependencies.satay]
+local = '../../'
+
 [dependencies.LiquidswapRouterV2]
 git = 'https://github.com/pontem-network/liquidswap'
 rev = 'v0.4.3'

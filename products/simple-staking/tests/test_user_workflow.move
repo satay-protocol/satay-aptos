@@ -1,5 +1,5 @@
 #[test_only]
-module satay::test_user_workflow {
+module satay_simple_staking::test_user_workflow {
 
     use std::signer;
 
@@ -15,7 +15,7 @@ module satay::test_user_workflow {
     use satay::vault::{VaultCoin};
 
     use satay_simple_staking::staking_pool;
-    use satay_simple_staking_strategy::mock_simple_staking_strategy;
+    use satay_simple_staking::mock_simple_staking_strategy;
 
     use liquidswap::lp_account;
     use liquidswap::liquidity_pool;

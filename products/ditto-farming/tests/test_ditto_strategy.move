@@ -1,5 +1,5 @@
 #[test_only]
-module satay_ditto_farming_strategy::test_ditto_strategy {
+module satay_ditto_farming::test_ditto_strategy {
 
     use std::signer;
 
@@ -21,8 +21,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
 
     use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
 
-    use satay_ditto_farming_strategy::mock_ditto_farming_strategy;
-
+    use satay_ditto_farming::mock_ditto_farming_strategy;
     use satay_ditto_farming::mock_ditto_farming;
 
     const INITIAL_LIQUIDITY: u64 = 10000000000;
@@ -117,7 +116,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
-        ditto_farming_strategy = @satay_ditto_farming_strategy,
+        ditto_farming_strategy = @satay_ditto_farming,
         user = @0x45,
         userB = @0x46
     )]
@@ -162,7 +161,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
-        ditto_farming_strategy = @satay_ditto_farming_strategy,
+        ditto_farming_strategy = @satay_ditto_farming,
         user = @0x45,
         userB = @0x46
     )]

@@ -1,5 +1,4 @@
-#[test_only]
-module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
+module satay_ditto_farming::ditto_farming_strategy {
 
     use std::signer;
 
@@ -10,7 +9,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
     use satay::base_strategy::{Self};
     use satay::vault::VaultCapability;
 
-    use satay_ditto_farming::mock_ditto_farming::{Self, DittoFarmingCoin};
+    use satay_ditto_farming::ditto_farming::{Self, DittoFarmingCoin};
 
     const ERR_NOT_AUTHORIZED: u64 = 1;
 
@@ -27,7 +26,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
     public entry fun create_ditto_strategy_account(
         satay_ditto_famring_strategy: &signer
     ) {
-        assert!(signer::address_of(satay_ditto_famring_strategy) == @satay_ditto_farming_strategy, ERR_NOT_AUTHORIZED);
+        assert!(signer::address_of(satay_ditto_famring_strategy) == @satay_ditto_farming, ERR_NOT_AUTHORIZED);
         let (strategy_account, signer_cap) = account::create_resource_account(
             satay_ditto_famring_strategy,
             b"ditto strategy account",
@@ -67,7 +66,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
             DittoStrategy {}
         );
 
-        let ditto_strategy_cap = borrow_global_mut<DittoStrategyAccount>(@satay_ditto_farming_strategy);
+        let ditto_strategy_cap = borrow_global_mut<DittoStrategyAccount>(@satay_ditto_farming);
         let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_cap.signer_cap);
         let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
 
@@ -75,7 +74,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
         let (
             ditto_farming_coin,
             residual_aptos_coin
-        ) = mock_ditto_farming::reinvest_returns(keeper);
+        ) = ditto_farming::reinvest_returns(keeper);
         base_strategy::deposit_strategy_coin<DittoStrategy, DittoFarmingCoin>(
             &vault_cap,
             ditto_farming_coin,
@@ -126,13 +125,13 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
 
         // if amount is still needed, liquidate farming coins to return
         if(amount_needed > 0) {
-            let lp_to_liquidate = mock_ditto_farming::get_farming_coin_amount_for_apt_amount(amount_needed);
+            let lp_to_liquidate = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_needed);
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
                 lp_to_liquidate,
                 &stop_handle
             );
-            let liquidated_aptos_coins = mock_ditto_farming::liquidate_position(
+            let liquidated_aptos_coins = ditto_farming::liquidate_position(
                 strategy_coins,
             );
             let liquidated_aptos_coins_amount = coin::value<AptosCoin>(&liquidated_aptos_coins);
@@ -150,9 +149,9 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
         };
 
         // deploy to_apply AptosCoin to ditto_farming structured product
-        let (ditto_strategy_coins, residual) = mock_ditto_farming::apply_position(
+        let (ditto_strategy_coins, residual) = ditto_farming::apply_position(
             to_apply,
-            @satay_ditto_farming_strategy,
+            @satay_ditto_farming,
         );
         // store residual amount on strategy account
         coin::deposit(ditto_strategy_addr, residual);
@@ -200,13 +199,13 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
             DittoStrategy {}
         );
 
-        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(@satay_ditto_farming_strategy);
+        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(@satay_ditto_farming);
         let ditto_strategy_addr = account::get_signer_capability_address(&ditto_strategy_account.signer_cap);
 
         let (
             ditto_farming_coin,
             residual_aptos_coin
-        ) = mock_ditto_farming::reinvest_returns(keeper);
+        ) = ditto_farming::reinvest_returns(keeper);
         coin::deposit(ditto_strategy_addr, residual_aptos_coin);
 
         base_strategy::close_vault_for_tend<DittoStrategy, DittoFarmingCoin>(
@@ -235,7 +234,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
             DittoStrategy {}
         );
 
-        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(@satay_ditto_farming_strategy);
+        let ditto_strategy_account = borrow_global_mut<DittoStrategyAccount>(@satay_ditto_farming);
         let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_account.signer_cap);
         let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
 
@@ -256,7 +255,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
         };
 
         if(amount_aptos_needed > 0){
-            let lp_to_burn = mock_ditto_farming::get_farming_coin_amount_for_apt_amount(amount_aptos_needed);
+            let lp_to_burn = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_aptos_needed);
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
                 lp_to_burn,
@@ -264,7 +263,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
             );
             coin::merge(
                 &mut to_return,
-                mock_ditto_farming::liquidate_position(strategy_coins)
+                ditto_farming::liquidate_position(strategy_coins)
             );
         };
 
@@ -345,7 +344,7 @@ module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
         // get strategy staked LP amount
         let ditto_staked_lp_amount = base_strategy::balance<DittoFarmingCoin>(vault_cap);
         // convert LP coin to aptos
-        let deployed_balance = mock_ditto_farming::get_apt_amount_for_farming_coin_amount(ditto_staked_lp_amount);
+        let deployed_balance = ditto_farming::get_apt_amount_for_farming_coin_amount(ditto_staked_lp_amount);
         coin::value(residual_aptos) + deployed_balance
     }
 

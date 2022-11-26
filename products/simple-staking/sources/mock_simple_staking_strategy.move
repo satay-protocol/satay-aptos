@@ -1,5 +1,5 @@
 #[test_only]
-module satay_simple_staking_strategy::mock_simple_staking_strategy {
+module satay_simple_staking::mock_simple_staking_strategy {
 
     use aptos_framework::coin;
 
