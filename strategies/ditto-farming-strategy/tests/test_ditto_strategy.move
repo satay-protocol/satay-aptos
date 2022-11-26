@@ -36,6 +36,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer
     ) {
         stake::initialize_for_test(aptos_framework);
@@ -74,6 +75,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
 
         aptos_coin::mint(aptos_framework, user_address, DEPOSIT_AMOUNT);
         mock_ditto_farming::initialize(ditto_farming);
+        mock_ditto_farming_strategy::create_ditto_strategy_account(ditto_farming_strategy);
         mock_ditto_farming_strategy::initialize(manager_acc, 0, 5000);
     }
 
@@ -85,6 +87,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer
     ) {
         test_account::create_account(ditto_staking);
@@ -97,6 +100,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
             manager_acc,
             ditto_farming,
             ditto_staking,
+            ditto_farming_strategy,
             user
         );
     }
@@ -113,6 +117,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        ditto_farming_strategy = @satay_ditto_farming_strategy,
         user = @0x45,
         userB = @0x46
     )]
@@ -123,10 +128,20 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer,
         userB: &signer
     ) {
-        setup_strategy_vault(aptos_framework, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
+        setup_strategy_vault(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            manager_acc,
+            ditto_farming,
+            ditto_staking,
+            ditto_farming_strategy,
+            user
+        );
         test_account::create_account(userB);
 
         let vault_address = satay::get_vault_address_by_id(0);
@@ -147,6 +162,7 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        ditto_farming_strategy = @satay_ditto_farming_strategy,
         user = @0x45,
         userB = @0x46
     )]
@@ -157,10 +173,20 @@ module satay_ditto_farming_strategy::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer,
         userB: &signer
     ) {
-        setup_strategy_vault(aptos_framework, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
+        setup_strategy_vault(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            manager_acc,
+            ditto_farming,
+            ditto_staking,
+            ditto_farming_strategy,
+            user
+        );
         test_account::create_account(userB);
 
         let vault_address = satay::get_vault_address_by_id(0);
