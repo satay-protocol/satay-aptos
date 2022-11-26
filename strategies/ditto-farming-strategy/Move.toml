@@ -1,0 +1,17 @@
+[package]
+name = 'satay-ditto-farming-strategy'
+version = '1.0.0'
+
+[addresses]
+satay_ditto_farming_strategy = "0xbfb4153132b66aa462b33d2a74c52a1b7fe711758af32f5b66dbff725a10f630"
+
+[dependencies.satay]
+local = '../../'
+
+[dependencies.satay-ditto-farming]
+local = '../../structured_products/ditto_farming'
+
+[dev-dependencies.LiquidswapRouterV2]
+git = 'https://github.com/pontem-network/liquidswap'
+rev = 'v0.4.3'
+subdir = './liquidswap_router_v2'

@@ -1,5 +1,5 @@
 #[test_only]
-module satay::mock_ditto_farming_strategy {
+module satay_ditto_farming_strategy::mock_ditto_farming_strategy {
 
     use std::signer;
 
