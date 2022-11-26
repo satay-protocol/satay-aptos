@@ -9,7 +9,7 @@ module satay::vault {
     use aptos_std::type_info;
     use satay::dao_storage;
     use aptos_framework::timestamp;
-    use liquidswap::math;
+    use satay::math;
 
     friend satay::satay;
     friend satay::base_strategy;
