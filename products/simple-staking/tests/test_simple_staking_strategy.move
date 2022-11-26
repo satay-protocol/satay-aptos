@@ -1,5 +1,5 @@
 #[test_only]
-module satay_simple_staking_strategy::test_simple_staking_strategy {
+module satay_simple_staking::test_simple_staking_strategy {
 
     use std::signer;
 
@@ -17,8 +17,7 @@ module satay_simple_staking_strategy::test_simple_staking_strategy {
     use satay::satay;
 
     use satay_simple_staking::staking_pool;
-
-    use satay_simple_staking_strategy::mock_simple_staking_strategy;
+    use satay_simple_staking::mock_simple_staking_strategy;
 
     use test_coin_admin::test_coins::{Self, USDT};
     use test_helpers::test_account;
