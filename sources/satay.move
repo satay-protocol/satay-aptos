@@ -52,6 +52,8 @@ module satay::satay {
         management_fee: u64,
         performance_fee: u64
     ) acquires ManagerAccount {
+        global_config::assert_governance(governance);
+
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
 
