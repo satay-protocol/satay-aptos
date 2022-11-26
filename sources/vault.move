@@ -9,7 +9,7 @@ module satay::vault {
     use aptos_std::type_info;
     use satay::dao_storage;
     use aptos_framework::timestamp;
-    use liquidswap::math;
+    use satay::math;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -72,7 +72,7 @@ module satay::vault {
 
     // create new vault with BaseCoin as its base coin type
     public(friend) fun new<BaseCoin>(
-        vault_owner: &signer, 
+        governance: &signer, 
         seed: vector<u8>, 
         vault_id: u64,
         management_fee: u64,
@@ -81,7 +81,7 @@ module satay::vault {
         assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
 
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -109,7 +109,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            vault_owner,
+            governance,
             vault_coin_name,
             vault_coin_symbol,
             8,
@@ -146,7 +146,7 @@ module satay::vault {
         let total_base_coin_amount = total_assets<BaseCoin>(vault_cap);
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
         if (total_supply != 0) {
-            share_token_amount = (total_supply as u64) * coin::value(&base_coin) / total_base_coin_amount;
+            share_token_amount = math::mul_div((total_supply as u64), coin::value(&base_coin), total_base_coin_amount);
         };
         mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
         deposit(vault_cap, base_coin);
@@ -162,7 +162,7 @@ module satay::vault {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
-        let withdraw_amount = total_assets<BaseCoin>(vault_cap) * amount / (total_supply as u64);
+        let withdraw_amount = math::mul_div(total_assets<BaseCoin>(vault_cap), amount, (total_supply as u64));
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
@@ -270,7 +270,7 @@ module satay::vault {
 
     // deposit base_coin into Vault from StrategyType
     public(friend) fun deposit_base_coin<StrategyType: drop, BaseCoin>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>,
         _witness: &StrategyType
     ) acquires CoinStore, Vault {
@@ -280,7 +280,7 @@ module satay::vault {
 
     // withdraw base_coin from Vault to StrategyType
     public(friend) fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         amount: u64,
         _witness: &StrategyType
     ): Coin<BaseCoin> acquires CoinStore, Vault, VaultStrategy {
@@ -366,7 +366,7 @@ module satay::vault {
 
     // update vault and strategy total_debt, given credit and debt_payment amounts
     public(friend) fun update_total_debt<StrategyType: drop>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         credit: u64,
         debt_payment: u64,
         _witness: &StrategyType
@@ -380,7 +380,7 @@ module satay::vault {
 
     // report time for StrategyType
     public(friend) fun report_timestamp<StrategyType: drop>(
-        vault_cap: &mut VaultCapability
+        vault_cap: &VaultCapability
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.last_report = timestamp::now_seconds();
@@ -389,7 +389,7 @@ module satay::vault {
 
     // report a gain for StrategyType
     public(friend) fun report_gain<StrategyType: drop>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         profit: u64
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
@@ -398,7 +398,7 @@ module satay::vault {
 
     // report a loss for StrategyType
     public(friend) fun report_loss<StrategyType: drop>(
-        vault_cap: &mut VaultCapability,
+        vault_cap: &VaultCapability,
         loss: u64
     ) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
@@ -683,14 +683,14 @@ module satay::vault {
 
     #[test_only]
     public fun new_test<BaseCoin>(
-        vault_owner: &signer, 
+        governance: &signer, 
         seed: vector<u8>, 
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(vault_owner, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -713,7 +713,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            vault_owner,
+            governance,
             string::utf8(b"Vault Token"),
             string::utf8(b"Vault"),
             8,
