@@ -1,18 +1,15 @@
 module satay::global_config {
     use std::signer;
 
-    // use aptos_std::event::{Self, EventHandle};
-    // use aptos_framework::account;
-
     friend satay::satay;
 
     // Error codes
 
     /// When config doesn't exists
-    const ERROR_CONFIG_DOES_NOT_EXIST: u64 = 400;
+    const ERR_CONFIG_DOES_NOT_EXIST: u64 = 400;
 
     /// Unreachable, is a bug if thrown
-    const ERR_UNREACHABLE: u64 = 401;
+    const ERR_NOT_SATAY: u64 = 401;
 
     /// When user is not admin
     const ERR_NOT_ADMIN: u64 = 402;
@@ -54,7 +51,7 @@ module satay::global_config {
 
     /// Initialize admin contracts when initializing the satay
     public(friend) fun initialize(satay_admin: &signer) {
-        assert!(signer::address_of(satay_admin) == @satay, ERR_UNREACHABLE);
+        assert!(signer::address_of(satay_admin) == @satay, ERR_NOT_SATAY);
 
         move_to(satay_admin, GlobalConfig {
             dao_admin_address: @satay,
@@ -88,7 +85,7 @@ module satay::global_config {
 
     /// Get DAO admin address
     public fun get_dao_admin(): address acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<GlobalConfig>(@satay);
         config.dao_admin_address
@@ -96,7 +93,7 @@ module satay::global_config {
 
     /// Get Governance address
     public fun get_governance_address(): address acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<GlobalConfig>(@satay);
         config.governance_address
@@ -104,7 +101,7 @@ module satay::global_config {
 
     /// Get vault manager address
     public fun get_vault_manager_address<BaseCoin>(): address acquires VaultConfig {
-        assert!(exists<VaultConfig<BaseCoin>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<VaultConfig<BaseCoin>>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<VaultConfig<BaseCoin>>(@satay);
         config.vault_manager_address
@@ -112,7 +109,7 @@ module satay::global_config {
 
     /// Get strategist address
     public fun get_strategist_address<StrategyType: drop>(): address acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<StrategyConfig<StrategyType>>(@satay);
         config.strategist_address
@@ -120,7 +117,7 @@ module satay::global_config {
 
     /// Get keeper address
     public fun get_keeper_address<StrategyType: drop>(): address acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<StrategyConfig<StrategyType>>(@satay);
         config.keeper_address
@@ -128,7 +125,7 @@ module satay::global_config {
 
     /// is DAO admin
     public fun assert_dao_admin(dao_admin: &signer) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<GlobalConfig>(@satay);
 
@@ -137,7 +134,7 @@ module satay::global_config {
 
     /// is Governance
     public fun assert_governance(governance: &signer) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let config = borrow_global<GlobalConfig>(@satay);
 
@@ -148,8 +145,8 @@ module satay::global_config {
     public fun assert_vault_manager<BaseCoin>(vault_manager: &signer) acquires GlobalConfig, VaultConfig {
         assert!(
             exists<GlobalConfig>(@satay) && 
-            exists<VaultConfig<BaseCoin>>(@satay), 
-            ERROR_CONFIG_DOES_NOT_EXIST);
+            exists<VaultConfig<BaseCoin>>(@satay),
+            ERR_CONFIG_DOES_NOT_EXIST);
 
         let addr = signer::address_of(vault_manager);
         let global_config = borrow_global<GlobalConfig>(@satay);
@@ -167,7 +164,7 @@ module satay::global_config {
             exists<GlobalConfig>(@satay) && 
             exists<VaultConfig<BaseCoin>>(@satay) && 
             exists<StrategyConfig<StrategyType>>(@satay),
-            ERROR_CONFIG_DOES_NOT_EXIST);
+            ERR_CONFIG_DOES_NOT_EXIST);
 
         let addr = signer::address_of(strategist);
         let global_config = borrow_global<GlobalConfig>(@satay);
@@ -187,7 +184,7 @@ module satay::global_config {
             exists<GlobalConfig>(@satay) && 
             exists<VaultConfig<BaseCoin>>(@satay) && 
             exists<StrategyConfig<StrategyType>>(@satay),
-            ERROR_CONFIG_DOES_NOT_EXIST);
+            ERR_CONFIG_DOES_NOT_EXIST);
 
         let addr = signer::address_of(keeper);
         let global_config = borrow_global<GlobalConfig>(@satay);
@@ -213,7 +210,7 @@ module satay::global_config {
 
     /// accept new DAO admin address
     public entry fun accept_dao_admin(new_dao_admin: &signer) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(new_dao_admin);
         let config = borrow_global_mut<GlobalConfig>(@satay);
@@ -235,7 +232,7 @@ module satay::global_config {
 
     /// accept new Governance address
     public entry fun accept_governance(new_governance: &signer) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(new_governance);
         let config = borrow_global_mut<GlobalConfig>(@satay);
@@ -257,7 +254,7 @@ module satay::global_config {
 
     /// accept new Vault manager address
     public entry fun accept_vault_manager<BaseCoin>(new_vault_manager: &signer) acquires VaultConfig {
-        assert!(exists<VaultConfig<BaseCoin>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<VaultConfig<BaseCoin>>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(new_vault_manager);
         let config = borrow_global_mut<VaultConfig<BaseCoin>>(@satay);
@@ -279,7 +276,7 @@ module satay::global_config {
 
     /// accept new Strategist address
     public entry fun accept_strategist<StrategyType: drop>(strategist: &signer) acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(strategist);
         let config = borrow_global_mut<StrategyConfig<StrategyType>>(@satay);
@@ -301,7 +298,7 @@ module satay::global_config {
 
     /// accept new Keeper address
     public entry fun accept_keeper<StrategyType: drop>(keeper: &signer) acquires StrategyConfig {
-        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERROR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<StrategyConfig<StrategyType>>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
         let new_addr = signer::address_of(keeper);
         let config = borrow_global_mut<StrategyConfig<StrategyType>>(@satay);
