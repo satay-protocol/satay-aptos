@@ -1,12 +1,12 @@
 #[test_only]
-module satay::mock_simple_staking_strategy {
+module satay_simple_staking_strategy::mock_simple_staking_strategy {
 
     use aptos_framework::coin;
 
     use satay::base_strategy;
     use satay::vault::VaultCapability;
 
-    use satay::staking_pool::{Self, StakingCoin};
+    use satay_simple_staking::staking_pool::{Self, StakingCoin};
 
     // witness for the strategy
     // used for checking approval when locking and unlocking vault

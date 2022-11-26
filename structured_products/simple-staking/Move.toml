@@ -1,0 +1,16 @@
+[package]
+name = 'satay-simple-staking'
+version = '1.0.0'
+
+[addresses]
+satay_simple_staking = "0x100"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.LiquidswapRouterV2]
+git = 'https://github.com/pontem-network/liquidswap'
+rev = 'v0.4.3'
+subdir = './liquidswap_router_v2'

@@ -1,5 +1,5 @@
 #[test_only]
-module satay::test_ditto_strategy {
+module satay_ditto_farming_strategy::test_ditto_strategy {
 
     use std::signer;
 
@@ -17,12 +17,12 @@ module satay::test_ditto_strategy {
     use liquidswap_lp::lp_coin::LP;
     use liquidswap::curves::{Stable};
 
-    use satay::coins::{Self};
     use test_helpers::test_account;
 
     use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
 
-    use satay::mock_ditto_farming_strategy;
+    use satay_ditto_farming_strategy::mock_ditto_farming_strategy;
+
     use satay_ditto_farming::mock_ditto_farming;
 
     const INITIAL_LIQUIDITY: u64 = 10000000000;
@@ -31,7 +31,6 @@ module satay::test_ditto_strategy {
     #[test_only]
     fun setup_tests(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: &signer,
         manager_acc: &signer,
@@ -43,8 +42,6 @@ module satay::test_ditto_strategy {
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
         satay::initialize(manager_acc);
         satay::new_vault<AptosCoin>(manager_acc, b"aptos_vault", 200, 5000);
-
-        coins::register_coins(token_admin);
 
         test_account::create_account(user);
         test_account::create_account(pool_owner);
@@ -83,7 +80,6 @@ module satay::test_ditto_strategy {
     #[test_only]
     fun setup_strategy_vault(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: &signer,
         manager_acc: &signer,
@@ -96,7 +92,6 @@ module satay::test_ditto_strategy {
 
         setup_tests(
             aptos_framework,
-            token_admin,
             pool_owner,
             pool_account,
             manager_acc,
@@ -113,7 +108,6 @@ module satay::test_ditto_strategy {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @satay,
         pool_owner = @liquidswap,
         pool_account = @liquidswap_pool_account,
         manager_acc = @satay,
@@ -124,7 +118,6 @@ module satay::test_ditto_strategy {
     )]
     fun test_harvest(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: & signer,
         manager_acc: &signer,
@@ -133,7 +126,7 @@ module satay::test_ditto_strategy {
         user: &signer,
         userB: &signer
     ) {
-        setup_strategy_vault(aptos_framework, token_admin, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
+        setup_strategy_vault(aptos_framework, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
         test_account::create_account(userB);
 
         let vault_address = satay::get_vault_address_by_id(0);
@@ -149,7 +142,6 @@ module satay::test_ditto_strategy {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @satay,
         pool_owner = @liquidswap,
         pool_account = @liquidswap_pool_account,
         manager_acc = @satay,
@@ -160,7 +152,6 @@ module satay::test_ditto_strategy {
     )]
     fun test_tend(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: & signer,
         manager_acc: &signer,
@@ -169,7 +160,7 @@ module satay::test_ditto_strategy {
         user: &signer,
         userB: &signer
     ) {
-        setup_strategy_vault(aptos_framework, token_admin, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
+        setup_strategy_vault(aptos_framework, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
         test_account::create_account(userB);
 
         let vault_address = satay::get_vault_address_by_id(0);

@@ -1,4 +1,4 @@
-module satay::ditto_farming_strategy {
+module satay_ditto_farming_strategy::ditto_farming_strategy {
 
     use std::signer;
 
