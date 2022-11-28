@@ -184,13 +184,14 @@ module satay::vault {
         vault_cap: &VaultCapability,
         base_coin_amount: u64,
     ): u64 acquires Vault, CoinStore {
-        let share_token_amount = base_coin_amount;
         let total_base_coin_amount = total_assets<BaseCoin>(vault_cap);
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
+
         if (total_supply != 0) {
-            share_token_amount = (total_supply as u64) * base_coin_amount / total_base_coin_amount;
-        };
-        share_token_amount
+            (total_supply as u64) * base_coin_amount / total_base_coin_amount
+        } else {
+            base_coin_amount
+        }
     }
 
     // admin functions
