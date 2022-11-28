@@ -4,7 +4,6 @@ module satay::satay {
 
     use aptos_framework::coin;
     use aptos_std::table::{Self, Table};
-    use aptos_std::type_info::{TypeInfo};
 
     use satay::global_config;
     use satay::vault::{Self, VaultCapability, get_vault_addr};
@@ -129,10 +128,9 @@ module satay::satay {
     // called by strategies
 
     // allows Strategy to get VaultCapability of vault_id of manager_addr
-    public(friend) fun approve_strategy<StrategyType: drop>(
+    public(friend) fun approve_strategy<StrategyType: drop, StrategyCoin>(
         governance: &signer,
         vault_id: u64,
-        position_coin_type: TypeInfo,
         debt_ratio: u64
     ) acquires ManagerAccount {
         global_config::assert_governance(governance);
@@ -142,9 +140,8 @@ module satay::satay {
         let account = borrow_global<ManagerAccount>(@satay);
 
         let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::approve_strategy<StrategyType>(
+        vault::approve_strategy<StrategyType, StrategyCoin>(
             option::borrow(&vault_info.vault_cap),
-            position_coin_type,
             debt_ratio
         );
     }

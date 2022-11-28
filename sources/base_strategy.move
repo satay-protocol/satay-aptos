@@ -2,8 +2,6 @@ module satay::base_strategy {
 
     use std::signer;
 
-    use aptos_std::type_info;
-
     use aptos_framework::coin::{Coin};
     use aptos_framework::coin;
     use aptos_framework::timestamp;
@@ -26,10 +24,9 @@ module satay::base_strategy {
     ) {
 
         // approve strategy on vault
-        satay::approve_strategy<StrategyType>(
+        satay::approve_strategy<StrategyType, StrategyCoin>(
             governance,
             vault_id, 
-            type_info::type_of<StrategyCoin>(), 
             debt_ratio
         );
 
