@@ -168,7 +168,8 @@ module satay::mock_strategy {
         base_strategy::update_debt_ratio<MockStrategy, AptosCoin>(
             vault_manager,
             vault_id,
-            debt_ratio
+            debt_ratio,
+            MockStrategy {}
         );
     }
 
@@ -181,7 +182,8 @@ module satay::mock_strategy {
         base_strategy::update_credit_threshold<MockStrategy, AptosCoin>(
             vault_manager,
             vault_id,
-            credit_threshold
+            credit_threshold,
+            MockStrategy {}
         );
     }
 
@@ -192,7 +194,8 @@ module satay::mock_strategy {
     ) {
         base_strategy::set_force_harvest_trigger_once<MockStrategy, AptosCoin>(
             vault_manager,
-            vault_id
+            vault_id,
+            MockStrategy {}
         );
     }
 
@@ -205,18 +208,8 @@ module satay::mock_strategy {
         base_strategy::update_max_report_delay<MockStrategy, AptosCoin>(
             strategist,
             vault_id,
-            max_report_delay
-        );
-    }
-
-    // revoke the strategy
-    public entry fun revoke(
-        governance: &signer,
-        vault_id: u64
-    ) {
-        base_strategy::revoke<MockStrategy>(
-            governance,
-            vault_id
+            max_report_delay,
+            MockStrategy {}
         );
     }
 

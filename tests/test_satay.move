@@ -10,8 +10,9 @@ module satay::test_satay {
     use aptos_framework::timestamp;
 
     use satay::satay;
-    use satay::coins::{Self, USDT};
+    use satay::coins::{Self, USDT, BTC};
     use satay::vault::{Self, VaultCoin};
+    use satay::math;
 
     const MANAGEMENT_FEE: u64 = 200;
     const PERFORMANCE_FEE: u64 = 2000;
@@ -23,6 +24,7 @@ module satay::test_satay {
     const ERR_DEPOSIT: u64 = 4;
     const ERR_WITHDRAW: u64 = 5;
     const ERR_APPROVE_STRATEGY: u64 = 6;
+    const ERR_LOCK_UNLOCK: u64 = 7;
 
     struct TestStrategy has drop {}
     struct TestStrategy2 has drop {}
@@ -73,8 +75,19 @@ module satay::test_satay {
         satay::test_approve_strategy<TestStrategy, USDT>(
             satay,
             0,
-            DEBT_RATIO
+            DEBT_RATIO,
+            TestStrategy {}
         );
+    }
+
+    fun setup_test_and_create_vault_with_strategy(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer,
+    ) {
+        setup_tests_and_create_vault(aptos_framework, satay, coins_manager, user);
+        approve_strategy(aptos_framework, satay);
     }
 
     #[test(
@@ -294,101 +307,233 @@ module satay::test_satay {
 
         assert!(satay::has_strategy<TestStrategy>(0), ERR_APPROVE_STRATEGY);
     }
-   //
-   //  #[test(
-   //      vault_manager = @satay,
-   //      coins_manager = @satay,
-   //      user = @0x47,
-   //      aptos_framework = @aptos_framework
-   //  )]
-   //  fun test_approve_multiple_strategies(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
-   //      setup_tests(&vault_manager, &coins_manager, &user);
-   //
-   //      satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
-   //
-   //      set_time_has_started_for_testing(&aptos_framework);
-   //      base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
-   //      assert!(satay::has_strategy<TestStrategy>( 0), 3);
-   //      base_strategy::initialize<TestStrategy2, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
-   //      assert!(satay::has_strategy<TestStrategy2>(0), 3);
-   //
-   //  }
-   //
-   //  #[test(
-   //      vault_manager = @satay,
-   //      coins_manager = @satay,
-   //      user = @0x47,
-   //      aptos_framework = @aptos_framework
-   //  )]
-   //  fun test_lock_unlock_vault(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
-   //      setup_tests(&vault_manager, &coins_manager, &user);
-   //      set_time_has_started_for_testing(&aptos_framework);
-   //
-   //
-   //      satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
-   //
-   //      base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
-   //      let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
-   //          0,
-   //          TestStrategy{}
-   //      );
-   //      satay::unlock_vault<TestStrategy>(
-   //          vault_cap,
-   //          vault_lock
-   //      )
-   //  }
-   //
-   //  #[test(
-   //      vault_manager = @satay,
-   //      coins_manager = @satay,
-   //      user = @0x47,
-   //      aptos_framework = @aptos_framework
-   //  )]
-   //  fun test_lock_unlock_vault_multiple_strategies(vault_manager : signer, coins_manager : signer, user : signer, aptos_framework : signer) {
-   //      setup_tests(&vault_manager, &coins_manager, &user);
-   //      set_time_has_started_for_testing(&aptos_framework);
-   //
-   //      satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
-   //
-   //      base_strategy::initialize<TestStrategy, USDT>(&vault_manager, 0, 1000, TestStrategy {});
-   //      base_strategy::initialize<TestStrategy2, USDT>(&vault_manager, 0, 1000, TestStrategy2 {});
-   //      let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
-   //          0,
-   //          TestStrategy{}
-   //      );
-   //      satay::unlock_vault<TestStrategy>(
-   //          vault_cap,
-   //          vault_lock
-   //      );
-   //      let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy2>(
-   //          0,
-   //          TestStrategy2{}
-   //      );
-   //      satay::unlock_vault<TestStrategy2>(
-   //          vault_cap,
-   //          vault_lock
-   //      )
-   //
-   //  }
-   //
-   //  #[test_reject(
-   //      vault_manager = @satay,
-   //      coins_manager = @satay,
-   //      user = @0x47
-   //  )]
-   //  fun test_reject_unapproved_strategy(vault_manager : signer, coins_manager : signer, user : signer) {
-   //      setup_tests(&vault_manager, &coins_manager, &user);
-   //
-   //      satay::new_vault<USDT>(&vault_manager, b"USDT vault", 200, 5000);
-   //
-   //      let (vault_cap, vault_lock) = satay::lock_vault<TestStrategy>(
-   //          0,
-   //          TestStrategy{}
-   //      );
-   //      satay::unlock_vault<TestStrategy>(
-   //          vault_cap,
-   //          vault_lock
-   //      )
-   //  }
 
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    fun test_approve_multiple_strategies(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        satay::test_approve_strategy<TestStrategy2, BTC>(
+            satay,
+            0,
+            DEBT_RATIO,
+            TestStrategy2 {}
+        );
+        assert!(satay::has_strategy<TestStrategy2>(0), ERR_APPROVE_STRATEGY);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    fun test_lock_unlock_vault(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let (
+            vault_cap,
+            stop_handle
+        ) = satay::test_lock_vault<TestStrategy>(
+            0,
+            TestStrategy {}
+        );
+
+        assert!(satay::get_strategy_witness(&stop_handle) == &TestStrategy {}, ERR_LOCK_UNLOCK);
+        satay::test_assert_vault_cap_and_stop_handle_match<TestStrategy>(&vault_cap, &stop_handle);
+
+        satay::test_unlock_vault<TestStrategy>(vault_cap, stop_handle);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    fun test_lock_unlock_vault_multiple_strategies(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        satay::test_approve_strategy<TestStrategy2, BTC>(
+            satay,
+            0,
+            DEBT_RATIO,
+            TestStrategy2 {}
+        );
+
+        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy>(
+            0,
+            TestStrategy {}
+        );
+        satay::test_unlock_vault<TestStrategy>(
+            vault_cap,
+            stop_handle
+        );
+
+        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy2>(
+            0,
+            TestStrategy2 {}
+        );
+        satay::test_unlock_vault<TestStrategy2>(
+            vault_cap,
+            stop_handle
+        );
+    }
+
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    #[expected_failure]
+    fun test_reject_unapproved_strategy(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy2>(
+            0,
+            TestStrategy2 {}
+        );
+        satay::test_unlock_vault<TestStrategy2>(
+            vault_cap,
+            vault_lock
+        )
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    #[expected_failure]
+    fun test_lock_locked_vault(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        satay::test_approve_strategy<TestStrategy2, BTC>(
+            satay,
+            0,
+            DEBT_RATIO,
+            TestStrategy2 {}
+        );
+
+        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy>(
+            0,
+            TestStrategy {}
+        );
+        let (vault_cap_2, vault_lock_2) = satay::test_lock_vault<TestStrategy2>(
+            0,
+            TestStrategy2 {}
+        );
+        satay::test_unlock_vault<TestStrategy2>(
+            vault_cap_2,
+            vault_lock_2,
+        );
+        satay::test_unlock_vault<TestStrategy>(
+            vault_cap,
+            vault_lock
+        )
+    }
+
+    // test admin functions
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    fun test_admin_functions(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let debt_ratio = 100;
+        satay::test_update_strategy_debt_ratio(
+            0,
+            debt_ratio,
+            TestStrategy {}
+        );
+
+        let credit_threshold = 100 * math::pow_10(coin::decimals<AptosCoin>());
+        satay::test_update_strategy_credit_threshold(
+            0,
+            credit_threshold,
+            TestStrategy {}
+        );
+
+        satay::test_set_strategy_force_harvest_trigger_once(
+            0,
+            TestStrategy {}
+        );
+
+        let max_report_delay = 100;
+        satay::test_update_strategy_max_report_delay(
+            0,
+            max_report_delay,
+            TestStrategy {}
+        );
+    }
 }
