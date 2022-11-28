@@ -26,8 +26,9 @@ module satay::base_strategy {
         // approve strategy on vault
         satay::approve_strategy<StrategyType, StrategyCoin>(
             governance,
-            vault_id, 
-            debt_ratio
+            vault_id,
+            debt_ratio,
+            &witness
         );
 
         // add a CoinStore for the StrategyCoin
@@ -297,13 +298,15 @@ module satay::base_strategy {
     public fun update_debt_ratio<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
-        debt_ratio: u64
+        debt_ratio: u64,
+        witness: StrategyType
     ) {
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
         satay::update_strategy_debt_ratio<StrategyType>(
             vault_id,
-            debt_ratio
+            debt_ratio,
+            witness
         );
     }
 
@@ -311,13 +314,15 @@ module satay::base_strategy {
     public fun update_credit_threshold<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
-        credit_threshold: u64
+        credit_threshold: u64,
+        witness: StrategyType
     ) {
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
         satay::update_strategy_credit_threshold<StrategyType>(
             vault_id,
-            credit_threshold
+            credit_threshold,
+            witness
         );
     }
 
@@ -325,11 +330,13 @@ module satay::base_strategy {
     public fun set_force_harvest_trigger_once<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
+        witness: StrategyType
     ) {
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
         satay::set_strategy_force_harvest_trigger_once<StrategyType>(
-            vault_id
+            vault_id,
+            witness,
         );
     }
 
@@ -337,46 +344,14 @@ module satay::base_strategy {
     public fun update_max_report_delay<StrategyType: drop, BaseCoin>(
         strategist: &signer,
         vault_id: u64,
-        max_report_delay: u64
+        max_report_delay: u64,
+        witness: StrategyType
     ) {
         global_config::assert_strategist<StrategyType, BaseCoin>(strategist);
 
         satay::update_strategy_max_report_delay<StrategyType>(
             vault_id,
-            max_report_delay
-        );
-    }
-
-    // revoke the strategy
-    public fun revoke<StrategyType: drop>(
-        governance: &signer,
-        vault_id: u64
-    ) {
-        global_config::assert_governance(governance);
-
-        satay::update_strategy_debt_ratio<StrategyType>(
-            vault_id,
-            0
-        );
-    }
-
-    // migrate to new strategy
-    public fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(
-        governance: &signer,
-        vault_id: u64,
-        witness: NewStrategy
-    ) {
-        global_config::assert_governance(governance);
-
-        let debt_ratio = satay::update_strategy_debt_ratio<OldStrategy>(
-            vault_id,
-            0
-        );
-
-        initialize<NewStrategy, NewStrategyCoin>(
-            governance,
-            vault_id,
-            debt_ratio,
+            max_report_delay,
             witness
         );
     }

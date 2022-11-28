@@ -285,7 +285,8 @@ module satay_ditto_farming::mock_ditto_farming_strategy {
         base_strategy::update_debt_ratio<DittoStrategy, AptosCoin>(
             vault_manager,
             vault_id,
-            debt_ratio
+            debt_ratio,
+            DittoStrategy {}
         );
     }
 
@@ -298,7 +299,8 @@ module satay_ditto_farming::mock_ditto_farming_strategy {
         base_strategy::update_credit_threshold<DittoStrategy, AptosCoin>(
             vault_manager,
             vault_id,
-            credit_threshold
+            credit_threshold,
+            DittoStrategy {}
         );
     }
 
@@ -309,7 +311,8 @@ module satay_ditto_farming::mock_ditto_farming_strategy {
     ) {
         base_strategy::set_force_harvest_trigger_once<DittoStrategy, AptosCoin>(
             vault_manager,
-            vault_id
+            vault_id,
+            DittoStrategy {}
         );
     }
 
@@ -322,18 +325,8 @@ module satay_ditto_farming::mock_ditto_farming_strategy {
         base_strategy::update_max_report_delay<DittoStrategy, AptosCoin>(
             strategist,
             vault_id,
-            max_report_delay
-        );
-    }
-
-    // revoke the strategy
-    public entry fun revoke(
-        governance: &signer,
-        vault_id: u64
-    ) {
-        base_strategy::revoke<DittoStrategy>(
-            governance,
-            vault_id
+            max_report_delay,
+            DittoStrategy {}
         );
     }
 
