@@ -268,7 +268,7 @@ module satay::satay {
         vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
     }
 
-    // get vault address for (manager_addr, vault_id)
+    // get vault address for vault_id
     public fun get_vault_address_by_id(vault_id: u64) : address acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
@@ -297,11 +297,53 @@ module satay::satay {
     }
 
     #[test_only]
+    public fun open_vault(vault_id: u64): VaultCapability acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global_mut<ManagerAccount>(@satay);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        option::extract(&mut vault_info.vault_cap)
+    }
+
+    #[test_only]
+    public fun close_vault(vault_id: u64, vault_cap: VaultCapability) acquires ManagerAccount {
+        assert!(
+            vault::vault_cap_has_id(&vault_cap, vault_id),
+            ERR_VAULT_CAP
+        );
+        let account = borrow_global_mut<ManagerAccount>(@satay);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        option::fill(&mut vault_info.vault_cap, vault_cap);
+    }
+
+    #[test_only]
+    public fun test_approve_strategy<StrategyType: drop, StrategyCoin>(
+        governance: &signer,
+        vault_id: u64,
+        debt_ratio: u64
+    ) acquires ManagerAccount {
+        approve_strategy<StrategyType, StrategyCoin>(
+            governance,
+            vault_id,
+            debt_ratio
+        );
+    }
+
+    #[test_only]
     public fun balance<CoinType>(manager_addr: address, vault_id: u64) : u64 acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(manager_addr);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         let vault_cap = option::borrow(&vault_info.vault_cap);
         vault::balance<CoinType>(vault_cap)
+    }
+
+    #[test_only]
+    public fun test_assert_manager_initialized() {
+        assert_manager_initialized();
+    }
+
+    #[test_only]
+    public fun test_get_vault_address_by_id(vault_id: u64) : address acquires ManagerAccount {
+        get_vault_address_by_id(vault_id)
     }
 }
