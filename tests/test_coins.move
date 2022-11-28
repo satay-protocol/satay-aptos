@@ -11,6 +11,8 @@ module satay::coins {
     /// Represents test BTC coin.
     struct BTC {}
 
+    struct ETH {}
+
     /// Storing mint/burn capabilities for `USDT` and `BTC` coins under user account.
     struct Caps<phantom CoinType> has key {
         mint: MintCapability<CoinType>,
@@ -33,8 +35,24 @@ module satay::coins {
         move_to(token_admin, Caps<USDT> { mint: usdt_m, burn: usdt_b });
     }
 
+    public fun register_coin<CoinType>(token_admin: &signer) {
+        let (
+            burn,
+            freeze,
+            mint
+        ) = coin::initialize<CoinType>(
+            token_admin,
+            utf8(b"Bitcoin"),
+            utf8(b"BTC"),
+            8,
+            true
+        );
+        coin::destroy_freeze_cap(freeze);
+        move_to(token_admin, Caps<CoinType> { mint, burn });
+    }
+
     /// Mints new coin `CoinType` on account `acc_addr`.
-    public entry fun mint_coin<CoinType>(token_admin: &signer, acc_addr: address, amount: u64) acquires Caps {
+    public fun mint_coin<CoinType>(token_admin: &signer, acc_addr: address, amount: u64) acquires Caps {
         let token_admin_addr = signer::address_of(token_admin);
         let caps = borrow_global<Caps<CoinType>>(token_admin_addr);
         let coins = coin::mint<CoinType>(amount, &caps.mint);
