@@ -119,9 +119,9 @@ module satay_tortuga_farming::tortuga_farming {
     }
 
     public fun liquidate_position(tortuga_farm_coin: Coin<TortugaFarmingCoin>): Coin<AptosCoin> acquires FarmingAccountCapability, TortugaFarmingCoinCaps {
-        let ditto_farming_cap = borrow_global<FarmingAccountCapability>(@satay_tortuga_farming);
-        let ditto_farming_signer = account::create_signer_with_capability(&ditto_farming_cap.signer_cap);
-        let farming_account_addr = signer::address_of(&ditto_farming_signer);
+        let tortuga_farming_cap = borrow_global<FarmingAccountCapability>(@satay_tortuga_farming);
+        let tortuga_farming_signer = account::create_signer_with_capability(&tortuga_farming_cap.signer_cap);
+        let farming_account_addr = signer::address_of(&tortuga_farming_signer);
         let farming_coin_caps = borrow_global<TortugaFarmingCoinCaps>(farming_account_addr);
 
         let tapt_needed = get_apt_amount_for_farming_coin_amount(farming_account_addr, coin::value(&tortuga_farm_coin));
@@ -129,9 +129,7 @@ module satay_tortuga_farming::tortuga_farming {
         // method 1: deleverage
         let tapt_coin = coin::zero<StakedAptos>();
         while(coin::value(&tapt_coin) < tapt_needed) {
-           let total_apt_amount = coin::balance<AptosCoin>(signer::address_of(&ditto_farming_signer));
-            controller::withdraw<AptosCoin>(&ditto_farming_signer, SATAY_STRATGY,total_apt_amount, false);
-            // controller::withdraw<StakedAptos>(&ditto_farming_signer, SATAY_STRATGY, )
+            // let tapt = aries_deleverage(&tortuga_farming_signer);
         };
         // method 2: flash loan
 
@@ -165,5 +163,11 @@ module satay_tortuga_farming::tortuga_farming {
         let available_borrow_power = profile::available_borrowing_power(tortuga_farming_address, string::utf8(SATAY_STRATGY));
         controller::withdraw<AptosCoin>(tortuga_farming_signer, SATAY_STRATGY, decimal::as_u64(available_borrow_power),  true);
         decimal::as_u64(available_borrow_power)
+    }
+
+    fun aries_deleverage(tortuga_farming_signer: &signer) {
+        let total_apt_amount = coin::balance<AptosCoin>(signer::address_of(tortuga_farming_signer));
+        controller::withdraw<AptosCoin>(tortuga_farming_signer, SATAY_STRATGY,total_apt_amount, false);
+
     }
 }
