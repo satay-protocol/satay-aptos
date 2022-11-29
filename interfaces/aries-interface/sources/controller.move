@@ -5,5 +5,5 @@ module aries_interface::controller {
     // to my unerstanding, the _collateral flag is true when borrowing/repaying and false when depositing/withdrawing
     public entry fun deposit<CoinType>(_user: &signer, _account: vector<u8>, _collateral: bool) {}
 
-    public entry fun withdraw<CoinType>(_user: &signer, _account: vector<u8>, _collateral: bool) {}
+    public entry fun withdraw<CoinType>(_user: &signer, _account: vector<u8>, _amount: u64, _collateral: bool) {}
 }

@@ -10,6 +10,11 @@ module satay_tortuga_farming::tortuga_farming {
     use tortuga_staking::staked_coin::StakedAptos;
     use liquidswap::router_v2::get_amount_out;
     use liquidswap::curves::Stable;
+    use aries_interface::controller;
+    use aries_interface::profile;
+    use aries_interface::decimal;
+    use aptos_std::type_info;
+    use std::option;
 
     // acts as signer in loans
     struct FarmingAccountCapability has key {
@@ -26,7 +31,8 @@ module satay_tortuga_farming::tortuga_farming {
     }
 
     const ERR_NOT_ADMIN: u64 = 1;
-
+    const MAX_COUNT: u64 = 4;
+    const SATAY_STRATGY:vector<u8> = b"satay-strategy";
     // initialize resource account and TortugaFarmingCoin
     public entry fun initialize(manager: &signer) {
         // only module publisher can initialize
@@ -89,20 +95,27 @@ module satay_tortuga_farming::tortuga_farming {
         aptos_coins: Coin<AptosCoin>,
         _user_addr: address,
     ): (Coin<TortugaFarmingCoin>, Coin<AptosCoin>) acquires FarmingAccountCapability, TortugaFarmingCoinCaps {
+        let tortuga_farming_cap = borrow_global<FarmingAccountCapability>(@satay_tortuga_farming);
+        let tortuga_farming_signer = account::create_signer_with_capability(&tortuga_farming_cap.signer_cap);
+        let tortuga_farming_address = signer::address_of(&tortuga_farming_signer);
+        let tortuga_farming_coin_cap = borrow_global<TortugaFarmingCoinCaps>(tortuga_farming_address);
+
         let deposit_amount = coin::value(&aptos_coins);
-        if(deposit_amount > 0){
-            let tortuga_farming_cap = borrow_global<FarmingAccountCapability>(@satay_tortuga_farming);
-            let tortuga_farming_signer = account::create_signer_with_capability(&tortuga_farming_cap.signer_cap);
+        let count  = 0;
+
+        let tortuga_farming_coins = coin::mint<TortugaFarmingCoin>(deposit_amount, &tortuga_farming_coin_cap.mint_cap);
+
+        while (count < MAX_COUNT) {
             let aptos_value = coin::value(&aptos_coins);
             coin::deposit(signer::address_of(&tortuga_farming_signer), aptos_coins);
             stake_router::stake(&tortuga_farming_signer, aptos_value);
 
-            // stake LP token and mint TortugaFarmingCoin
-            let tortuga_farming_coins = aries_loan(&tortuga_farming_signer);
-            (tortuga_farming_coins, coin::zero<AptosCoin>())
-        } else {
-            (coin::zero(), aptos_coins)
-        }
+            // borrow apt
+            let aptos_amount = aries_loan(&tortuga_farming_signer);
+            aptos_coins = coin::withdraw<AptosCoin>(&tortuga_farming_signer, aptos_amount);
+            count = count + 1;
+        };
+        (tortuga_farming_coins, aptos_coins)
     }
 
     public fun liquidate_position(tortuga_farm_coin: Coin<TortugaFarmingCoin>): Coin<AptosCoin> acquires FarmingAccountCapability, TortugaFarmingCoinCaps {
@@ -111,35 +124,46 @@ module satay_tortuga_farming::tortuga_farming {
         let farming_account_addr = signer::address_of(&ditto_farming_signer);
         let farming_coin_caps = borrow_global<TortugaFarmingCoinCaps>(farming_account_addr);
 
+        let tapt_needed = get_apt_amount_for_farming_coin_amount(farming_account_addr, coin::value(&tortuga_farm_coin));
         coin::burn(tortuga_farm_coin, &farming_coin_caps.burn_cap);
+        // method 1: deleverage
+        let tapt_coin = coin::zero<StakedAptos>();
+        while(coin::value(&tapt_coin) < tapt_needed) {
+           let total_apt_amount = coin::balance<AptosCoin>(signer::address_of(&ditto_farming_signer));
+            controller::withdraw<AptosCoin>(&ditto_farming_signer, SATAY_STRATGY,total_apt_amount, false);
+            // controller::withdraw<StakedAptos>(&ditto_farming_signer, SATAY_STRATGY, )
+        };
+        // method 2: flash loan
 
+        // swap tAPT to APT
+        coin::destroy_zero(tapt_coin);
         coin::zero<AptosCoin>()
     }
 
     // get amount of TortugaFarmingCoin to burn to return aptos_amount of AptosCoin
-    // potentially integrate hippo
+    /// NOTE: use AUX dex
     public fun get_farming_coin_amount_for_apt_amount(amount_aptos: u64) : u64 {
         let stapt_amount = get_amount_out<AptosCoin, StakedAptos, Stable>(amount_aptos);
         stapt_amount
     }
 
     // get amount of AptosCoin returned from burning farming_coin_amount of TortugaFarmingCoin
-    public fun get_apt_amount_for_farming_coin_amount(farming_coin_amount: u64) : u64 {
+    public fun get_apt_amount_for_farming_coin_amount(farming_account_addr: address, farming_coin_amount: u64) : u64 {
         if(farming_coin_amount > 0) {
-            let stapt_amount = get_amount_out<StakedAptos, AptosCoin, Stable>(farming_coin_amount);
-            stapt_amount
+            let total_tapt_amount = profile::get_deposited_amount(farming_account_addr, string::utf8(SATAY_STRATGY), type_info::type_of<StakedAptos>());
+            let tortuga_farming_coin_supply = option::borrow<u128>(&coin::supply<TortugaFarmingCoin>());
+            total_tapt_amount * farming_coin_amount / (*tortuga_farming_coin_supply as u64)
         } else {
             0
         }
     }
 
-    fun aries_loan(tortuga_farming_signer: &signer): Coin<TortugaFarmingCoin> acquires TortugaFarmingCoinCaps {
-        let tortuga_farming_addr = signer::address_of(tortuga_farming_signer);
-        let farming_coin_caps = borrow_global<TortugaFarmingCoinCaps>(tortuga_farming_addr);
+    fun aries_loan(tortuga_farming_signer: &signer): u64  {
+        controller::deposit<StakedAptos>(tortuga_farming_signer, b"satay-strategy", false);
+        let tortuga_farming_address = signer::address_of(tortuga_farming_signer);
 
-        coin::mint<TortugaFarmingCoin>(
-            0,
-            &farming_coin_caps.mint_cap
-        )
+        let available_borrow_power = profile::available_borrowing_power(tortuga_farming_address, string::utf8(SATAY_STRATGY));
+        controller::withdraw<AptosCoin>(tortuga_farming_signer, SATAY_STRATGY, decimal::as_u64(available_borrow_power),  true);
+        decimal::as_u64(available_borrow_power)
     }
 }

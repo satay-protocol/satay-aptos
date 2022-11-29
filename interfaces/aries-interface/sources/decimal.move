@@ -23,4 +23,8 @@ module aries_interface::decimal {
     public fun zero(): Decimal {
         Decimal { val: 0 }
     }
+
+    public fun as_u64(a: Decimal): u64 {
+        (a.val as u64)
+    }
 }

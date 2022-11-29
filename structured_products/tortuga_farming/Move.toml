@@ -12,3 +12,6 @@ subdir = './liquidswap_router_v2'
 
 [dependencies.tortuga-staking]
 local = '../../interfaces/tortuga-staking-interface'
+
+[dependencies.aries-interface]
+local = '../../interfaces/aries-interface'
