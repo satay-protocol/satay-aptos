@@ -132,7 +132,7 @@ module satay::satay {
         governance: &signer,
         vault_id: u64,
         debt_ratio: u64,
-        _witness: &StrategyType
+        witness: &StrategyType
     ) acquires ManagerAccount {
         global_config::assert_governance(governance);
         global_config::initialize_strategy<StrategyType>(governance);
@@ -143,7 +143,8 @@ module satay::satay {
         let vault_info = table::borrow(&account.vaults, vault_id);
         vault::approve_strategy<StrategyType, StrategyCoin>(
             option::borrow(&vault_info.vault_cap),
-            debt_ratio
+            debt_ratio,
+            witness
         );
     }
 
@@ -198,7 +199,7 @@ module satay::satay {
     public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
         vault_id: u64,
         debt_ratio: u64,
-        _witness: StrategyType
+        witness: &StrategyType
     ): u64 acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
@@ -208,7 +209,8 @@ module satay::satay {
 
         vault::update_strategy_debt_ratio<StrategyType>(
             option::borrow(&vault_info.vault_cap),
-            debt_ratio
+            debt_ratio,
+            witness
         )
     }
 
@@ -216,40 +218,51 @@ module satay::satay {
     public(friend) fun update_strategy_credit_threshold<StrategyType: drop>(
         vault_id: u64,
         credit_threshold: u64,
-        _witness: StrategyType
+        witness: &StrategyType
     ) acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
 
         let vault_info = table::borrow(&account.vaults, vault_id);
         assert!(vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
-        vault::update_strategy_credit_threshold<StrategyType>(option::borrow(&vault_info.vault_cap), credit_threshold);
+        vault::update_strategy_credit_threshold<StrategyType>(
+            option::borrow(&vault_info.vault_cap),
+            credit_threshold,
+            witness
+        );
     }
 
     // set strategy force harvest trigger once
     public(friend) fun set_strategy_force_harvest_trigger_once<StrategyType: drop>(
         vault_id: u64,
-        _witness: StrategyType
+        witness: &StrategyType
     ) acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
         let vault_info = table::borrow(&account.vaults, vault_id);
         assert!(vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
-        vault::set_strategy_force_harvest_trigger_once<StrategyType>(option::borrow(&vault_info.vault_cap));
+        vault::set_strategy_force_harvest_trigger_once<StrategyType>(
+            option::borrow(&vault_info.vault_cap),
+            witness
+        );
     }
 
     // update strategy max report delay
     public(friend) fun update_strategy_max_report_delay<StrategyType: drop>(
         vault_id: u64,
         max_report_delay: u64,
-        _witness: StrategyType
+        witness: &StrategyType
     ) acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
 
         let vault_info = table::borrow(&account.vaults, vault_id);
         assert!(vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
-        vault::update_strategy_max_report_delay<StrategyType>(option::borrow(&vault_info.vault_cap), max_report_delay);
+        vault::update_strategy_max_report_delay<StrategyType>(
+            option::borrow(&vault_info.vault_cap),
+            max_report_delay,
+            witness
+        );
     }
 
     // getter functions
@@ -382,7 +395,7 @@ module satay::satay {
         update_strategy_debt_ratio<StrategyType>(
             vault_id,
             debt_ratio,
-            witness
+            &witness
         );
     }
 
@@ -395,7 +408,7 @@ module satay::satay {
         update_strategy_credit_threshold<StrategyType>(
             vault_id,
             credit_threshold,
-            witness
+            &witness
         );
     }
 
@@ -406,7 +419,7 @@ module satay::satay {
     ) acquires ManagerAccount {
         set_strategy_force_harvest_trigger_once<StrategyType>(
             vault_id,
-            witness
+            &witness
         );
     }
 
@@ -419,7 +432,7 @@ module satay::satay {
         update_strategy_max_report_delay<StrategyType>(
             vault_id,
             max_report_delay,
-            witness
+            &witness
         );
     }
 

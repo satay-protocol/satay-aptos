@@ -80,6 +80,7 @@ module satay::test_vault {
         vault::test_approve_strategy<TestStrategy, USDT>(
             vault_cap,
             DEBT_RATIO,
+            TestStrategy {}
         )
     }
 
@@ -589,15 +590,19 @@ module satay::test_vault {
             &TestStrategy {}
         );
 
-        let withdraw_amount = amount * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        let withdraw_amount = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
         let base_coins = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
             &vault_cap,
             withdraw_amount,
             &TestStrategy {}
         );
         coin::deposit(user_address, base_coins);
+
         assert!(coin::balance<AptosCoin>(user_address) == withdraw_amount, ERR_STRATEGY_BASE_COIN_DEPOSIT_WITHDRAW);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == withdraw_amount, ERR_STRATEGY_BASE_COIN_DEPOSIT_WITHDRAW);
     }
+
+
 
     #[test(
         aptos_framework=@aptos_framework,
@@ -827,21 +832,37 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
 
         let new_debt_ratio = 500;
-        vault::test_update_strategy_debt_ratio<TestStrategy>(&vault_cap, new_debt_ratio);
+        vault::test_update_strategy_debt_ratio<TestStrategy>(
+            &vault_cap,
+            new_debt_ratio,
+            &TestStrategy {}
+        );
         assert!(vault::debt_ratio<TestStrategy>(&vault_cap) == new_debt_ratio, ERR_STRATEGY_UPDATE);
         assert!(vault::get_debt_ratio(&vault_cap) == new_debt_ratio, ERR_STRATEGY_UPDATE);
+
         let credit_available = new_debt_ratio * vault::total_assets<AptosCoin>(&vault_cap) / MAX_DEBT_RATIO_BPS;
         assert!(vault::credit_available<TestStrategy, AptosCoin>(&vault_cap) == credit_available, ERR_STRATEGY_UPDATE);
 
         let new_max_report_delay = 100;
-        vault::test_update_strategy_max_report_delay<TestStrategy>(&vault_cap, new_max_report_delay);
+        vault::test_update_strategy_max_report_delay<TestStrategy>(
+            &vault_cap,
+            new_max_report_delay,
+            &TestStrategy {}
+        );
         assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == new_max_report_delay, ERR_STRATEGY_UPDATE);
 
         let new_credit_threshold = 100;
-        vault::test_update_strategy_credit_threshold<TestStrategy>(&vault_cap, new_credit_threshold);
+        vault::test_update_strategy_credit_threshold<TestStrategy>(
+            &vault_cap,
+            new_credit_threshold,
+            &TestStrategy {}
+        );
         assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == new_credit_threshold, ERR_STRATEGY_UPDATE);
 
-        vault::test_set_force_harvest_trigger_once<TestStrategy>(&vault_cap);
+        vault::test_set_force_harvest_trigger_once<TestStrategy>(
+            &vault_cap,
+            &TestStrategy {}
+        );
         assert!(vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY_UPDATE);
     }
 
@@ -859,7 +880,11 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
 
         let new_debt_ratio = MAX_DEBT_RATIO_BPS + 1;
-        vault::test_update_strategy_debt_ratio<TestStrategy>(&vault_cap, new_debt_ratio);
+        vault::test_update_strategy_debt_ratio<TestStrategy>(
+            &vault_cap,
+            new_debt_ratio,
+            &TestStrategy {}
+        );
     }
 
     #[test(
@@ -876,7 +901,7 @@ module satay::test_vault {
 
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_REPORTING);
         timestamp::fast_forward_seconds(100);
-        vault::test_report_timestamp<TestStrategy>(&vault_cap);
+        vault::test_report_timestamp<TestStrategy>(&vault_cap, &TestStrategy {});
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_REPORTING);
 
         let credit = 100;
@@ -887,14 +912,15 @@ module satay::test_vault {
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == 0, ERR_REPORTING);
 
         let gain_amount = 100;
-        vault::test_report_gain<TestStrategy>(&vault_cap, gain_amount);
+        vault::test_report_gain<TestStrategy>(&vault_cap, gain_amount, &TestStrategy {});
         assert!(vault::total_gain<TestStrategy>(&vault_cap) == gain_amount, ERR_REPORTING);
 
         vault::test_update_total_debt(&vault_cap, credit, 0, &TestStrategy {});
 
         let loss_amount = 50;
-        vault::test_report_loss<TestStrategy>(&vault_cap, loss_amount);
+        vault::test_report_loss<TestStrategy>(&vault_cap, loss_amount, &TestStrategy {});
         assert!(vault::total_loss<TestStrategy>(&vault_cap) == loss_amount, ERR_REPORTING);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit - loss_amount, ERR_REPORTING);
 
 
     }
