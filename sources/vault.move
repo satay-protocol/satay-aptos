@@ -874,6 +874,24 @@ module satay::vault {
     }
 
     #[test_only]
+    public fun test_debt_payment<StrategyType: drop, BaseCoin>(
+        vault_cap: &VaultCapability,
+        debt_payment: Coin<BaseCoin>,
+        witness: &StrategyType
+    ) acquires Vault, CoinStore, VaultStrategy {
+        debt_payment<StrategyType, BaseCoin>(vault_cap, debt_payment, witness);
+    }
+
+    #[test_only]
+    public fun test_deposit_profit<StrategyType: drop, BaseCoin>(
+        vault_cap: &VaultCapability,
+        profit: Coin<BaseCoin>,
+        witness: &StrategyType
+    ) acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
+        deposit_profit<StrategyType, BaseCoin>(vault_cap, profit, witness);
+    }
+
+    #[test_only]
     public fun test_withdraw_base_coin<StrategyType: drop, BaseCoin>(
         vault_cap: &VaultCapability,
         amount: u64,

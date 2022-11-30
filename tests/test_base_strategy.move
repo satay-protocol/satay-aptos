@@ -736,11 +736,9 @@ module satay::test_base_strategy {
 
         let vault_cap = satay::open_vault(0);
 
-
         assert!(base_strategy::balance<AptosCoin>(&vault_cap) == balance_before + profit, ERR_HARVEST);
         assert!(vault::total_gain<TestStrategy>(&vault_cap) == profit, ERR_HARVEST);
         let vault_addr = vault::get_vault_addr(&vault_cap);
-
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
     }
@@ -764,6 +762,9 @@ module satay::test_base_strategy {
             user,
         );
 
+        let seconds = 1000;
+        timestamp::fast_forward_seconds(seconds);
+
         let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
             0,
             TestStrategy {},
@@ -780,12 +781,26 @@ module satay::test_base_strategy {
             &vault_cap_lock
         );
 
+        let performance_fee = profit * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
+        let management_fee = (
+            vault::total_debt<TestStrategy>(&vault_cap) *
+                seconds * MANAGEMENT_FEE / MAX_DEBT_RATIO_BPS /
+                SECS_PER_YEAR
+        );
+        let expected_fee = vault::calculate_share_amount_from_base_coin_amount<AptosCoin>(
+            &vault_cap,
+            performance_fee + management_fee
+        );
+
         satay::test_unlock_vault(vault_cap, vault_cap_lock);
 
         harvest(aptos_framework, satay, coins_manager, user);
 
         let vault_cap = satay::open_vault(0);
         assert!(base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT - credit_available + profit, ERR_HARVEST);
+        let vault_addr = vault::get_vault_addr(&vault_cap);
+        assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
+
         satay::close_vault(0, vault_cap);
     }
 
@@ -822,6 +837,202 @@ module satay::test_base_strategy {
         let vault_cap = satay::open_vault(0);
         assert!(base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47
+    )]
+    fun test_harvest_debt_payment_and_profit(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer,
+    ) {
+        setup_and_user_deposit(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user,
+        );
+
+        harvest(aptos_framework, satay, coins_manager, user);
+
+        let seconds = 1000;
+        timestamp::fast_forward_seconds(seconds);
+
+        let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
+            0,
+            TestStrategy {},
+        );
+
+        let profit = 50;
+        coins::mint_coin<USDT>(coins_manager, signer::address_of(user), profit);
+        let usdt = coin::withdraw<USDT>(user, profit);
+        base_strategy::deposit_strategy_coin(
+            &vault_cap,
+            usdt,
+            &vault_cap_lock
+        );
+
+        let performance_fee = profit * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
+        let management_fee = (
+            vault::total_debt<TestStrategy>(&vault_cap) *
+                seconds * MANAGEMENT_FEE / MAX_DEBT_RATIO_BPS /
+                SECS_PER_YEAR
+        );
+        let expected_fee = vault::calculate_share_amount_from_base_coin_amount<AptosCoin>(
+            &vault_cap,
+            performance_fee + management_fee
+        );
+
+        satay::test_unlock_vault(vault_cap, vault_cap_lock);
+
+        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+            satay,
+            0,
+            0,
+            TestStrategy {}
+        );
+
+        harvest(aptos_framework, satay, coins_manager, user);
+
+        let vault_cap = satay::open_vault(0);
+        assert!(base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT + profit, ERR_HARVEST);
+        let vault_addr = vault::get_vault_addr(&vault_cap);
+        assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
+        satay::close_vault(0, vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47
+    )]
+    #[expected_failure]
+    fun test_harvest_profit_wrong_amount(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer,
+    ) {
+        setup_and_user_deposit(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user,
+        );
+
+        harvest(aptos_framework, satay, coins_manager, user);
+
+        let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
+            0,
+            TestStrategy {},
+        );
+
+        let profit = 50;
+        coins::mint_coin<USDT>(coins_manager, signer::address_of(user), profit);
+        let usdt = coin::withdraw<USDT>(user, profit);
+        base_strategy::deposit_strategy_coin(
+            &vault_cap,
+            usdt,
+            &vault_cap_lock
+        );
+
+        satay::test_unlock_vault(vault_cap, vault_cap_lock);
+
+        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+            satay,
+            0,
+            TestStrategy {},
+        );
+
+        let strategy_balance = base_strategy::balance<USDT>(&vault_cap);
+        let (
+            to_apply,
+            harvest_lock
+        ) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
+            &vault_cap,
+            strategy_balance,
+            vault_cap_lock
+        );
+
+        assert!(base_strategy::get_harvest_debt_payment<TestStrategy>(&harvest_lock) == 0, ERR_HARVEST);
+        assert!(base_strategy::get_harvest_profit<TestStrategy>(&harvest_lock) == profit, ERR_HARVEST);
+
+        let strategy_coins = apply_position(coins_manager, user, to_apply);
+
+        base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
+            vault_cap,
+            harvest_lock,
+            coin::zero(),
+            coin::zero(),
+            strategy_coins,
+        );
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47
+    )]
+    #[expected_failure]
+    fun test_harvest_debt_payment_wrong_amount(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer,
+    ) {
+        setup_and_user_deposit(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user,
+        );
+
+        harvest(aptos_framework, satay, coins_manager, user);
+
+        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+            satay,
+            0,
+            0,
+            TestStrategy {}
+        );
+
+        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+            satay,
+            0,
+            TestStrategy {},
+        );
+
+        let debt_out_standing = vault::debt_out_standing<TestStrategy, AptosCoin>(&vault_cap);
+
+        let strategy_balance = base_strategy::balance<USDT>(&vault_cap);
+        let (
+            to_apply,
+            harvest_lock
+        ) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
+            &vault_cap,
+            strategy_balance,
+            vault_cap_lock
+        );
+
+        assert!(base_strategy::get_harvest_debt_payment<TestStrategy>(&harvest_lock) == debt_out_standing, ERR_HARVEST);
+        assert!(base_strategy::get_harvest_profit<TestStrategy>(&harvest_lock) == 0, ERR_HARVEST);
+
+        let strategy_coins = apply_position(coins_manager, user, to_apply);
+
+        base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
+            vault_cap,
+            harvest_lock,
+            coin::zero(),
+            coin::zero(),
+            strategy_coins,
+        );
     }
 
     fun tend(
