@@ -95,57 +95,72 @@ module satay_ditto_farming::ditto_farming_strategy {
         );
         let (
             to_apply,
-            amount_needed,
+            harvest_lock,
         ) = base_strategy::process_harvest<DittoStrategy, AptosCoin, DittoFarmingCoin>(
             &vault_cap,
             strategy_aptos_balance,
-            &stop_handle,
+            stop_handle,
         );
 
-        let to_return = coin::zero<AptosCoin>();
+        let debt_payment_amount = base_strategy::get_harvest_debt_payment(&harvest_lock);
+        let profit_amount = base_strategy::get_harvest_profit(&harvest_lock);
 
-        if(amount_needed > residual_aptos_balance){ // not enough aptos to fill amount needed
+        let debt_payment = coin::zero<AptosCoin>();
+        let profit = coin::zero<AptosCoin>();
+
+        // fill debt_payment with residual
+        if(debt_payment_amount > residual_aptos_balance){ // not enough aptos to fill amount needed
             coin::merge(
-                &mut to_return,
+                &mut debt_payment,
                 coin::extract<AptosCoin>(&mut residual_aptos, residual_aptos_balance)
             );
-            amount_needed = amount_needed - residual_aptos_balance;
+            debt_payment_amount = debt_payment_amount - residual_aptos_balance;
         } else { // enough aptos to fill amount needed
             coin::merge(
-                &mut to_return,
-                coin::extract<AptosCoin>(&mut residual_aptos, amount_needed)
+                &mut debt_payment,
+                coin::extract<AptosCoin>(&mut residual_aptos, debt_payment_amount)
             );
-            amount_needed = 0;
+            debt_payment_amount = 0;
+        };
+
+        // fill profit with residual
+        if(profit_amount > residual_aptos_balance) {
             coin::merge(
-                &mut to_apply,
-                coin::extract_all<AptosCoin>(&mut residual_aptos)
+                &mut profit,
+                coin::extract<AptosCoin>(&mut residual_aptos, residual_aptos_balance)
             );
+            profit_amount = profit_amount - residual_aptos_balance;
+        } else {
+            coin::merge(
+                &mut profit,
+                coin::extract<AptosCoin>(&mut residual_aptos, profit_amount)
+            );
+            profit_amount = 0;
         };
         coin::destroy_zero(residual_aptos);
 
         // if amount is still needed, liquidate farming coins to return
-        if(amount_needed > 0) {
-            let lp_to_liquidate = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_needed);
+        if(debt_payment_amount + profit_amount > 0) {
+            let lp_to_liquidate = ditto_farming::get_farming_coin_amount_for_apt_amount(
+                debt_payment_amount + profit_amount
+            );
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
                 lp_to_liquidate,
-                &stop_handle
+                base_strategy::get_harvest_vault_cap_lock(&harvest_lock)
             );
             let liquidated_aptos_coins = ditto_farming::liquidate_position(
                 strategy_coins,
             );
-            let liquidated_aptos_coins_amount = coin::value<AptosCoin>(&liquidated_aptos_coins);
-
-            if (liquidated_aptos_coins_amount > amount_needed) {
-                coin::merge(
-                    &mut to_apply,
-                    coin::extract(
-                        &mut liquidated_aptos_coins,
-                        liquidated_aptos_coins_amount - amount_needed
-                    )
-                );
-            };
-            coin::merge(&mut to_return, liquidated_aptos_coins)
+            coin::merge(
+                &mut debt_payment,
+                coin::extract<AptosCoin>(&mut liquidated_aptos_coins, debt_payment_amount)
+            );
+            coin::merge(
+                &mut profit,
+                coin::extract<AptosCoin>(&mut liquidated_aptos_coins, profit_amount)
+            );
+            coin::destroy_zero(liquidated_aptos_coins);
         };
 
         // deploy to_apply AptosCoin to ditto_farming structured product
@@ -158,33 +173,11 @@ module satay_ditto_farming::ditto_farming_strategy {
 
         base_strategy::close_vault_for_harvest<DittoStrategy, AptosCoin, DittoFarmingCoin>(
             vault_cap,
-            stop_handle,
-            to_return,
+            harvest_lock,
+            debt_payment,
+            profit,
             ditto_strategy_coins
         )
-    }
-
-    // provide a signal to the keeper that `harvest()` should be called
-    public entry fun harvest_trigger(
-        keeper: &signer,
-        vault_id: u64
-    ): bool {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<DittoStrategy, AptosCoin>(
-            keeper,
-            vault_id,
-            DittoStrategy {}
-        );
-
-        let harvest_trigger = base_strategy::process_harvest_trigger<DittoStrategy, AptosCoin>(
-            &vault_cap
-        );
-
-        base_strategy::close_vault_for_harvest_trigger<DittoStrategy>(
-            vault_cap,
-            stop_handle
-        );
-
-        harvest_trigger
     }
 
     // tend
@@ -193,7 +186,7 @@ module satay_ditto_farming::ditto_farming_strategy {
         keeper: &signer,
         vault_id: u64
     ) acquires DittoStrategyAccount {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_tend<DittoStrategy, AptosCoin>(
+        let (vault_cap, tend_lock) = base_strategy::open_vault_for_tend<DittoStrategy, AptosCoin>(
             keeper,
             vault_id,
             DittoStrategy {}
@@ -210,7 +203,7 @@ module satay_ditto_farming::ditto_farming_strategy {
 
         base_strategy::close_vault_for_tend<DittoStrategy, DittoFarmingCoin>(
             vault_cap,
-            stop_handle,
+            tend_lock,
             ditto_farming_coin
         )
     }
@@ -224,9 +217,8 @@ module satay_ditto_farming::ditto_farming_strategy {
         share_amount: u64
     ) acquires DittoStrategyAccount {
         let (
-            amount_aptos_needed,
             vault_cap,
-            stop_handle
+            user_withdraw_lock
         ) = base_strategy::open_vault_for_user_withdraw<DittoStrategy, AptosCoin, DittoFarmingCoin>(
             user,
             vault_id,
@@ -238,40 +230,43 @@ module satay_ditto_farming::ditto_farming_strategy {
         let ditto_strategy_signer = account::create_signer_with_capability(&ditto_strategy_account.signer_cap);
         let ditto_strategy_addr = signer::address_of(&ditto_strategy_signer);
 
-        let to_return = coin::zero<AptosCoin>();
+        let debt_payment_amount = base_strategy::get_user_withdraw_amount_needed<DittoStrategy>(
+            &user_withdraw_lock
+        );
+
+        let debt_payment = coin::zero<AptosCoin>();
         let residual_aptos_balance = coin::balance<AptosCoin>(ditto_strategy_addr);
-        if(residual_aptos_balance < amount_aptos_needed){
+        if(residual_aptos_balance < debt_payment_amount){
             coin::merge(
-                &mut to_return,
+                &mut debt_payment,
                 coin::withdraw<AptosCoin>(&ditto_strategy_signer, residual_aptos_balance)
             );
-            amount_aptos_needed = amount_aptos_needed - residual_aptos_balance;
+            debt_payment_amount = debt_payment_amount - residual_aptos_balance;
         } else {
             coin::merge(
-                &mut to_return,
-                coin::withdraw<AptosCoin>(&ditto_strategy_signer, amount_aptos_needed)
+                &mut debt_payment,
+                coin::withdraw<AptosCoin>(&ditto_strategy_signer, debt_payment_amount)
             );
-            amount_aptos_needed = 0;
+            debt_payment_amount = 0;
         };
 
-        if(amount_aptos_needed > 0){
-            let lp_to_burn = ditto_farming::get_farming_coin_amount_for_apt_amount(amount_aptos_needed);
+        if(debt_payment_amount > 0){
+            let lp_to_burn = ditto_farming::get_farming_coin_amount_for_apt_amount(debt_payment_amount);
             let strategy_coins = base_strategy::withdraw_strategy_coin<DittoStrategy, DittoFarmingCoin>(
                 &vault_cap,
                 lp_to_burn,
-                &stop_handle
+                base_strategy::get_user_withdraw_vault_cap_lock(&user_withdraw_lock)
             );
             coin::merge(
-                &mut to_return,
+                &mut debt_payment,
                 ditto_farming::liquidate_position(strategy_coins)
             );
         };
 
         base_strategy::close_vault_for_user_withdraw<DittoStrategy, AptosCoin>(
             vault_cap,
-            stop_handle,
-            to_return,
-            amount_aptos_needed
+            user_withdraw_lock,
+            debt_payment
         );
     }
 

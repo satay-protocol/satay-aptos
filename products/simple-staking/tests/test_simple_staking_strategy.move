@@ -4,9 +4,8 @@ module satay_simple_staking::test_simple_staking_strategy {
     use std::signer;
 
     use aptos_framework::coin;
-    use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::stake;
-    use aptos_framework::aptos_coin;
+    use aptos_framework::aptos_coin::{Self, AptosCoin};
 
     use liquidswap::lp_account;
     use liquidswap::liquidity_pool;
@@ -19,20 +18,31 @@ module satay_simple_staking::test_simple_staking_strategy {
     use satay_simple_staking::staking_pool;
     use satay_simple_staking::mock_simple_staking_strategy;
 
-    use test_coin_admin::test_coins::{Self, USDT};
     use test_helpers::test_account;
+    use test_coin_admin::test_coins::{Self, USDT};
 
-    #[test_only]
-    fun setup_tests(
+    const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
+
+    const INITIAL_LIQUIDITY: u64 = 10000000000;
+    const DEPOSIT_AMOUNT: u64 = 1000000;
+
+    const MANAGEMENT_FEE: u64 = 200;
+    const PERFOAMANCE_FEE: u64 = 500;
+    const DEBT_RATIO: u64 = 5000;
+
+    const USER_DEPOSIT_AMOUNT: u64 = 1000000;
+    const REWARDS_AMOUNT: u64 = 1000000;
+
+    const ERR_HARVEST: u64 = 1;
+
+    fun setup_liquidity_pool(
         aptos_framework: &signer,
+        coins_manager: &signer,
         pool_owner: &signer,
-        user: &signer
-    ): signer {
-        stake::initialize_for_test(aptos_framework);
+        pool_account: &signer,
+    ) {
+        test_coins::register_coins(coins_manager);
 
-        let coin_admin = test_coins::create_admin_with_coins();
-
-        test_account::create_account(user);
         test_account::create_account(pool_owner);
 
         lp_account::initialize_lp_account(
@@ -45,53 +55,83 @@ module satay_simple_staking::test_simple_staking_strategy {
             pool_owner,
         );
 
-        let user_address = signer::address_of(user);
-        coin::register<USDT>(user);
-        coin::register<AptosCoin>(user);
+        let pool_account_address = signer::address_of(pool_account);
+        coin::register<USDT>(pool_account);
+        coin::register<AptosCoin>(pool_account);
 
-        let usdt = test_coins::mint<USDT>(&coin_admin, 100000);
-        aptos_coin::mint(aptos_framework, user_address, 100000);
+        aptos_coin::mint(aptos_framework, pool_account_address, INITIAL_LIQUIDITY);
+        let usdt = test_coins::mint<USDT>(coins_manager, INITIAL_LIQUIDITY);
 
-        let aptos = coin::withdraw<AptosCoin>(user, 100000);
+        let apt = coin::withdraw<AptosCoin>(pool_account, INITIAL_LIQUIDITY);
         let lp = liquidity_pool::mint<USDT, AptosCoin, Uncorrelated>(
             usdt,
-            aptos
+            apt
         );
-        coin::register<LP<USDT, AptosCoin, Uncorrelated>>(user);
-        coin::deposit(user_address, lp);
-
-        aptos_coin::mint(aptos_framework, user_address, 100000);
-
-        coin_admin
+        coin::register<LP<USDT, AptosCoin, Uncorrelated>>(pool_account);
+        coin::deposit(pool_account_address, lp);
     }
 
-    // @dev: create new vault and deposit 100 token
+    fun setup_simple_staking_product(
+        aptos_framework: &signer,
+        staking_pool_admin: &signer,
+    ) {
+        test_account::create_account(staking_pool_admin);
+        staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);
+        coin::register<AptosCoin>(staking_pool_admin);
+        aptos_coin::mint(aptos_framework, signer::address_of(staking_pool_admin), REWARDS_AMOUNT);
+        staking_pool::deposit_rewards<AptosCoin>(staking_pool_admin, REWARDS_AMOUNT);
+    }
+
+    fun setup_vault_with_strategy(
+        manager_acc: &signer,
+    ) {
+        satay::initialize(manager_acc);
+        satay::new_vault<USDT>(
+            manager_acc,
+            b"aptos_vault",
+            MANAGEMENT_FEE,
+            PERFOAMANCE_FEE
+        );
+        mock_simple_staking_strategy::initialize(
+            manager_acc,
+            0,
+            DEBT_RATIO
+        );
+    }
+
+    fun user_deposit(
+        coins_admin: &signer,
+        user: &signer,
+    ) {
+        test_account::create_account(user);
+        coin::register<USDT>(user);
+        let usdt = test_coins::mint<USDT>(coins_admin, DEPOSIT_AMOUNT);
+        coin::deposit(signer::address_of(user), usdt);
+        satay::deposit<USDT>(user, 0, DEPOSIT_AMOUNT);
+    }
+
     #[test_only]
-    fun setup_strategy_vault(
+    fun setup_tests(
         aptos_framework: &signer,
         pool_owner: &signer,
-        manager_acc: &signer,
+        pool_account: &signer,
+        coins_admin: &signer,
         staking_pool_admin: &signer,
+        manager_acc: &signer,
         user: &signer
     ) {
-        let coin_admin = setup_tests(aptos_framework, pool_owner, user);
-        test_account::create_account(staking_pool_admin);
-        satay::initialize(manager_acc);
-
-        satay::new_vault<USDT>(manager_acc, b"aptos_vault", 200, 5000);
-        mock_simple_staking_strategy::initialize(manager_acc, 0, 1000);
-
-        let usdt = test_coins::mint<USDT>(&coin_admin, 100);
-        coin::deposit(signer::address_of(user), usdt);
-        satay::deposit<USDT>(user, 0, 100);
-
-        staking_pool::initialize<USDT, AptosCoin>(staking_pool_admin);
-        staking_pool::deposit_rewards<AptosCoin>(user, 100);
+        stake::initialize_for_test(aptos_framework);
+        setup_liquidity_pool(aptos_framework, coins_admin, pool_owner, pool_account);
+        setup_simple_staking_product(aptos_framework, staking_pool_admin);
+        setup_vault_with_strategy(manager_acc);
+        user_deposit(coins_admin, user);
     }
 
     #[test(
         aptos_framework = @aptos_framework,
         pool_owner = @liquidswap,
+        pool_account = @liquidswap_pool_account,
+        coins_admin = @test_coin_admin,
         manager_acc = @satay,
         staking_pool_admin = @satay_simple_staking,
         user = @0x45
@@ -99,18 +139,29 @@ module satay_simple_staking::test_simple_staking_strategy {
     fun test_harvest(
         aptos_framework: &signer,
         pool_owner: &signer,
-        manager_acc: &signer,
+        pool_account: &signer,
+        coins_admin: &signer,
         staking_pool_admin: &signer,
+        manager_acc: &signer,
         user: &signer
     ) {
-        setup_strategy_vault(aptos_framework, pool_owner, manager_acc, staking_pool_admin, user);
-
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            coins_admin,
+            staking_pool_admin,
+            manager_acc,
+            user
+        );
         mock_simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
     }
 
     #[test(
         aptos_framework = @aptos_framework,
         pool_owner = @liquidswap,
+        pool_account = @liquidswap_pool_account,
+        coins_admin = @test_coin_admin,
         manager_acc = @satay,
         staking_pool_admin = @satay_simple_staking,
         user = @0x45
@@ -118,12 +169,21 @@ module satay_simple_staking::test_simple_staking_strategy {
     fun test_tend(
         aptos_framework: &signer,
         pool_owner: &signer,
-        manager_acc: &signer,
+        pool_account: &signer,
+        coins_admin: &signer,
         staking_pool_admin: &signer,
+        manager_acc: &signer,
         user: &signer
     ) {
-        setup_strategy_vault(aptos_framework, pool_owner, manager_acc, staking_pool_admin, user);
-
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            coins_admin,
+            staking_pool_admin,
+            manager_acc,
+            user
+        );
         mock_simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
     }
 }
