@@ -1,5 +1,5 @@
 #[test_only]
-module satay::test_ditto_strategy {
+module satay_ditto_farming::test_ditto_strategy {
 
     use std::signer;
 
@@ -17,12 +17,11 @@ module satay::test_ditto_strategy {
     use liquidswap_lp::lp_coin::LP;
     use liquidswap::curves::{Stable};
 
-    use satay::coins::{Self};
     use test_helpers::test_account;
 
     use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
 
-    use satay::mock_ditto_farming_strategy;
+    use satay_ditto_farming::mock_ditto_farming_strategy;
     use satay_ditto_farming::mock_ditto_farming;
 
     const INITIAL_LIQUIDITY: u64 = 10000000000;
@@ -31,22 +30,18 @@ module satay::test_ditto_strategy {
     #[test_only]
     fun setup_tests(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: &signer,
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer
     ) {
-        let manager_addr = signer::address_of(manager_acc);
-
         stake::initialize_for_test(aptos_framework);
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
         satay::initialize(manager_acc);
-        satay::new_vault<AptosCoin>(manager_acc, manager_addr, b"aptos_vault", 200, 5000);
-
-        coins::register_coins(token_admin);
+        satay::new_vault<AptosCoin>(manager_acc, b"aptos_vault", 200, 5000);
 
         test_account::create_account(user);
         test_account::create_account(pool_owner);
@@ -79,18 +74,19 @@ module satay::test_ditto_strategy {
 
         aptos_coin::mint(aptos_framework, user_address, DEPOSIT_AMOUNT);
         mock_ditto_farming::initialize(ditto_farming);
+        mock_ditto_farming_strategy::create_ditto_strategy_account(ditto_farming_strategy);
         mock_ditto_farming_strategy::initialize(manager_acc, 0, 5000);
     }
 
     #[test_only]
     fun setup_strategy_vault(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: &signer,
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer
     ) {
         test_account::create_account(ditto_staking);
@@ -98,12 +94,12 @@ module satay::test_ditto_strategy {
 
         setup_tests(
             aptos_framework,
-            token_admin,
             pool_owner,
             pool_account,
             manager_acc,
             ditto_farming,
             ditto_staking,
+            ditto_farming_strategy,
             user
         );
     }
@@ -115,36 +111,44 @@ module satay::test_ditto_strategy {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @satay,
         pool_owner = @liquidswap,
         pool_account = @liquidswap_pool_account,
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        ditto_farming_strategy = @satay_ditto_farming,
         user = @0x45,
         userB = @0x46
     )]
     fun test_harvest(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: & signer,
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer,
         userB: &signer
     ) {
-        setup_strategy_vault(aptos_framework, token_admin, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
+        setup_strategy_vault(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            manager_acc,
+            ditto_farming,
+            ditto_staking,
+            ditto_farming_strategy,
+            user
+        );
         test_account::create_account(userB);
 
-        let manager_addr = signer::address_of(manager_acc);
-        let vault_address = satay::get_vault_address_by_id(manager_addr, 0);
+        let vault_address = satay::get_vault_address_by_id(0);
 
         aptos_coin::mint(aptos_framework, signer::address_of(user), 100);
-        satay::deposit<AptosCoin>(user, manager_addr, 0, 100);
+        satay::deposit<AptosCoin>(user, 0, 100);
         // userA balance on the vault is 100
-        mock_ditto_farming_strategy::harvest(manager_acc, manager_addr, 0);
+        mock_ditto_farming_strategy::harvest(manager_acc, 0);
         // first time to do harvest so no fees removed
         // userA balance on the vault is 100 + 9 (reward)
         assert!(check_dao_fee(vault_address) == 0, 1);
@@ -152,39 +156,47 @@ module satay::test_ditto_strategy {
 
     #[test(
         aptos_framework = @aptos_framework,
-        token_admin = @satay,
         pool_owner = @liquidswap,
         pool_account = @liquidswap_pool_account,
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        ditto_farming_strategy = @satay_ditto_farming,
         user = @0x45,
         userB = @0x46
     )]
     fun test_tend(
         aptos_framework: &signer,
-        token_admin: &signer,
         pool_owner: &signer,
         pool_account: & signer,
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        ditto_farming_strategy: &signer,
         user: &signer,
         userB: &signer
     ) {
-        setup_strategy_vault(aptos_framework, token_admin, pool_owner, pool_account, manager_acc, ditto_farming, ditto_staking, user);
+        setup_strategy_vault(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            manager_acc,
+            ditto_farming,
+            ditto_staking,
+            ditto_farming_strategy,
+            user
+        );
         test_account::create_account(userB);
 
-        let manager_addr = signer::address_of(manager_acc);
-        let vault_address = satay::get_vault_address_by_id(manager_addr, 0);
+        let vault_address = satay::get_vault_address_by_id(0);
 
         aptos_coin::mint(aptos_framework, signer::address_of(user), 100);
-        satay::deposit<AptosCoin>(user, manager_addr, 0, 100);
+        satay::deposit<AptosCoin>(user, 0, 100);
         // userA balance on the vault is 100
-        mock_ditto_farming_strategy::harvest(manager_acc, manager_addr, 0);
+        mock_ditto_farming_strategy::harvest(manager_acc, 0);
         // first time to do harvest so no fees removed
         // userA balance on the vault is 100 + 9 (reward)
         assert!(check_dao_fee(vault_address) == 0, 1);
-        mock_ditto_farming_strategy::tend(manager_acc, manager_addr, 0);
+        mock_ditto_farming_strategy::tend(manager_acc, 0);
     }
 }
