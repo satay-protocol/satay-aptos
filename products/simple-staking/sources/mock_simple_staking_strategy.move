@@ -33,9 +33,8 @@ module satay_simple_staking::mock_simple_staking_strategy {
         share_amount: u64
     ) {
         let (
-            amount_needed,
             vault_cap,
-            stop_handle
+            user_withdaw_lock
         ) = base_strategy::open_vault_for_user_withdraw<SimpleStakingStrategy, BaseCoin, StakingCoin>(
             user,
             vault_id,
@@ -43,45 +42,20 @@ module satay_simple_staking::mock_simple_staking_strategy {
             SimpleStakingStrategy {}
         );
 
-
+        let amount_needed = base_strategy::get_user_withdraw_amount_needed(&user_withdaw_lock);
         let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
         let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
             &vault_cap,
             staking_coins_needed,
-            &stop_handle
+            base_strategy::get_user_withdraw_vault_cap_lock(&user_withdaw_lock)
         );
-        let coins = staking_pool::liquidate_position<BaseCoin>(staking_coins);
+        let debt_payment = staking_pool::liquidate_position<BaseCoin>(staking_coins);
 
         base_strategy::close_vault_for_user_withdraw<SimpleStakingStrategy, BaseCoin>(
             vault_cap,
-            stop_handle,
-            coins,
-            amount_needed
+            user_withdaw_lock,
+            debt_payment
         );
-    }
-
-
-    // provide a signal to the keepr that `harvest()` should be called
-    public entry fun harvest_trigger<BaseCoin>(
-        keeper: &signer,
-        vault_id: u64
-    ) : bool {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy, BaseCoin>(
-            keeper,
-            vault_id,
-            SimpleStakingStrategy {}
-        );
-
-        let harvest_trigger = base_strategy::process_harvest_trigger<SimpleStakingStrategy, BaseCoin>(
-            &vault_cap
-        );
-
-        base_strategy::close_vault_for_harvest_trigger<SimpleStakingStrategy>(
-            vault_cap,
-            stop_handle
-        );
-
-        harvest_trigger
     }
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
@@ -89,7 +63,7 @@ module satay_simple_staking::mock_simple_staking_strategy {
         keeper: &signer,
         vault_id: u64
     ) {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy, BaseCoin>(
+        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<SimpleStakingStrategy, BaseCoin>(
             keeper,
             vault_id,
             SimpleStakingStrategy {}
@@ -100,35 +74,54 @@ module satay_simple_staking::mock_simple_staking_strategy {
         base_strategy::deposit_strategy_coin<SimpleStakingStrategy, StakingCoin>(
             &mut vault_cap,
             staking_coins,
-            &stop_handle
+            &vault_cap_lock
         );
 
         let strategy_base_coin_balance = get_strategy_base_coin_balance<StakingCoin>(&vault_cap);
-        let (to_apply, amount_needed) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
+        let (to_apply, harvest_lock) = base_strategy::process_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
             &mut vault_cap,
             strategy_base_coin_balance,
-            &stop_handle
+            vault_cap_lock
         );
 
-        let staking_coins = staking_pool::apply_position<BaseCoin>(to_apply);
-        let base_coins = coin::zero<BaseCoin>();
-        if(amount_needed > 0){
-            let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(amount_needed);
+        let debt_payment_amount = base_strategy::get_harvest_debt_payment(&harvest_lock);
+        let profit_amount = base_strategy::get_harvest_profit(&harvest_lock);
+
+        let debt_payment = coin::zero<BaseCoin>();
+        let profit = coin::zero<BaseCoin>();
+
+        if(debt_payment_amount > 0){
+            let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(debt_payment_amount);
             let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
                 &vault_cap,
                 staking_coins_needed,
-                &stop_handle
+                base_strategy::get_harvest_vault_cap_lock(&harvest_lock)
             );
             coin::merge(
-                &mut base_coins,
+                &mut debt_payment,
+                staking_pool::liquidate_position<BaseCoin>(staking_coins)
+            );
+        };
+        if(profit_amount > 0){
+            let staking_coins_needed = get_staking_coin_for_base_coin<BaseCoin>(profit_amount);
+            let staking_coins = base_strategy::withdraw_strategy_coin<SimpleStakingStrategy, StakingCoin>(
+                &vault_cap,
+                staking_coins_needed,
+                base_strategy::get_harvest_vault_cap_lock(&harvest_lock)
+            );
+            coin::merge(
+                &mut profit,
                 staking_pool::liquidate_position<BaseCoin>(staking_coins)
             );
         };
 
+        let staking_coins = staking_pool::apply_position<BaseCoin>(to_apply);
+
         base_strategy::close_vault_for_harvest<SimpleStakingStrategy, BaseCoin, StakingCoin>(
             vault_cap,
-            stop_handle,
-            base_coins,
+            harvest_lock,
+            debt_payment,
+            profit,
             staking_coins
         )
     }
@@ -138,7 +131,7 @@ module satay_simple_staking::mock_simple_staking_strategy {
         keeper: &signer,
         vault_id: u64
     ) {
-        let (vault_cap, stop_handle) = base_strategy::open_vault_for_tend<SimpleStakingStrategy, BaseCoin>(
+        let (vault_cap, tend_lock) = base_strategy::open_vault_for_tend<SimpleStakingStrategy, BaseCoin>(
             keeper,
             vault_id,
             SimpleStakingStrategy {}
@@ -149,7 +142,7 @@ module satay_simple_staking::mock_simple_staking_strategy {
 
         base_strategy::close_vault_for_tend<SimpleStakingStrategy, StakingCoin>(
             vault_cap,
-            stop_handle,
+            tend_lock,
             staking_coins
         )
     }
