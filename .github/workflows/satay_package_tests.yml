@@ -9,7 +9,7 @@ on:
 
 jobs:
   tests:
-    name: Test
+    name: Test Satay Package
     runs-on: ubuntu-latest
     defaults:
       run:
