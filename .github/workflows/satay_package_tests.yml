@@ -3,9 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
-      - master
-      - releases-v*
+      - '**'
     tags:
       - v*
 
