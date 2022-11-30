@@ -315,6 +315,16 @@ module satay::satay {
         vault_cap_lock.vault_id
     }
 
+    public fun assert_base_coin_correct_for_vault<BaseCoin>(
+        vault_id: u64,
+    ) acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
+    }
+
     fun assert_manager_initialized() {
         assert!(exists<ManagerAccount>(@satay), ERR_MANAGER);
     }

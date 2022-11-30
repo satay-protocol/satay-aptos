@@ -56,15 +56,15 @@ module satay::mock_strategy {
         let profit_coins = coin::zero<AptosCoin>();
         let debt_payment_coins = coin::zero<AptosCoin>();
 
-        let profit = base_strategy::harvest_profit(&harvest_lock);
-        let debt_payment = base_strategy::harvest_debt_payment(&harvest_lock);
+        let profit = base_strategy::get_harvest_profit(&harvest_lock);
+        let debt_payment = base_strategy::get_harvest_debt_payment(&harvest_lock);
 
         if(profit > 0 || debt_payment > 0){
             let wrapped_aptos_to_liquidate = get_wrapped_amount_for_aptos_amount(profit + debt_payment);
             let wrapped_aptos = base_strategy::withdraw_strategy_coin<MockStrategy, WrappedAptos>(
                 &vault_cap,
                 wrapped_aptos_to_liquidate,
-                base_strategy::harvest_vault_cap_lock(&harvest_lock)
+                base_strategy::get_harvest_vault_cap_lock(&harvest_lock)
             );
             let aptos_to_return = aptos_wrapper_product::liquidate_position(wrapped_aptos);
             coin::merge(&mut profit_coins, coin::extract(&mut aptos_to_return, profit));
@@ -120,8 +120,8 @@ module satay::mock_strategy {
             MockStrategy {}
         );
 
-        let vault_cap_lock = base_strategy::user_withdraw_vault_cap_lock(&user_withdraw_lock);
-        let amount_needed = base_strategy::user_withdraw_amount_needed(&user_withdraw_lock);
+        let vault_cap_lock = base_strategy::get_user_withdraw_vault_cap_lock(&user_withdraw_lock);
+        let amount_needed = base_strategy::get_user_withdraw_amount_needed(&user_withdraw_lock);
 
         let to_return = coin::zero<AptosCoin>();
         if(amount_needed > 0){

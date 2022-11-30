@@ -953,6 +953,8 @@ module satay::test_vault {
         vault::test_update_total_debt<TestStrategy>(&vault_cap, total_debt, 0, &TestStrategy {});
 
         let gain = 60;
+        aptos_coin::mint(aptos_framework, user_address, gain);
+        let aptos_coin = coin::withdraw<AptosCoin>(user, gain);
 
         let (management_fee, performance_fee) = vault::get_fees(&vault_cap);
 
@@ -964,7 +966,12 @@ module satay::test_vault {
             total_fee
         );
 
-        vault::test_assess_fees<TestStrategy, AptosCoin>(gain, 0, &vault_cap, &TestStrategy{});
+        vault::test_assess_fees<TestStrategy, AptosCoin>(
+            &aptos_coin,
+            &vault_cap,
+            &TestStrategy{}
+        );
+        coin::deposit(user_address, aptos_coin);
         let collected_fees = dao_storage::balance<VaultCoin<AptosCoin>>(vault::get_vault_addr(&vault_cap));
         assert!(expected_share_token_amount == collected_fees, ERR_ASSESS_FEES);
     }
