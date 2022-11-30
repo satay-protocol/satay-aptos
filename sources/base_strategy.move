@@ -2,11 +2,8 @@ module satay::base_strategy {
 
     use std::signer;
 
-    use aptos_std::type_info;
-
     use aptos_framework::coin::{Coin};
     use aptos_framework::coin;
-    use aptos_framework::timestamp;
 
     use satay::global_config;
     use satay::vault::{Self, VaultCapability};
@@ -16,6 +13,22 @@ module satay::base_strategy {
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
     const ERR_LOSS: u64 = 303;
     const ERR_DEBT_OUT_STANDING: u64 = 304;
+    const ERR_HARVEST: u64 = 305;
+
+    struct UserWithdrawLock<StrategyType: drop> {
+        vault_cap_lock: VaultCapLock<StrategyType>,
+        amount_needed: u64,
+    }
+
+    struct HarvestLock<StrategyType: drop> {
+        vault_cap_lock: VaultCapLock<StrategyType>,
+        profit: u64,
+        debt_payment: u64,
+    }
+
+    struct TendLock<StrategyType: drop> {
+        vault_cap_lock: VaultCapLock<StrategyType>,
+    }
 
     // initialize vault_id to accept strategy
     public fun initialize<StrategyType: drop, StrategyCoin>(
@@ -26,11 +39,11 @@ module satay::base_strategy {
     ) {
 
         // approve strategy on vault
-        satay::approve_strategy<StrategyType>(
+        satay::approve_strategy<StrategyType, StrategyCoin>(
             governance,
-            vault_id, 
-            type_info::type_of<StrategyCoin>(), 
-            debt_ratio
+            vault_id,
+            debt_ratio,
+            &witness
         );
 
         // add a CoinStore for the StrategyCoin
@@ -77,7 +90,6 @@ module satay::base_strategy {
         witness: StrategyType,
     ) : (VaultCapability, VaultCapLock<StrategyType>) {
         global_config::assert_keeper<StrategyType, BaseCoin>(keeper);
-
         open_vault<StrategyType>(
             vault_id,
             witness
@@ -87,118 +99,86 @@ module satay::base_strategy {
     public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
         vault_cap: &VaultCapability,
         strategy_balance: u64,
-        stop_handle: &VaultCapLock<StrategyType>,
-    ) : (Coin<BaseCoin>, u64) {
+        vault_cap_lock: VaultCapLock<StrategyType>,
+    ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
 
-        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(vault_cap, strategy_balance);
+        let witness = satay::get_strategy_witness(&vault_cap_lock);
 
-        // profit to report
-        if (profit > 0) {
-            vault::report_gain<StrategyType>(vault_cap, profit);
-        };
+        let (profit, loss, debt_payment) = prepare_return<StrategyType, BaseCoin>(
+            vault_cap,
+            strategy_balance
+        );
 
         // loss to report, do it before the rest of the calculation
         if (loss > 0) {
             let total_debt = vault::total_debt<StrategyType>(vault_cap);
             assert!(total_debt >= loss, ERR_LOSS);
-            vault::report_loss<StrategyType>(vault_cap, loss);
+            vault::report_loss<StrategyType>(vault_cap, loss, witness);
         };
 
-        let credit = vault::credit_available<StrategyType, BaseCoin>(vault_cap);
         let debt = vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap);
         if (debt_payment > debt) {
             debt_payment = debt;
         };
 
-        let total_available = profit + debt_payment;
-
+        let credit = vault::credit_available<StrategyType, BaseCoin>(vault_cap);
         let to_apply= coin::zero<BaseCoin>();
-        let amount_needed = 0;
-        if (total_available < credit) { // credit surplus, give to Strategy
+        if(credit > 0){
             coin::merge(
                 &mut to_apply,
-                withdraw_base_coin<StrategyType, BaseCoin>(
+                vault::withdraw_base_coin<StrategyType, BaseCoin>(
                     vault_cap,
-                    credit - total_available,
-                    stop_handle
+                    credit,
+                    witness
                 )
             );
-        } else { // credit deficit, take from Strategy
-            amount_needed = total_available - credit;
-        };
-
-        if (credit > 0 || debt_payment > 0) {
-            vault::update_total_debt<StrategyType>(
-                vault_cap,
-                credit,
-                debt_payment,
-                satay::get_strategy_witness(stop_handle)
-            );
         };
 
 
-        if (profit > 0) {
-            assess_fees<StrategyType, BaseCoin>(profit, vault_cap, stop_handle);
-        };
-
-        vault::report_timestamp<StrategyType>(vault_cap);
-
-        (to_apply, amount_needed)
+        (to_apply, HarvestLock {
+            vault_cap_lock,
+            profit,
+            debt_payment,
+        })
     }
 
     public fun close_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock<StrategyType>,
-        base_coins: Coin<BaseCoin>,
+        harvest_lock: HarvestLock<StrategyType>,
+        debt_payment: Coin<BaseCoin>,
+        profit: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
-        deposit_base_coin<StrategyType, BaseCoin>(
+        let HarvestLock<StrategyType> {
+            vault_cap_lock,
+            profit: profit_expected,
+            debt_payment: debt_payment_expected,
+        } = harvest_lock;
+
+        assert!(coin::value(&profit) == profit_expected, ERR_HARVEST);
+        assert!(coin::value(&debt_payment) == debt_payment_expected, ERR_HARVEST);
+
+        let witness = satay::get_strategy_witness(&vault_cap_lock);
+
+        vault::deposit_profit<StrategyType, BaseCoin>(
             &vault_cap,
-            base_coins,
-            &stop_handle
+            profit,
+            witness
         );
-        deposit_strategy_coin<StrategyType, StrategyCoin>(
+        vault::debt_payment<StrategyType, BaseCoin>(
+            &vault_cap,
+            debt_payment,
+            witness
+        );
+        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
             &vault_cap,
             strategy_coins,
-            &stop_handle
+            witness
         );
+        vault::report_timestamp<StrategyType>(&vault_cap, witness);
         close_vault<StrategyType>(
             vault_cap,
-            stop_handle
-        );
-    }
-
-    // for harvest trigger
-
-    public fun process_harvest_trigger<StrategyType: drop, BaseCoin>(vault_cap: &VaultCapability) : bool {
-        if (vault::force_harvest_trigger_once<StrategyType>(vault_cap)) {
-            true
-        } else {
-            let last_report = vault::last_report<StrategyType>(vault_cap);
-            let max_report_delay = vault::max_report_delay<StrategyType>(vault_cap);
-
-            if ((timestamp::now_seconds() - last_report) >= max_report_delay) {
-                true
-            } else {
-                let credit_available = vault::credit_available<StrategyType, BaseCoin>(vault_cap);
-                let credit_threshold = vault::credit_threshold<StrategyType>(vault_cap);
-
-                if (credit_available >= credit_threshold) {
-                    true
-                } else {
-                    false
-                }
-            }
-        }
-    }
-
-    public fun close_vault_for_harvest_trigger<StrategyType: drop>(
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock<StrategyType>
-    ) {
-        close_vault<StrategyType>(
-            vault_cap,
-            stop_handle
+            vault_cap_lock
         );
     }
 
@@ -208,32 +188,37 @@ module satay::base_strategy {
         keeper: &signer,
         vault_id: u64,
         witness: StrategyType,
-    ): (VaultCapability, VaultCapLock<StrategyType>) {
+    ): (VaultCapability, TendLock<StrategyType>) {
         global_config::assert_keeper<StrategyType, BaseCoin>(keeper);
 
-        let (vault_cap, stop_handle) = open_vault<StrategyType>(
+        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
             vault_id,
             witness
         );
         let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(&vault_cap);
         assert!(debt_out_standing == 0, ERR_DEBT_OUT_STANDING);
 
-        (vault_cap, stop_handle)
+        (vault_cap, TendLock<StrategyType> {
+            vault_cap_lock
+        })
     }
 
     public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock<StrategyType>,
+        tend_lock: TendLock<StrategyType>,
         strategy_coins: Coin<StrategyCoin>
     ) {
+        let TendLock<StrategyType> {
+            vault_cap_lock
+        } = tend_lock;
         deposit_strategy_coin<StrategyType, StrategyCoin>(
             &vault_cap,
             strategy_coins,
-            &stop_handle
+            &vault_cap_lock
         );
         close_vault<StrategyType>(
             vault_cap,
-            stop_handle
+            vault_cap_lock
         );
     }
 
@@ -246,8 +231,8 @@ module satay::base_strategy {
         vault_id: u64,
         share_amount: u64,
         witness: StrategyType
-    ): (u64, VaultCapability, VaultCapLock<StrategyType>) {
-        let (vault_cap, stop_handle) = open_vault<StrategyType>(vault_id, witness);
+    ): (VaultCapability, UserWithdrawLock<StrategyType>) {
+        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(vault_id, witness);
 
         // check if user is eligible to withdraw
         let user_share_amount = coin::balance<vault::VaultCoin<BaseCoin>>(signer::address_of(user));
@@ -264,34 +249,37 @@ module satay::base_strategy {
             amount_needed = total_debt;
         };
 
-        (amount_needed, vault_cap, stop_handle)
+        (vault_cap, UserWithdrawLock<StrategyType> {
+            vault_cap_lock,
+            amount_needed
+        })
     }
 
     public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
         vault_cap: VaultCapability,
-        stop_handle: VaultCapLock<StrategyType>,
+        user_withdraw_lock: UserWithdrawLock<StrategyType>,
         coins: Coin<BaseCoin>,
-        amount_needed: u64,
     ) {
+        let UserWithdrawLock<StrategyType> {
+            vault_cap_lock,
+            amount_needed
+        } = user_withdraw_lock;
+
+        let witness = satay::get_strategy_witness(&vault_cap_lock);
+
         let value = coin::value(&coins);
 
         if (amount_needed > value) {
-            vault::report_loss<StrategyType>(&vault_cap, amount_needed - value);
+            vault::report_loss<StrategyType>(&vault_cap, amount_needed - value, witness);
         };
 
-        vault::update_total_debt<StrategyType>(
-            &vault_cap,
-            0,
-            value,
-            satay::get_strategy_witness(&stop_handle)
-        );
-        deposit_base_coin(
+        vault::debt_payment(
             &vault_cap,
             coins,
-            &stop_handle
+            witness
         );
 
-        close_vault<StrategyType>(vault_cap, stop_handle);
+        close_vault<StrategyType>(vault_cap, vault_cap_lock);
     }
 
     // admin functions
@@ -300,13 +288,16 @@ module satay::base_strategy {
     public fun update_debt_ratio<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
-        debt_ratio: u64
+        debt_ratio: u64,
+        witness: StrategyType
     ) {
+        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
         satay::update_strategy_debt_ratio<StrategyType>(
             vault_id,
-            debt_ratio
+            debt_ratio,
+            &witness
         );
     }
 
@@ -314,13 +305,16 @@ module satay::base_strategy {
     public fun update_credit_threshold<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
-        credit_threshold: u64
+        credit_threshold: u64,
+        witness: StrategyType
     ) {
+        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
         satay::update_strategy_credit_threshold<StrategyType>(
             vault_id,
-            credit_threshold
+            credit_threshold,
+            &witness
         );
     }
 
@@ -328,11 +322,14 @@ module satay::base_strategy {
     public fun set_force_harvest_trigger_once<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
+        witness: StrategyType
     ) {
+        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
         satay::set_strategy_force_harvest_trigger_once<StrategyType>(
-            vault_id
+            vault_id,
+            &witness,
         );
     }
 
@@ -340,47 +337,16 @@ module satay::base_strategy {
     public fun update_max_report_delay<StrategyType: drop, BaseCoin>(
         strategist: &signer,
         vault_id: u64,
-        max_report_delay: u64
+        max_report_delay: u64,
+        witness: StrategyType
     ) {
+        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
         global_config::assert_strategist<StrategyType, BaseCoin>(strategist);
 
         satay::update_strategy_max_report_delay<StrategyType>(
             vault_id,
-            max_report_delay
-        );
-    }
-
-    // revoke the strategy
-    public fun revoke<StrategyType: drop>(
-        governance: &signer,
-        vault_id: u64
-    ) {
-        global_config::assert_governance(governance);
-
-        satay::update_strategy_debt_ratio<StrategyType>(
-            vault_id,
-            0
-        );
-    }
-
-    // migrate to new strategy
-    public fun migrate_from<OldStrategy: drop, NewStrategy: drop, NewStrategyCoin>(
-        governance: &signer,
-        vault_id: u64,
-        witness: NewStrategy
-    ) {
-        global_config::assert_governance(governance);
-
-        let debt_ratio = satay::update_strategy_debt_ratio<OldStrategy>(
-            vault_id,
-            0
-        );
-
-        initialize<NewStrategy, NewStrategyCoin>(
-            governance,
-            vault_id,
-            debt_ratio,
-            witness
+            max_report_delay,
+            &witness
         );
     }
 
@@ -392,18 +358,28 @@ module satay::base_strategy {
         vault::balance<CoinType>(vault_cap)
     }
 
-    // calls a vault's assess_fees function for a specified gain amount
-    fun assess_fees<StrategyType: drop, BaseCoin>(
-        gain: u64,
-        vault_cap: &VaultCapability,
-        stop_handle: &VaultCapLock<StrategyType>
-    ) {
-        vault::assess_fees<StrategyType, BaseCoin>(
-            gain,
-            0,
-            vault_cap,
-            satay::get_strategy_witness(stop_handle)
-        );
+    public fun get_harvest_vault_cap_lock<StrategyType: drop>(harvest_lock: &HarvestLock<StrategyType>): &VaultCapLock<StrategyType> {
+        &harvest_lock.vault_cap_lock
+    }
+
+    public fun get_harvest_profit<StrategyType: drop>(harvest_lock: &HarvestLock<StrategyType>): u64 {
+        harvest_lock.profit
+    }
+
+    public fun get_harvest_debt_payment<StrategyType: drop>(harvest_lock: &HarvestLock<StrategyType>): u64 {
+        harvest_lock.debt_payment
+    }
+
+    public fun get_user_withdraw_vault_cap_lock<StrategyType: drop>(
+        user_withdraw_lock: &UserWithdrawLock<StrategyType>
+    ): &VaultCapLock<StrategyType> {
+        &user_withdraw_lock.vault_cap_lock
+    }
+
+    public fun get_user_withdraw_amount_needed<StrategyType: drop>(
+        user_withdraw_lock: &UserWithdrawLock<StrategyType>
+    ): u64 {
+        user_withdraw_lock.amount_needed
     }
 
     fun open_vault<StrategyType: drop>(
@@ -429,23 +405,22 @@ module satay::base_strategy {
 
         // get amount of strategy debt over limit
         let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap);
-        // strategy's total debt
-        let total_debt = vault::total_debt<StrategyType>(vault_cap);
-
-        let profit = 0;
-        let loss = 0;
         let debt_payment: u64;
-        // staking pool has more BaseCoin than outstanding debt
         if (strategy_balance > debt_out_standing) {
-            // amount to return = outstanding debt
             debt_payment = debt_out_standing;
-            // amount in staking pool decreases by debt payment
             strategy_balance = strategy_balance - debt_payment;
         } else {
-            // amount to return = all assets
             debt_payment = strategy_balance;
             strategy_balance = 0;
         };
+
+        // calculate profit and loss
+        let profit = 0;
+        let loss = 0;
+
+        // strategy's total debt
+        let total_debt = vault::total_debt<StrategyType>(vault_cap);
+
         total_debt = total_debt - debt_payment;
 
         if (strategy_balance > total_debt) {
@@ -457,27 +432,11 @@ module satay::base_strategy {
         (profit, loss, debt_payment)
     }
 
-    fun deposit_base_coin<StrategyType: drop, BaseCoin>(
+    #[test_only]
+    public fun test_prepare_return<StrategyType: drop, BaseCoin>(
         vault_cap: &VaultCapability,
-        coins: Coin<BaseCoin>,
-        stop_handle: &VaultCapLock<StrategyType>
-    ) {
-        vault::deposit_base_coin<StrategyType, BaseCoin>(
-            vault_cap,
-            coins,
-            satay::get_strategy_witness(stop_handle)
-        );
-    }
-
-    fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
-        vault_cap: &VaultCapability,
-        amount: u64,
-        stop_handle: &VaultCapLock<StrategyType>
-    ): Coin<BaseCoin> {
-        vault::withdraw_base_coin<StrategyType, BaseCoin>(
-            vault_cap,
-            amount,
-            satay::get_strategy_witness(stop_handle)
-        )
+        strategy_balance: u64
+    ): (u64, u64, u64) {
+        prepare_return<StrategyType, BaseCoin>(vault_cap, strategy_balance)
     }
 }
