@@ -183,6 +183,33 @@ module satay::test_satay {
         coins_manager = @satay,
         user = @0x47
     )]
+    fun test_two_new_vaults(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+        create_vault(satay);
+        satay::new_vault<USDT>(
+            satay,
+            b"USDT vault",
+            MANAGEMENT_FEE,
+            PERFORMANCE_FEE
+        );
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47
+    )]
     fun test_update_vault_fee(
         aptos_framework: &signer,
         satay: &signer,
@@ -282,6 +309,55 @@ module satay::test_satay {
         );
         assert!(coin::balance<VaultCoin<AptosCoin>>(user_address) == 0, ERR_WITHDRAW);
         assert!(coin::balance<AptosCoin>(user_address) == amount, ERR_WITHDRAW);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47
+    )]
+    #[expected_failure]
+    fun test_withdraw_no_liquidity(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let user_address = signer::address_of(user);
+
+        let amount = 1000;
+        aptos_coin::mint(aptos_framework, user_address, amount);
+        satay::deposit<AptosCoin>(
+            user,
+            0,
+            amount
+        );
+
+        let vault_cap = satay::open_vault(0);
+
+        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
+            &vault_cap,
+            credit,
+            &TestStrategy {}
+        );
+        coin::deposit(signer::address_of(aptos_framework), aptos);
+
+        satay::close_vault(0, vault_cap);
+
+        satay::withdraw<AptosCoin>(
+            user,
+            0,
+            amount
+        );
     }
 
     #[test(
