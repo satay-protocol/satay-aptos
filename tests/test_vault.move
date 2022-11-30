@@ -9,10 +9,10 @@ module satay::test_vault {
     use aptos_framework::account;
     use aptos_framework::stake;
     use aptos_framework::aptos_coin::{Self, AptosCoin};
-
-    use satay::vault::{Self, VaultCapability, get_strategy_coin_type, VaultCoin};
-    use satay::coins::{Self, USDT};
     use aptos_framework::timestamp;
+
+    use satay::vault::{Self, VaultCapability, VaultCoin};
+    use satay::coins::{Self, USDT};
     use satay::math;
     use satay::dao_storage;
 
@@ -27,6 +27,7 @@ module satay::test_vault {
     const MANAGEMENT_FEE: u64 = 200;
     const PERFORMANCE_FEE: u64 = 2000;
     const DEBT_RATIO: u64 = 1000;
+    const USER_DEPOSIT: u64 = 1000;
 
     const ERR_CREATE_VAULT: u64 = 1;
     const ERR_FEES: u64 = 2;
@@ -39,6 +40,8 @@ module satay::test_vault {
     const ERR_STRATEGY_UPDATE: u64 = 9;
     const ERR_REPORTING: u64 = 10;
     const ERR_ASSESS_FEES: u64 = 11;
+    const ERR_DEBT_PAYMENT: u64 = 12;
+    const ERR_DEPOSIT_PROFIT: u64 = 13;
 
     #[test_only]
     fun setup_tests(
@@ -80,6 +83,7 @@ module satay::test_vault {
         vault::test_approve_strategy<TestStrategy, USDT>(
             vault_cap,
             DEBT_RATIO,
+            TestStrategy {}
         )
     }
 
@@ -91,6 +95,16 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
         approve_strategy(&vault_cap);
         vault_cap
+    }
+
+    fun user_deposit_base_coin(
+        aptos_framework: &signer,
+        user: &signer,
+        vault_cap: &VaultCapability,
+    ) {
+        aptos_coin::mint(aptos_framework, signer::address_of(user), USER_DEPOSIT);
+        let base_coin = coin::withdraw<AptosCoin>(user, USER_DEPOSIT);
+        vault::test_deposit_as_user(user, vault_cap, base_coin);
     }
 
     #[test(
@@ -509,7 +523,7 @@ module satay::test_vault {
         let expected_credit_threshold = DEFAULT_CREDIT_THRESHOLD * math::pow_10(coin::decimals<AptosCoin>());
         assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == expected_credit_threshold, ERR_STRATEGY);
         assert!(!vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY);
-        assert!(get_strategy_coin_type<TestStrategy>(&vault_cap) == type_info::type_of<USDT>(), ERR_STRATEGY);
+        assert!(vault::get_strategy_coin_type<TestStrategy>(&vault_cap) == type_info::type_of<USDT>(), ERR_STRATEGY);
     }
 
     #[test(
@@ -589,14 +603,16 @@ module satay::test_vault {
             &TestStrategy {}
         );
 
-        let withdraw_amount = amount * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        let withdraw_amount = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
         let base_coins = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
             &vault_cap,
             withdraw_amount,
             &TestStrategy {}
         );
         coin::deposit(user_address, base_coins);
+
         assert!(coin::balance<AptosCoin>(user_address) == withdraw_amount, ERR_STRATEGY_BASE_COIN_DEPOSIT_WITHDRAW);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == withdraw_amount, ERR_STRATEGY_BASE_COIN_DEPOSIT_WITHDRAW);
     }
 
     #[test(
@@ -662,6 +678,73 @@ module satay::test_vault {
             &TestStrategy {}
         );
         coin::deposit(user_address, base_coins);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_debt_payment(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+
+        let credit_available = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        let base_coin = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
+            &vault_cap,
+            credit_available,
+            &TestStrategy {}
+        );
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit_available, ERR_DEBT_PAYMENT);
+
+        let debt_payment_amount = 50;
+        let debt_payment = coin::extract(&mut base_coin, debt_payment_amount);
+        vault::test_debt_payment<TestStrategy, AptosCoin>(&vault_cap, debt_payment, &TestStrategy {});
+        coin::deposit(signer::address_of(user), base_coin);
+
+        assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT - credit_available + debt_payment_amount, ERR_DEPOSIT_WITHDRAW);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit_available - debt_payment_amount, ERR_DEBT_PAYMENT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_deposit_profit(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+
+        let seconds = 1000;
+        timestamp::fast_forward_seconds(seconds);
+
+        let profit_amount = 100;
+        let performance_fee = profit_amount * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
+        let management_fee = (
+            vault::total_debt<TestStrategy>(&vault_cap) *
+                seconds * MANAGEMENT_FEE / MAX_DEBT_RATIO_BPS /
+                SECS_PER_YEAR
+        );
+        let expected_fee = vault::calculate_share_amount_from_base_coin_amount<AptosCoin>(
+            &vault_cap,
+            performance_fee + management_fee
+        );
+
+        aptos_coin::mint(aptos_framework, signer::address_of(user), profit_amount);
+        let profit = coin::withdraw<AptosCoin>(user, profit_amount);
+        vault::test_deposit_profit<TestStrategy, AptosCoin>(&vault_cap, profit, &TestStrategy {});
+
+        assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT + profit_amount, ERR_DEPOSIT_PROFIT);
+        let vault_address = vault::get_vault_addr(&vault_cap);
+        assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_address) == expected_fee, ERR_DEPOSIT_PROFIT);
     }
 
     #[test(
@@ -827,21 +910,37 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
 
         let new_debt_ratio = 500;
-        vault::test_update_strategy_debt_ratio<TestStrategy>(&vault_cap, new_debt_ratio);
+        vault::test_update_strategy_debt_ratio<TestStrategy>(
+            &vault_cap,
+            new_debt_ratio,
+            &TestStrategy {}
+        );
         assert!(vault::debt_ratio<TestStrategy>(&vault_cap) == new_debt_ratio, ERR_STRATEGY_UPDATE);
         assert!(vault::get_debt_ratio(&vault_cap) == new_debt_ratio, ERR_STRATEGY_UPDATE);
+
         let credit_available = new_debt_ratio * vault::total_assets<AptosCoin>(&vault_cap) / MAX_DEBT_RATIO_BPS;
         assert!(vault::credit_available<TestStrategy, AptosCoin>(&vault_cap) == credit_available, ERR_STRATEGY_UPDATE);
 
         let new_max_report_delay = 100;
-        vault::test_update_strategy_max_report_delay<TestStrategy>(&vault_cap, new_max_report_delay);
+        vault::test_update_strategy_max_report_delay<TestStrategy>(
+            &vault_cap,
+            new_max_report_delay,
+            &TestStrategy {}
+        );
         assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == new_max_report_delay, ERR_STRATEGY_UPDATE);
 
         let new_credit_threshold = 100;
-        vault::test_update_strategy_credit_threshold<TestStrategy>(&vault_cap, new_credit_threshold);
+        vault::test_update_strategy_credit_threshold<TestStrategy>(
+            &vault_cap,
+            new_credit_threshold,
+            &TestStrategy {}
+        );
         assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == new_credit_threshold, ERR_STRATEGY_UPDATE);
 
-        vault::test_set_force_harvest_trigger_once<TestStrategy>(&vault_cap);
+        vault::test_set_force_harvest_trigger_once<TestStrategy>(
+            &vault_cap,
+            &TestStrategy {}
+        );
         assert!(vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY_UPDATE);
     }
 
@@ -859,7 +958,11 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
 
         let new_debt_ratio = MAX_DEBT_RATIO_BPS + 1;
-        vault::test_update_strategy_debt_ratio<TestStrategy>(&vault_cap, new_debt_ratio);
+        vault::test_update_strategy_debt_ratio<TestStrategy>(
+            &vault_cap,
+            new_debt_ratio,
+            &TestStrategy {}
+        );
     }
 
     #[test(
@@ -876,7 +979,7 @@ module satay::test_vault {
 
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_REPORTING);
         timestamp::fast_forward_seconds(100);
-        vault::test_report_timestamp<TestStrategy>(&vault_cap);
+        vault::test_report_timestamp<TestStrategy>(&vault_cap, &TestStrategy {});
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_REPORTING);
 
         let credit = 100;
@@ -887,14 +990,15 @@ module satay::test_vault {
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == 0, ERR_REPORTING);
 
         let gain_amount = 100;
-        vault::test_report_gain<TestStrategy>(&vault_cap, gain_amount);
+        vault::test_report_gain<TestStrategy>(&vault_cap, gain_amount, &TestStrategy {});
         assert!(vault::total_gain<TestStrategy>(&vault_cap) == gain_amount, ERR_REPORTING);
 
         vault::test_update_total_debt(&vault_cap, credit, 0, &TestStrategy {});
 
         let loss_amount = 50;
-        vault::test_report_loss<TestStrategy>(&vault_cap, loss_amount);
+        vault::test_report_loss<TestStrategy>(&vault_cap, loss_amount, &TestStrategy {});
         assert!(vault::total_loss<TestStrategy>(&vault_cap) == loss_amount, ERR_REPORTING);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit - loss_amount, ERR_REPORTING);
 
 
     }
@@ -927,6 +1031,8 @@ module satay::test_vault {
         vault::test_update_total_debt<TestStrategy>(&vault_cap, total_debt, 0, &TestStrategy {});
 
         let gain = 60;
+        aptos_coin::mint(aptos_framework, user_address, gain);
+        let aptos_coin = coin::withdraw<AptosCoin>(user, gain);
 
         let (management_fee, performance_fee) = vault::get_fees(&vault_cap);
 
@@ -938,7 +1044,12 @@ module satay::test_vault {
             total_fee
         );
 
-        vault::test_assess_fees<TestStrategy, AptosCoin>(gain, 0, &vault_cap, &TestStrategy{});
+        vault::test_assess_fees<TestStrategy, AptosCoin>(
+            &aptos_coin,
+            &vault_cap,
+            &TestStrategy{}
+        );
+        coin::deposit(user_address, aptos_coin);
         let collected_fees = dao_storage::balance<VaultCoin<AptosCoin>>(vault::get_vault_addr(&vault_cap));
         assert!(expected_share_token_amount == collected_fees, ERR_ASSESS_FEES);
     }
