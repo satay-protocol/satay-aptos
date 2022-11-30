@@ -1,0 +1,11 @@
+[package]
+name = "aux-interface"
+version = "0.0.0"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[addresses]
+aux_interface = "0x4c8e0dc1b53b7759c9d8998685453a0e06565f054f3635a18d4928520eec676d"

@@ -7,8 +7,7 @@ module satay::tortuga_leveraged_farming_strategy {
     use satay::satay;
     use satay::base_strategy::{Self};
     use satay::vault::VaultCapability;
-    use satay_tortuga_farming::tortuga_farming::TortugaFarmingCoin;
-    use satay_tortuga_farming::tortuga_farming;
+    use satay_tortuga_farming::tortuga_farming::{Self, TortugaFarmingCoin};
     use aptos_framework::coin;
 
     // witness for the strategy

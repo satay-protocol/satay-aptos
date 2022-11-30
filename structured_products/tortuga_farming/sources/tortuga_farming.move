@@ -8,11 +8,10 @@ module satay_tortuga_farming::tortuga_farming {
 
     use tortuga_staking::stake_router;
     use tortuga_staking::staked_coin::StakedAptos;
-    use liquidswap::router_v2::get_amount_out;
-    use liquidswap::curves::Stable;
     use aries_interface::controller;
     use aries_interface::profile;
     use aries_interface::decimal;
+    use aux_interface::amm;
     use aptos_std::type_info;
     use std::option;
 
@@ -105,6 +104,7 @@ module satay_tortuga_farming::tortuga_farming {
 
         let tortuga_farming_coins = coin::mint<TortugaFarmingCoin>(deposit_amount, &tortuga_farming_coin_cap.mint_cap);
 
+        // TODO: compare utilization ratio 95%
         while (count < MAX_COUNT) {
             let aptos_value = coin::value(&aptos_coins);
             coin::deposit(signer::address_of(&tortuga_farming_signer), aptos_coins);
@@ -140,9 +140,16 @@ module satay_tortuga_farming::tortuga_farming {
 
     // get amount of TortugaFarmingCoin to burn to return aptos_amount of AptosCoin
     /// NOTE: use AUX dex
-    public fun get_farming_coin_amount_for_apt_amount(amount_aptos: u64) : u64 {
-        let stapt_amount = get_amount_out<AptosCoin, StakedAptos, Stable>(amount_aptos);
-        stapt_amount
+    public fun get_farming_coin_amount_for_apt_amount(amount_aptos: u64) : u64 acquires FarmingAccountCapability {
+        let tortuga_farming_cap = borrow_global<FarmingAccountCapability>(@satay_tortuga_farming);
+        let tortuga_farming_signer = account::create_signer_with_capability(&tortuga_farming_cap.signer_cap);
+        let farming_account_addr = signer::address_of(&tortuga_farming_signer);
+
+        let total_tapt_amount = profile::get_deposited_amount(farming_account_addr, string::utf8(SATAY_STRATGY), type_info::type_of<StakedAptos>());
+        let tortuga_farming_coin_supply = option::borrow<u128>(&coin::supply<TortugaFarmingCoin>());
+        let required_tapt = amm::au_in<StakedAptos, AptosCoin>(amount_aptos);
+
+        total_tapt_amount * required_tapt / (*tortuga_farming_coin_supply as u64)
     }
 
     // get amount of AptosCoin returned from burning farming_coin_amount of TortugaFarmingCoin
