@@ -2,11 +2,10 @@ module satay::base_strategy {
 
     use std::signer;
 
-    use aptos_framework::coin::{Coin};
-    use aptos_framework::coin;
+    use aptos_framework::coin::{Self, Coin};
 
     use satay::global_config;
-    use satay::vault::{Self, VaultCapability};
+    use satay::vault::{Self, VaultCapability, VaultCoin};
     use satay::satay::{Self, VaultCapLock};
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
@@ -235,7 +234,7 @@ module satay::base_strategy {
         let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(vault_id, witness);
 
         // check if user is eligible to withdraw
-        let user_share_amount = coin::balance<vault::VaultCoin<BaseCoin>>(signer::address_of(user));
+        let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(signer::address_of(user));
         assert!(user_share_amount >= share_amount, ERR_NOT_ENOUGH_FUND);
 
         // check if vault has enough balance

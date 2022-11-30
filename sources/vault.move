@@ -102,7 +102,7 @@ module satay::vault {
 
         // create vault coin name
         let vault_coin_name = coin::name<BaseCoin>();
-        string::append_utf8(&mut vault_coin_name, b"vault");
+        string::append_utf8(&mut vault_coin_name, b" Vault");
 
         // create vault coin symbol
         let vault_coin_symbol = string::utf8(b"s");
