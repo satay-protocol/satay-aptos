@@ -175,7 +175,7 @@ module satay::vault {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
-        let withdraw_amount = total_assets<BaseCoin>(vault_cap) * amount / (total_supply as u64);
+        let withdraw_amount = math::mul_div(total_assets<BaseCoin>(vault_cap), amount, (total_supply as u64));
         burn_vault_coins<BaseCoin>(user, vault_cap, amount);
         withdraw<BaseCoin>(vault_cap, withdraw_amount)
     }
