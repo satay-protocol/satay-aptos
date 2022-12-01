@@ -116,7 +116,7 @@ module satay::vault {
             governance,
             vault_coin_name,
             vault_coin_symbol,
-            8,
+            base_coin_decimals,
             true
         );
         move_to(&vault_acc, VaultCoinCaps<BaseCoin> { mint_cap, freeze_cap, burn_cap});
