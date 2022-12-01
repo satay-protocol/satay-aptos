@@ -3,7 +3,7 @@ module satay::coins {
     use std::signer;
     use std::string::utf8;
 
-    use aptos_framework::coin::{Self, MintCapability, BurnCapability};
+    use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
 
     /// Represents test USDT coin.
     struct USDT {}
@@ -57,5 +57,11 @@ module satay::coins {
         let caps = borrow_global<Caps<CoinType>>(token_admin_addr);
         let coins = coin::mint<CoinType>(amount, &caps.mint);
         coin::deposit(acc_addr, coins);
+    }
+
+    public fun mint<CoinType>(token_admin: &signer, amount: u64): Coin<CoinType> acquires Caps {
+        let token_admin_addr = signer::address_of(token_admin);
+        let caps = borrow_global<Caps<CoinType>>(token_admin_addr);
+        coin::mint<CoinType>(amount, &caps.mint)
     }
 }
