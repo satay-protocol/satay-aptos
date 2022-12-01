@@ -122,7 +122,7 @@ module satay_ditto_farming::ditto_farming_strategy {
             );
             debt_payment_amount = 0;
         };
-
+        residual_aptos_balance = coin::value(&residual_aptos);
         // fill profit with residual
         if(profit_amount > residual_aptos_balance) {
             coin::merge(
@@ -137,7 +137,7 @@ module satay_ditto_farming::ditto_farming_strategy {
             );
             profit_amount = 0;
         };
-        coin::destroy_zero(residual_aptos);
+        coin::merge(&mut to_apply, residual_aptos);
 
         // if amount is still needed, liquidate farming coins to return
         if(debt_payment_amount + profit_amount > 0) {
@@ -160,7 +160,7 @@ module satay_ditto_farming::ditto_farming_strategy {
                 &mut profit,
                 coin::extract<AptosCoin>(&mut liquidated_aptos_coins, profit_amount)
             );
-            coin::destroy_zero(liquidated_aptos_coins);
+            coin::merge(&mut to_apply, liquidated_aptos_coins);
         };
 
         // deploy to_apply AptosCoin to ditto_farming structured product
