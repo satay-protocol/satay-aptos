@@ -1,0 +1,20 @@
+[package]
+name = "ditto-liquidity-mining"
+version = "0.0.0"
+
+[addresses]
+liquidity_mining = "0xa8b72a2be72784117c8878aa6387433c15d6b9b23acf3199f30fd40aff3b1e28"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.LiquidswapRouterV2]
+git = 'https://github.com/pontem-network/liquidswap'
+rev = 'v0.4.3'
+subdir = './liquidswap_router_v2'
+
+[dependencies.ditto-staking]
+local = '../../interfaces/ditto-staking-interface'
+

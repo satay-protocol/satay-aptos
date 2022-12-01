@@ -8,10 +8,5 @@ satay_ditto_farming = "0xe3eaddfcc4d7436d26fef92ee39685ef176e3513dc736d116129ce0
 [dependencies.satay]
 local = '../../'
 
-[dependencies.LiquidswapRouterV2]
-git = 'https://github.com/pontem-network/liquidswap'
-rev = 'v0.4.3'
-subdir = './liquidswap_router_v2'
-
-[dependencies.ditto-staking]
-local = '../../interfaces/ditto-staking-interface'
+[dependencies.ditto-liquidity-mining]
+local = '../../interfaces/ditto-lm-interface'

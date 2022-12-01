@@ -21,6 +21,7 @@ module satay_ditto_farming::ditto_farming {
 
     use ditto_staking::staked_coin::StakedAptos;
     use ditto_staking::ditto_staking;
+    use liquidity_mining::liquidity_mining;
 
     // acts as signer in stake LP call
     struct FarmingAccountCapability has key {
@@ -183,6 +184,10 @@ module satay_ditto_farming::ditto_farming {
         let lp_coin_amount = coin::value(&lp_coins);
 
         coin::deposit(ditto_farming_addr, lp_coins);
+        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
+            ditto_farming_signer,
+            lp_coin_amount,
+        );
         coin::mint<DittoFarmingCoin>(
             lp_coin_amount,
             &farming_coin_caps.mint_cap
@@ -209,6 +214,10 @@ module satay_ditto_farming::ditto_farming {
     ) : Coin<LP<AptosCoin, StakedAptos, Stable>> acquires DittoFarmingCoinCaps {
         // unstake amount of LP for given amount of DittoFarmingCoin
         let farming_coin_amount = coin::value<DittoFarmingCoin>(&ditto_farming_coins);
+        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
+            ditto_farming_signer,
+            farming_coin_amount,
+        );
         // burn farming coin
         let farming_account_addr = signer::address_of(ditto_farming_signer);
         let farming_coin_caps = borrow_global<DittoFarmingCoinCaps>(farming_account_addr);
@@ -257,7 +266,6 @@ module satay_ditto_farming::ditto_farming {
         // FIXME: add DTO coin type
         // liquidity_mining::redeem<LP<StakedAptos, AptosCoin, Stable>, DTOCoinType>()
         // convert DTO to APT (DTO is not live on mainnet)
-
         // until DTO is live, return zero APT
         coin::zero<AptosCoin>()
     }

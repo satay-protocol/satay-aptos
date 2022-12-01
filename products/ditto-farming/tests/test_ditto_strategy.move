@@ -24,6 +24,7 @@ module satay_ditto_farming::test_ditto_strategy {
     use satay_ditto_farming::mock_ditto_farming_strategy;
     use satay_ditto_farming::mock_ditto_farming;
     use satay::base_strategy;
+    use liquidity_mining::mock_liquidity_mining;
 
     const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
 
@@ -115,12 +116,14 @@ module satay_ditto_farming::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         ditto_farming_strategy: &signer,
         user: &signer
     ) {
         stake::initialize_for_test(aptos_framework);
         test_account::create_account(ditto_staking);
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
+        mock_liquidity_mining::initialize(liquidity_mining);
 
         setup_liquidity_pool(aptos_framework, pool_owner, pool_account);
         setup_ditto_staking_product_and_strategy(ditto_farming, ditto_farming_strategy);
@@ -141,6 +144,7 @@ module satay_ditto_farming::test_ditto_strategy {
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
         ditto_farming_strategy = @satay_ditto_farming,
         user = @0x45,
     )]
@@ -151,6 +155,7 @@ module satay_ditto_farming::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         ditto_farming_strategy: &signer,
         user: &signer,
     ) {
@@ -161,6 +166,7 @@ module satay_ditto_farming::test_ditto_strategy {
             manager_acc,
             ditto_farming,
             ditto_staking,
+            liquidity_mining,
             ditto_farming_strategy,
             user
         );
@@ -185,6 +191,7 @@ module satay_ditto_farming::test_ditto_strategy {
         manager_acc = @satay,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
         ditto_farming_strategy = @satay_ditto_farming,
         user = @0x45,
     )]
@@ -195,6 +202,7 @@ module satay_ditto_farming::test_ditto_strategy {
         manager_acc: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         ditto_farming_strategy: &signer,
         user: &signer,
     ) {
@@ -205,6 +213,7 @@ module satay_ditto_farming::test_ditto_strategy {
             manager_acc,
             ditto_farming,
             ditto_staking,
+            liquidity_mining,
             ditto_farming_strategy,
             user
         );

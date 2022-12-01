@@ -18,7 +18,7 @@ module satay_ditto_farming::test_ditto_farming {
 
     use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
     use satay_ditto_farming::mock_ditto_farming::{Self, DittoFarmingCoin};
-    use liquidswap::router;
+    use liquidity_mining::mock_liquidity_mining;
 
     const INITIAL_LIQUIDITY: u64 = 10000000000;
     const DEPOSIT_AMOUNT: u64 = 1000000;
@@ -29,10 +29,12 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         user: &signer
     ) {
         stake::initialize_for_test(aptos_framework);
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
+        mock_liquidity_mining::initialize(liquidity_mining);
 
         test_account::create_account(user);
         test_account::create_account(pool_owner);
@@ -72,6 +74,7 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner = @liquidswap,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
         user = @0x99
     )]
     public fun test_deposit(
@@ -79,13 +82,14 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         user: &signer
     ) {
-        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, user);
+        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, liquidity_mining, user);
         mock_ditto_farming::deposit(user, DEPOSIT_AMOUNT);
 
         let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
-        let farming_account_lp_balance = mock_ditto_farming::get_lp_reserves_amount();
+        let farming_account_lp_balance = mock_liquidity_mining::get_lp_amount();
 
         assert!(user_farming_coin_balance > 0, 1);
         assert!(farming_account_lp_balance > 0, 2);
@@ -102,6 +106,7 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner = @liquidswap,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
         user = @0x99
     )]
     public fun test_deposit_zero(
@@ -109,9 +114,10 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         user: &signer
     ) {
-        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, user);
+        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, liquidity_mining, user);
         mock_ditto_farming::deposit(user, 0);
 
         let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
@@ -126,6 +132,7 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner = @liquidswap,
         ditto_farming = @satay_ditto_farming,
         ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
         user = @0x99
     )]
     public fun test_withdraw(
@@ -133,9 +140,10 @@ module satay_ditto_farming::test_ditto_farming {
         pool_owner: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
+        liquidity_mining: &signer,
         user: &signer
     ) {
-        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, user);
+        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, liquidity_mining, user);
         mock_ditto_farming::deposit(user, DEPOSIT_AMOUNT);
 
         let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
@@ -143,7 +151,7 @@ module satay_ditto_farming::test_ditto_farming {
             apt_returned,
             stapt_returned
         ) = router_v2::get_reserves_for_lp_coins<AptosCoin, StakedAptos, Stable>(user_farming_coin_balance);
-        let resultant_aptos_balance = apt_returned + router::get_amount_out<StakedAptos, AptosCoin, Stable>(stapt_returned);
+        let resultant_aptos_balance = apt_returned + router_v2::get_amount_out<StakedAptos, AptosCoin, Stable>(stapt_returned);
 
         mock_ditto_farming::withdraw(user, user_farming_coin_balance);
 
