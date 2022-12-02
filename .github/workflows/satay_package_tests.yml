@@ -28,4 +28,4 @@ jobs:
         run: aptos move compile
 
       - name: Test
-        run: aptos move test
+        run: yarn test
