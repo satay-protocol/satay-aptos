@@ -25,7 +25,7 @@ jobs:
           version: aptos-cli-v0.3.9
 
       - name: Build
-        run: aptos move compile
+        run: yarn compile
 
       - name: Test
-        run: aptos move test
+        run: yarn test
