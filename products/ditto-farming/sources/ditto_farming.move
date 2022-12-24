@@ -214,7 +214,7 @@ module satay_ditto_farming::ditto_farming {
     ) : Coin<LP<AptosCoin, StakedAptos, Stable>> acquires DittoFarmingCoinCaps {
         // unstake amount of LP for given amount of DittoFarmingCoin
         let farming_coin_amount = coin::value<DittoFarmingCoin>(&ditto_farming_coins);
-        liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
+        liquidity_mining::unstake<LP<AptosCoin, StakedAptos, Stable>>(
             ditto_farming_signer,
             farming_coin_amount,
         );
