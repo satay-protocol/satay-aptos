@@ -71,10 +71,6 @@ module satay::math {
         let res = 1;
         let i = 0;
         while ({
-            spec {
-                invariant res == spec_pow(10, i);
-                invariant 0 <= i && i <= degree;
-            };
             i < degree
         }) {
             res = res * 10;
