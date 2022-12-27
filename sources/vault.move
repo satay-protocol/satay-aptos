@@ -397,12 +397,12 @@ module satay::vault {
             return
         };
 
-        let management_fee_amount = strategy.total_debt
-            * duration
-            * vault.management_fee
-            / MAX_DEBT_RATIO_BPS
-            / SECS_PER_YEAR;
-        let performance_fee_amount = gain * vault.performance_fee / MAX_DEBT_RATIO_BPS;
+        let management_fee_amount = math::mul_div_u128(
+            math::mul_to_u128(strategy.total_debt, duration),
+            (vault.management_fee as u128),
+            math::mul_to_u128(MAX_DEBT_RATIO_BPS, SECS_PER_YEAR)
+        );
+        let performance_fee_amount = math::mul_div(gain, vault.performance_fee, MAX_DEBT_RATIO_BPS);
 
         let total_fee_amount = management_fee_amount + performance_fee_amount;
         if (total_fee_amount > gain) {
@@ -451,7 +451,7 @@ module satay::vault {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
         if (vault.debt_ratio != 0) {
-            let ratio_change = loss * vault.debt_ratio / vault.total_debt;
+            let ratio_change = math::mul_div(loss, vault.debt_ratio, vault.total_debt);
             if (ratio_change > strategy.debt_ratio) {
                 ratio_change = strategy.debt_ratio;
             };
@@ -564,11 +564,11 @@ module satay::vault {
         let vault_debt_ratio = vault.debt_ratio;
         let vault_total_debt = vault.total_debt;
         let vault_total_assets = total_assets<BaseCoin>(vault_cap);
-        let vault_debt_limit = vault_debt_ratio * vault_total_assets / MAX_DEBT_RATIO_BPS;
+        let vault_debt_limit = math::mul_div(vault_debt_ratio, vault_total_assets, MAX_DEBT_RATIO_BPS);
 
         let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
-        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_DEBT_RATIO_BPS;
+        let strategy_debt_limit = math::mul_div(strategy.debt_ratio, vault_total_assets, MAX_DEBT_RATIO_BPS);
         let strategy_total_debt = strategy.total_debt;
 
         if (strategy_debt_limit <= strategy_total_debt || vault_debt_limit <= vault_total_debt) {
@@ -603,7 +603,7 @@ module satay::vault {
         };
 
         let vault_total_assets = total_assets<BaseCoin>(vault_cap);
-        let strategy_debt_limit = strategy.debt_ratio * vault_total_assets / MAX_DEBT_RATIO_BPS;
+        let strategy_debt_limit = math::mul_div(strategy.debt_ratio, vault_total_assets, MAX_DEBT_RATIO_BPS);
         let strategy_total_debt = strategy.total_debt;
 
         if (strategy_total_debt <= strategy_debt_limit) {
