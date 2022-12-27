@@ -273,7 +273,7 @@ module satay::vault {
         // check if the strategy's updated debt ratio is valid
         assert!(vault.debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
 
-        old_debt_ratio
+        debt_ratio
     }
 
     // update strategy max report delay
