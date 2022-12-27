@@ -190,7 +190,7 @@ module satay::vault {
         let total_assets = total_assets<BaseCoin>(vault_cap);
         let share_total_supply_option = coin::supply<VaultCoin<BaseCoin>>();
         let share_total_supply = option::get_with_default<u128>(&share_total_supply_option, 0);
-        math::mul_div(total_assets, share, (share_total_supply as u64))
+        math::mul_div_u128((total_assets as u128), (share as u128), share_total_supply)
     }
 
     public fun calculate_share_amount_from_base_coin_amount<BaseCoin>(
@@ -201,7 +201,7 @@ module satay::vault {
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
 
         if (total_supply != 0) {
-            (total_supply as u64) * base_coin_amount / total_base_coin_amount
+            math::mul_div_u128(total_supply, (base_coin_amount as u128), (total_base_coin_amount as u128))
         } else {
             base_coin_amount
         }
@@ -707,7 +707,7 @@ module satay::vault {
         let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(user_addr);
         let share_total_supply_option = coin::supply<VaultCoin<BaseCoin>>();
         let share_total_supply = option::get_with_default<u128>(&share_total_supply_option, 0);
-        total_assets * user_share_amount / (share_total_supply as u64)
+        math::mul_div_u128((total_assets as u128), (user_share_amount as u128), share_total_supply)
     }
 
     public fun assert_base_coin_correct_for_vault_cap<BaseCoin> (
