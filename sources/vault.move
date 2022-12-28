@@ -21,9 +21,6 @@ module satay::vault {
     const MAX_PERFORMANCE_FEE: u64 = 5000; // 50%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
 
-    const DEFAULT_MAX_REPORT_DELAY: u64 = 30 * 24 * 3600; // 30 days
-    const DEFAULT_CREDIT_THRESHOLD: u64 = 10000; // 10,000
-
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
@@ -67,9 +64,6 @@ module satay::vault {
         total_gain: u64,
         total_loss: u64,
         last_report: u64,
-        max_report_delay: u64,
-        force_harvest_trigger_once: bool,
-        credit_threshold: u64
     }
 
     // for satay
@@ -243,10 +237,7 @@ module satay::vault {
             total_debt: 0,
             total_gain: 0,
             total_loss: 0,
-            last_report: timestamp::now_seconds(),
-            max_report_delay: DEFAULT_MAX_REPORT_DELAY, // 30 days
-            force_harvest_trigger_once: false,
-            credit_threshold: DEFAULT_CREDIT_THRESHOLD * math::pow_10(vault.base_coin_decimals)
+            last_report: timestamp::now_seconds()
         });
 
         if(!has_coin<StrategyCoin>(vault_cap)){
@@ -274,35 +265,6 @@ module satay::vault {
         assert!(vault.debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
 
         debt_ratio
-    }
-
-    // update strategy max report delay
-    public(friend) fun update_strategy_max_report_delay<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        max_report_delay: u64,
-        _witness: &StrategyType
-    ) acquires VaultStrategy {
-        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.max_report_delay = max_report_delay;
-    }
-
-    // update strategy credit threshold
-    public(friend) fun update_strategy_credit_threshold<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        credit_threshold: u64,
-        _witness: &StrategyType
-    ) acquires VaultStrategy {
-        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.credit_threshold = credit_threshold;
-    }
-
-    // set strategy force harvest trigger once
-    public(friend) fun set_strategy_force_harvest_trigger_once<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        _witness: &StrategyType
-    ) acquires VaultStrategy {
-        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.force_harvest_trigger_once = true;
     }
 
     public(friend) fun deposit_profit<StrategyType: drop, BaseCoin>(
@@ -428,7 +390,6 @@ module satay::vault {
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.last_report = timestamp::now_seconds();
-        strategy.force_harvest_trigger_once = false;
     }
 
     // report a gain for StrategyType
@@ -649,30 +610,6 @@ module satay::vault {
     ): u64 acquires VaultStrategy {
         let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
         strategy.last_report
-    }
-
-    // gets the max report delay for a given StrategyType
-    public fun max_report_delay<StrategyType: drop>(
-        vault_cap: &VaultCapability
-    ): u64 acquires VaultStrategy {
-        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.max_report_delay
-    }
-
-    // gets the force harvest trigger once for a given StrategyType
-    public fun force_harvest_trigger_once<StrategyType: drop>(
-        vault_cap: &VaultCapability
-    ): bool acquires VaultStrategy {
-        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.force_harvest_trigger_once
-    }
-
-    // gets the credit threshold for a given StrategyType
-    public fun credit_threshold<StrategyType: drop>(
-        vault_cap: &VaultCapability
-    ): u64 acquires VaultStrategy {
-        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.credit_threshold
     }
 
     public fun get_strategy_coin_type<StrategyType: drop>(
@@ -929,43 +866,6 @@ module satay::vault {
         update_strategy_debt_ratio<StrategyType>(
             vault_cap,
             debt_ratio,
-            witness
-        );
-    }
-
-    #[test_only]
-    public fun test_update_strategy_max_report_delay<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        max_report_delay: u64,
-        witness: &StrategyType
-    ) acquires VaultStrategy {
-        update_strategy_max_report_delay<StrategyType>(
-            vault_cap,
-            max_report_delay,
-            witness
-        );
-    }
-
-    #[test_only]
-    public fun test_update_strategy_credit_threshold<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        credit_threshold: u64,
-        witness: &StrategyType
-    ) acquires VaultStrategy {
-        update_strategy_credit_threshold<StrategyType>(
-            vault_cap,
-            credit_threshold,
-            witness
-        );
-    }
-
-    #[test_only]
-    public fun test_set_force_harvest_trigger_once<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        witness: &StrategyType
-    ) acquires VaultStrategy {
-        set_strategy_force_harvest_trigger_once<StrategyType>(
-            vault_cap,
             witness
         );
     }

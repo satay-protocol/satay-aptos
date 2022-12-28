@@ -12,7 +12,6 @@ module satay::test_satay {
     use satay::satay;
     use satay::coins::{Self, USDT, BTC};
     use satay::vault::{Self, VaultCoin};
-    use satay::math;
 
     const MANAGEMENT_FEE: u64 = 200;
     const PERFORMANCE_FEE: u64 = 2000;
@@ -590,25 +589,6 @@ module satay::test_satay {
         satay::test_update_strategy_debt_ratio(
             0,
             debt_ratio,
-            TestStrategy {}
-        );
-
-        let credit_threshold = 100 * math::pow_10(coin::decimals<AptosCoin>());
-        satay::test_update_strategy_credit_threshold(
-            0,
-            credit_threshold,
-            TestStrategy {}
-        );
-
-        satay::test_set_strategy_force_harvest_trigger_once(
-            0,
-            TestStrategy {}
-        );
-
-        let max_report_delay = 100;
-        satay::test_update_strategy_max_report_delay(
-            0,
-            max_report_delay,
             TestStrategy {}
         );
     }

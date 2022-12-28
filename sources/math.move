@@ -23,17 +23,4 @@ module satay::math {
     public fun mul_to_u128(x: u64, y: u64): u128 {
         (x as u128) * (y as u128)
     }
-
-    /// Returns 10^degree.
-    public fun pow_10(degree: u8): u64 {
-        let res = 1;
-        let i = 0;
-        while ({
-            i < degree
-        }) {
-            res = res * 10;
-            i = i + 1;
-        };
-        res
-    }
 }

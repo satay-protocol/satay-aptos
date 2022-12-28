@@ -156,46 +156,6 @@ module satay::mock_strategy {
         );
     }
 
-    // update the strategy credit threshold
-    public entry fun update_credit_threshold(
-        vault_manager: &signer,
-        vault_id: u64,
-        credit_threshold: u64
-    ) {
-        base_strategy::update_credit_threshold<MockStrategy, AptosCoin>(
-            vault_manager,
-            vault_id,
-            credit_threshold,
-            MockStrategy {}
-        );
-    }
-
-    // set the strategy force harvest trigger once
-    public entry fun set_force_harvest_trigger_once(
-        vault_manager: &signer,
-        vault_id: u64,
-    ) {
-        base_strategy::set_force_harvest_trigger_once<MockStrategy, AptosCoin>(
-            vault_manager,
-            vault_id,
-            MockStrategy {}
-        );
-    }
-
-    // update the strategy max report delay
-    public entry fun update_max_report_delay(
-        strategist: &signer,
-        vault_id: u64,
-        max_report_delay: u64
-    ) {
-        base_strategy::update_max_report_delay<MockStrategy, AptosCoin>(
-            strategist,
-            vault_id,
-            max_report_delay,
-            MockStrategy {}
-        );
-    }
-
     fun get_strategy_aptos_balance(vault_cap: &VaultCapability): u64 {
         let wrapped_balance = base_strategy::balance<WrappedAptos>(vault_cap);
         aptos_wrapper_product::get_aptos_amount_for_wrapped_amount(wrapped_balance)
