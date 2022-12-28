@@ -359,34 +359,9 @@ module satay::test_base_strategy {
             TestStrategy {}
         );
 
-        let credit_threshold = 200;
-        base_strategy::update_credit_threshold<TestStrategy, AptosCoin>(
-            satay,
-            0,
-            credit_threshold,
-            TestStrategy {}
-        );
-
-        base_strategy::set_force_harvest_trigger_once<TestStrategy, AptosCoin>(
-            satay,
-            0,
-            TestStrategy {}
-        );
-
-        let max_report_delay = 300;
-        base_strategy::update_max_report_delay<TestStrategy, AptosCoin>(
-            satay,
-            0,
-            max_report_delay,
-            TestStrategy {}
-        );
-
         let vault_cap = satay::open_vault(0);
 
-        assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == credit_threshold, ERR_ADMIN_FUNCTIONS);
         assert!(vault::debt_ratio<TestStrategy>(&vault_cap) == debt_ratio, ERR_ADMIN_FUNCTIONS);
-        assert!(vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_ADMIN_FUNCTIONS);
-        assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == max_report_delay, ERR_ADMIN_FUNCTIONS);
 
         satay::close_vault(0, vault_cap);
     }

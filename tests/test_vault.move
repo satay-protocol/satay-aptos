@@ -13,7 +13,6 @@ module satay::test_vault {
 
     use satay::vault::{Self, VaultCapability, VaultCoin};
     use satay::coins::{Self, USDT};
-    use satay::math;
     use satay::dao_storage;
 
     struct TestStrategy has drop {}
@@ -519,10 +518,6 @@ module satay::test_vault {
         assert!(vault::debt_out_standing<TestStrategy, AptosCoin>(&vault_cap) == 0, ERR_STRATEGY);
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == 0, ERR_STRATEGY);
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_STRATEGY);
-        assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == DEFAULT_MAX_REPORT_DELAY, ERR_STRATEGY);
-        let expected_credit_threshold = DEFAULT_CREDIT_THRESHOLD * math::pow_10(coin::decimals<AptosCoin>());
-        assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == expected_credit_threshold, ERR_STRATEGY);
-        assert!(!vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY);
         assert!(vault::get_strategy_coin_type<TestStrategy>(&vault_cap) == type_info::type_of<USDT>(), ERR_STRATEGY);
     }
 
@@ -920,28 +915,6 @@ module satay::test_vault {
 
         let credit_available = new_debt_ratio * vault::total_assets<AptosCoin>(&vault_cap) / MAX_DEBT_RATIO_BPS;
         assert!(vault::credit_available<TestStrategy, AptosCoin>(&vault_cap) == credit_available, ERR_STRATEGY_UPDATE);
-
-        let new_max_report_delay = 100;
-        vault::test_update_strategy_max_report_delay<TestStrategy>(
-            &vault_cap,
-            new_max_report_delay,
-            &TestStrategy {}
-        );
-        assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == new_max_report_delay, ERR_STRATEGY_UPDATE);
-
-        let new_credit_threshold = 100;
-        vault::test_update_strategy_credit_threshold<TestStrategy>(
-            &vault_cap,
-            new_credit_threshold,
-            &TestStrategy {}
-        );
-        assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == new_credit_threshold, ERR_STRATEGY_UPDATE);
-
-        vault::test_set_force_harvest_trigger_once<TestStrategy>(
-            &vault_cap,
-            &TestStrategy {}
-        );
-        assert!(vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY_UPDATE);
     }
 
     #[test(

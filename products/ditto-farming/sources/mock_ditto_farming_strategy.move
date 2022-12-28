@@ -285,46 +285,6 @@ module satay_ditto_farming::mock_ditto_farming_strategy {
         );
     }
 
-    // update the strategy credit threshold
-    public entry fun update_credit_threshold(
-        vault_manager: &signer,
-        vault_id: u64,
-        credit_threshold: u64
-    ) {
-        base_strategy::update_credit_threshold<DittoStrategy, AptosCoin>(
-            vault_manager,
-            vault_id,
-            credit_threshold,
-            DittoStrategy {}
-        );
-    }
-
-    // set the strategy force harvest trigger once
-    public entry fun set_force_harvest_trigger_once(
-        vault_manager: &signer,
-        vault_id: u64,
-    ) {
-        base_strategy::set_force_harvest_trigger_once<DittoStrategy, AptosCoin>(
-            vault_manager,
-            vault_id,
-            DittoStrategy {}
-        );
-    }
-
-    // update the strategy max report delay
-    public entry fun update_max_report_delay(
-        strategist: &signer,
-        vault_id: u64,
-        max_report_delay: u64
-    ) {
-        base_strategy::update_max_report_delay<DittoStrategy, AptosCoin>(
-            strategist,
-            vault_id,
-            max_report_delay,
-            DittoStrategy {}
-        );
-    }
-
     // get total AptosCoin balance for strategy
     fun get_strategy_aptos_balance(
         vault_cap: &VaultCapability,
