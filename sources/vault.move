@@ -74,6 +74,7 @@ module satay::vault {
         debt_change_events: EventHandle<DebtChangeEvent>,
         gain_events: EventHandle<GainEvent>,
         loss_events: EventHandle<LossEvent>,
+        harvest_events: EventHandle<HarvestEvent>,
         assess_fees_events: EventHandle<AssessFeesEvent>,
     }
 
@@ -125,6 +126,10 @@ module satay::vault {
 
     struct LossEvent has drop, store {
         loss: u64,
+    }
+
+    struct HarvestEvent has drop, store {
+        timestamp: u64,
     }
 
     struct AssessFeesEvent has drop, store {
@@ -333,6 +338,7 @@ module satay::vault {
             debt_change_events: account::new_event_handle<DebtChangeEvent>(&vault_acc),
             gain_events: account::new_event_handle<GainEvent>(&vault_acc),
             loss_events: account::new_event_handle<LossEvent>(&vault_acc),
+            harvest_events: account::new_event_handle<HarvestEvent>(&vault_acc),
             assess_fees_events: account::new_event_handle<AssessFeesEvent>(&vault_acc),
         });
 
@@ -500,8 +506,12 @@ module satay::vault {
         vault_cap: &VaultCapability,
         _witness: &StrategyType
     ) acquires VaultStrategy {
+        let timestamp = timestamp::now_seconds();
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.last_report = timestamp::now_seconds();
+        strategy.last_report = timestamp;
+        event::emit_event(&mut strategy.harvest_events, HarvestEvent {
+            timestamp
+        });
     }
 
     // report a gain for StrategyType
