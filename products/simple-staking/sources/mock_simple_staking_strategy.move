@@ -147,6 +147,33 @@ module satay_simple_staking::mock_simple_staking_strategy {
         )
     }
 
+    // update the strategy debt ratio
+    public entry fun update_debt_ratio<BaseCoin>(
+        vault_manager: &signer,
+        vault_id: u64,
+        debt_ratio: u64
+    ) {
+        base_strategy::update_debt_ratio<SimpleStakingStrategy, BaseCoin>(
+            vault_manager,
+            vault_id,
+            debt_ratio,
+            SimpleStakingStrategy {}
+        );
+    }
+
+    // revoke the strategy
+    public entry fun revoke<CoinType, BaseCoin>(
+        vault_manager: &signer,
+        vault_id: u64
+    ) {
+        base_strategy::revoke_strategy<SimpleStakingStrategy, BaseCoin>(
+            vault_manager,
+            vault_id,
+            SimpleStakingStrategy {}
+        );
+        harvest<CoinType, BaseCoin>(vault_manager, vault_id);
+    }
+
     fun get_strategy_base_coin_balance<StrategyCoin>(vault_cap: &VaultCapability) : u64 {
         let strategy_coin_balance = base_strategy::balance<StrategyCoin>(vault_cap);
         staking_pool::get_base_coin_for_staking_coin(strategy_coin_balance)

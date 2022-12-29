@@ -14,9 +14,10 @@ module satay_simple_staking::test_simple_staking_strategy {
     use liquidswap_lp::lp_coin::{LP};
 
     use satay::satay;
+    use satay::vault;
 
-    use satay_simple_staking::staking_pool;
-    use satay_simple_staking::mock_simple_staking_strategy;
+    use satay_simple_staking::staking_pool::{Self, StakingCoin};
+    use satay_simple_staking::mock_simple_staking_strategy::{Self, SimpleStakingStrategy};
 
     use test_helpers::test_account;
     use test_coin_admin::test_coins::{Self, USDT};
@@ -34,6 +35,7 @@ module satay_simple_staking::test_simple_staking_strategy {
     const REWARDS_AMOUNT: u64 = 1000000;
 
     const ERR_HARVEST: u64 = 1;
+    const ERR_TEND: u64 = 2;
 
     fun setup_liquidity_pool(
         aptos_framework: &signer,
@@ -155,6 +157,18 @@ module satay_simple_staking::test_simple_staking_strategy {
             user
         );
         mock_simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
+
+        let vault_cap = satay::open_vault(0);
+        let expected_debt = DEPOSIT_AMOUNT * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        assert!(vault::total_debt<SimpleStakingStrategy>(&vault_cap) == expected_debt, ERR_HARVEST);
+        assert!(vault::balance<StakingCoin>(&vault_cap) == expected_debt, ERR_HARVEST);
+
+        let profit_amount = 9;
+        let expected_credit = profit_amount * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        assert!(vault::balance<USDT>(&vault_cap) == DEPOSIT_AMOUNT - expected_debt + profit_amount, ERR_HARVEST);
+        assert!(vault::credit_available<SimpleStakingStrategy, USDT>(&vault_cap) == expected_credit, ERR_HARVEST);
+
+        satay::close_vault(0, vault_cap);
     }
 
     #[test(
@@ -185,6 +199,55 @@ module satay_simple_staking::test_simple_staking_strategy {
             user
         );
         mock_simple_staking_strategy::tend<AptosCoin, USDT>(manager_acc, 0);
+
+        let vault_cap = satay::open_vault(0);
+
+        let profit_amount = 9;
+        let expected_credit = DEPOSIT_AMOUNT * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        assert!(vault::total_debt<SimpleStakingStrategy>(&vault_cap) == 0, ERR_HARVEST);
+        assert!(vault::balance<StakingCoin>(&vault_cap) == profit_amount, ERR_HARVEST);
+        assert!(vault::credit_available<SimpleStakingStrategy, USDT>(&vault_cap) == expected_credit, ERR_HARVEST);
+
+        satay::close_vault(0, vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        pool_account = @liquidswap_pool_account,
+        coins_admin = @test_coin_admin,
+        manager_acc = @satay,
+        staking_pool_admin = @satay_simple_staking,
+        user = @0x45
+    )]
+    fun test_revoke(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        pool_account: &signer,
+        coins_admin: &signer,
+        staking_pool_admin: &signer,
+        manager_acc: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            coins_admin,
+            staking_pool_admin,
+            manager_acc,
+            user
+        );
+        mock_simple_staking_strategy::harvest<AptosCoin, USDT>(manager_acc, 0);
+        mock_simple_staking_strategy::revoke<AptosCoin, USDT>(manager_acc, 0);
+
+        let vault_cap = satay::open_vault(0);
+
+        assert!(vault::total_debt<SimpleStakingStrategy>(&vault_cap) == 0, ERR_HARVEST);
+        assert!(vault::balance<StakingCoin>(&vault_cap) == 0, ERR_HARVEST);
+        assert!(vault::credit_available<SimpleStakingStrategy, USDT>(&vault_cap) == 0, ERR_HARVEST);
+
+        satay::close_vault(0, vault_cap);
     }
 }
 

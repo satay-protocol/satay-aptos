@@ -156,6 +156,18 @@ module satay::mock_strategy {
         );
     }
 
+    public entry fun revoke(
+        vault_manager: &signer,
+        vault_id: u64
+    ) {
+        base_strategy::revoke_strategy<MockStrategy, AptosCoin>(
+            vault_manager,
+            vault_id,
+            MockStrategy {}
+        );
+        harvest(vault_manager, vault_id);
+    }
+
     fun get_strategy_aptos_balance(vault_cap: &VaultCapability): u64 {
         let wrapped_balance = base_strategy::balance<WrappedAptos>(vault_cap);
         aptos_wrapper_product::get_aptos_amount_for_wrapped_amount(wrapped_balance)

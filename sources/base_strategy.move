@@ -300,6 +300,21 @@ module satay::base_strategy {
         );
     }
 
+    // revoke the strategy
+    public fun revoke_strategy<StrategyType: drop, BaseCoin>(
+        vault_manager: &signer,
+        vault_id: u64,
+        witness: StrategyType
+    ) {
+        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
+        global_config::assert_vault_manager<BaseCoin>(vault_manager);
+
+        satay::update_strategy_debt_ratio<StrategyType>(
+            vault_id,0,
+            &witness
+        );
+    }
+
     public fun get_vault_address(vault_cap: &VaultCapability) : address {
         vault::get_vault_addr(vault_cap)
     }
