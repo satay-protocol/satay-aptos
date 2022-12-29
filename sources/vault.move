@@ -30,6 +30,8 @@ module satay::vault {
     const ERR_INVALID_DEBT_RATIO: u64 = 106;
     const ERR_INVALID_FEE: u64 = 107;
     const ERR_INSUFFICIENT_CREDIT: u64 = 108;
+    const ERR_VAULT_FROZEN: u64 = 109;
+    const ERR_VAULT_NOT_FROZEN: u64 = 110;
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>,
@@ -44,9 +46,11 @@ module satay::vault {
         performance_fee: u64,
         debt_ratio: u64,
         total_debt: u64,
+        deposits_frozen: bool,
         user_deposit_events: EventHandle<UserDepositEvent>,
         user_withdraw_events: EventHandle<UserWithdrawEvent>,
         update_fees_events: EventHandle<UpdateFeesEvent>,
+        freeze_events: EventHandle<FreezeEvent>,
     }
 
     struct VaultCapability has store, drop {
@@ -109,6 +113,10 @@ module satay::vault {
         performance_fee: u64,
     }
 
+    struct FreezeEvent has drop, store {
+        frozen: bool,
+    }
+
     // vault strategy events
 
     struct DebtRatioChangeEvent has drop, store {
@@ -159,11 +167,13 @@ module satay::vault {
             base_coin_decimals,
             management_fee,
             performance_fee,
+            deposits_frozen: false,
             debt_ratio: 0,
             total_debt: 0,
             user_deposit_events: account::new_event_handle<UserDepositEvent>(&vault_acc),
             user_withdraw_events: account::new_event_handle<UserWithdrawEvent>(&vault_acc),
             update_fees_events: account::new_event_handle<UpdateFeesEvent>(&vault_acc),
+            freeze_events: account::new_event_handle<FreezeEvent>(&vault_acc),
         };
         move_to(&vault_acc, vault);
 
@@ -223,6 +233,7 @@ module satay::vault {
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, VaultCoinCaps {
+        assert_vault_active(vault_cap);
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
         // mint share amount
         let base_coin_amount = coin::value(&base_coin);
@@ -309,6 +320,24 @@ module satay::vault {
         event::emit_event(&mut vault.update_fees_events, UpdateFeesEvent {
             management_fee,
             performance_fee,
+        });
+    }
+
+    public(friend) fun freeze_vault(vault_cap: &VaultCapability) acquires Vault {
+        assert_vault_active(vault_cap);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.deposits_frozen = true;
+        event::emit_event(&mut vault.freeze_events, FreezeEvent {
+            frozen: true,
+        });
+    }
+
+    public(friend) fun unfreeze_vault(vault_cap: &VaultCapability) acquires Vault {
+        assert_vault_not_active(vault_cap);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.deposits_frozen = false;
+        event::emit_event(&mut vault.freeze_events, FreezeEvent {
+            frozen: false,
         });
     }
 
@@ -579,6 +608,13 @@ module satay::vault {
     ): (u64, u64) acquires Vault {
         let vault = borrow_global<Vault>(vault_cap.vault_addr);
         (vault.management_fee, vault.performance_fee)
+    }
+
+    public fun is_vault_frozen(
+        vault_cap: &VaultCapability
+    ): bool acquires Vault {
+        let vault = borrow_global<Vault>(vault_cap.vault_addr);
+        vault.deposits_frozen
     }
 
     public fun get_debt_ratio(
@@ -871,6 +907,14 @@ module satay::vault {
         assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
     }
 
+    fun assert_vault_active(vault_cap: &VaultCapability) acquires Vault {
+        assert!(!is_vault_frozen(vault_cap), ERR_VAULT_FROZEN);
+    }
+
+    fun assert_vault_not_active(vault_cap: &VaultCapability) acquires Vault {
+        assert!(is_vault_frozen(vault_cap), ERR_VAULT_NOT_FROZEN);
+    }
+
     // test functions
 
     #[test_only]
@@ -944,6 +988,20 @@ module satay::vault {
         performance_fee: u64
     ) acquires Vault {
         update_fee(vault_cap, management_fee, performance_fee);
+    }
+
+    #[test_only]
+    public fun test_freeze_vault(
+        vault_cap: &VaultCapability
+    ) acquires Vault {
+        freeze_vault(vault_cap);
+    }
+
+    #[test_only]
+    public fun test_unfreeze_vault(
+        vault_cap: &VaultCapability
+    ) acquires Vault {
+        unfreeze_vault(vault_cap);
     }
 
     #[test_only]

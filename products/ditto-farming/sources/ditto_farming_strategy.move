@@ -284,6 +284,19 @@ module satay_ditto_farming::ditto_farming_strategy {
         );
     }
 
+    // revoke the strategy
+    public entry fun revoke(
+        vault_manager: &signer,
+        vault_id: u64
+    ) acquires DittoStrategyAccount {
+        base_strategy::revoke_strategy<DittoStrategy, AptosCoin>(
+            vault_manager,
+            vault_id,
+            DittoStrategy {}
+        );
+        harvest(vault_manager, vault_id);
+    }
+
     // get total AptosCoin balance for strategy
     fun get_strategy_aptos_balance(
         vault_cap: &VaultCapability,

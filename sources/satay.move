@@ -89,6 +89,34 @@ module satay::satay {
         vault::update_fee(vault_cap, management_fee, performance_fee);
     }
 
+    public entry fun freeze_vault(
+        governance: &signer,
+        vault_id: u64
+    ) acquires ManagerAccount {
+        global_config::assert_governance(governance);
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+
+        vault::freeze_vault(vault_cap);
+    }
+
+    public entry fun unfreeze_vault(
+        governance: &signer,
+        vault_id: u64
+    ) acquires ManagerAccount {
+        global_config::assert_governance(governance);
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+
+        vault::unfreeze_vault(vault_cap);
+    }
+
     // called by users
 
     // user deposits amount of BaseCoin into vault_id of manager_addr
@@ -262,6 +290,13 @@ module satay::satay {
         vault_cap_lock: &VaultCapLock<StrategyType>
     ): u64 {
         vault_cap_lock.vault_id
+    }
+
+    public fun is_vault_frozen(vault_id: u64): bool acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        vault::is_vault_frozen(option::borrow(&vault_info.vault_cap))
     }
 
     public fun assert_base_coin_correct_for_vault<BaseCoin>(
