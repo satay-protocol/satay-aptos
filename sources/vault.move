@@ -9,6 +9,7 @@ module satay::vault {
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
     use aptos_framework::timestamp;
+    use aptos_framework::event::{Self, EventHandle};
 
     use satay::dao_storage;
     use satay::math;
@@ -41,6 +42,8 @@ module satay::vault {
         performance_fee: u64,
         debt_ratio: u64,
         total_debt: u64,
+        deposit_event: EventHandle<DepositEvent>,
+        withdraw_event: EventHandle<WithdrawEvent>,
     }
 
     struct VaultCapability has store, drop {
@@ -64,6 +67,20 @@ module satay::vault {
         total_gain: u64,
         total_loss: u64,
         last_report: u64,
+    }
+
+    // events
+
+    struct DepositEvent has drop, store {
+        user_addr: address,
+        base_coin_amount: u64,
+        vault_coin_amount: u64,
+    }
+
+    struct WithdrawEvent has drop, store {
+        user_addr: address,
+        base_coin_amount: u64,
+        vault_coin_amount: u64,
     }
 
     // for satay
@@ -91,6 +108,8 @@ module satay::vault {
             performance_fee,
             debt_ratio: 0,
             total_debt: 0,
+            deposit_event: account::new_event_handle<DepositEvent>(&vault_acc),
+            withdraw_event: account::new_event_handle<WithdrawEvent>(&vault_acc),
         };
         move_to(&vault_acc, vault);
 
@@ -151,12 +170,21 @@ module satay::vault {
     ) acquires Vault, CoinStore, VaultCoinCaps {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
         // mint share amount
-        let share_token_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
+        let base_coin_amount = coin::value(&base_coin);
+        let vault_coin_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
             vault_cap,
-            coin::value(&base_coin)
+            base_coin_amount
         );
-        mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
+        mint_vault_coin<BaseCoin>(user, vault_cap, vault_coin_amount);
         deposit(vault_cap, base_coin);
+
+        // emit deposit event
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        event::emit_event(&mut vault.deposit_event, DepositEvent {
+            user_addr: signer::address_of(user),
+            base_coin_amount,
+            vault_coin_amount
+        });
     }
 
     // withdraw base_coin from the vault
@@ -164,16 +192,24 @@ module satay::vault {
     public(friend) fun withdraw_as_user<BaseCoin>(
         user: &signer,
         vault_cap: &VaultCapability,
-        amount: u64
+        vault_coin_amount: u64
     ): Coin<BaseCoin> acquires CoinStore, Vault, VaultCoinCaps {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
-        let withdraw_amount = calculate_base_coin_amount_from_share<BaseCoin>(
+        let base_coin_amount = calculate_base_coin_amount_from_share<BaseCoin>(
             vault_cap,
-            amount
+            vault_coin_amount
         );
-        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
-        withdraw<BaseCoin>(vault_cap, withdraw_amount)
+        burn_vault_coins<BaseCoin>(user, vault_cap, vault_coin_amount);
+
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        event::emit_event(&mut vault.withdraw_event, WithdrawEvent {
+            user_addr: signer::address_of(user),
+            base_coin_amount,
+            vault_coin_amount,
+        });
+
+        withdraw<BaseCoin>(vault_cap, base_coin_amount)
     }
 
     // calculates amount of BaseCoin to return given an amount of VaultCoin to burn
