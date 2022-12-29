@@ -9,6 +9,7 @@ module satay::vault {
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
     use aptos_framework::timestamp;
+    use aptos_framework::event::{Self, EventHandle};
 
     use satay::dao_storage;
     use satay::math;
@@ -31,7 +32,9 @@ module satay::vault {
     const ERR_INSUFFICIENT_CREDIT: u64 = 108;
 
     struct CoinStore<phantom CoinType> has key {
-        coin: Coin<CoinType>
+        coin: Coin<CoinType>,
+        deposit_events: EventHandle<DepositEvent>,
+        withdraw_events: EventHandle<WithdrawEvent>,
     }
 
     struct Vault has key {
@@ -41,6 +44,9 @@ module satay::vault {
         performance_fee: u64,
         debt_ratio: u64,
         total_debt: u64,
+        user_deposit_events: EventHandle<UserDepositEvent>,
+        user_withdraw_events: EventHandle<UserWithdrawEvent>,
+        update_fees_events: EventHandle<UpdateFeesEvent>,
     }
 
     struct VaultCapability has store, drop {
@@ -64,6 +70,70 @@ module satay::vault {
         total_gain: u64,
         total_loss: u64,
         last_report: u64,
+        debt_ratio_change_events: EventHandle<DebtRatioChangeEvent>,
+        debt_change_events: EventHandle<DebtChangeEvent>,
+        gain_events: EventHandle<GainEvent>,
+        loss_events: EventHandle<LossEvent>,
+        harvest_events: EventHandle<HarvestEvent>,
+        assess_fees_events: EventHandle<AssessFeesEvent>,
+    }
+
+    // events
+
+    // coin store events
+
+    struct DepositEvent has drop, store {
+        amount: u64,
+    }
+
+    struct WithdrawEvent has drop, store {
+        amount: u64,
+    }
+
+    // vault events
+
+    struct UserDepositEvent has drop, store {
+        user_addr: address,
+        base_coin_amount: u64,
+        vault_coin_amount: u64,
+    }
+
+    struct UserWithdrawEvent has drop, store {
+        user_addr: address,
+        base_coin_amount: u64,
+        vault_coin_amount: u64,
+    }
+
+    struct UpdateFeesEvent has drop, store {
+        management_fee: u64,
+        performance_fee: u64,
+    }
+
+    // vault strategy events
+
+    struct DebtRatioChangeEvent has drop, store {
+        debt_ratio: u64,
+    }
+
+    struct DebtChangeEvent has drop, store {
+        debt_payment: u64,
+        credit: u64,
+    }
+
+    struct GainEvent has drop, store {
+        gain: u64,
+    }
+
+    struct LossEvent has drop, store {
+        loss: u64,
+    }
+
+    struct HarvestEvent has drop, store {
+        timestamp: u64,
+    }
+
+    struct AssessFeesEvent has drop, store {
+        vault_coin_amount: u64
     }
 
     // for satay
@@ -91,6 +161,9 @@ module satay::vault {
             performance_fee,
             debt_ratio: 0,
             total_debt: 0,
+            user_deposit_events: account::new_event_handle<UserDepositEvent>(&vault_acc),
+            user_withdraw_events: account::new_event_handle<UserWithdrawEvent>(&vault_acc),
+            update_fees_events: account::new_event_handle<UpdateFeesEvent>(&vault_acc),
         };
         move_to(&vault_acc, vault);
 
@@ -133,11 +206,12 @@ module satay::vault {
     public(friend) fun add_coin<CoinType>(
         vault_cap: &VaultCapability
     ) {
-        let owner = account::create_signer_with_capability(&vault_cap.storage_cap);
-        move_to(
-            &owner,
-            CoinStore<CoinType> { coin: coin::zero() }
-        );
+        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
+        move_to(&vault_acc, CoinStore<CoinType> {
+            coin: coin::zero(),
+            deposit_events: account::new_event_handle<DepositEvent>(&vault_acc),
+            withdraw_events: account::new_event_handle<WithdrawEvent>(&vault_acc),
+        });
     }
 
     // user functions
@@ -151,12 +225,21 @@ module satay::vault {
     ) acquires Vault, CoinStore, VaultCoinCaps {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
         // mint share amount
-        let share_token_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
+        let base_coin_amount = coin::value(&base_coin);
+        let vault_coin_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
             vault_cap,
-            coin::value(&base_coin)
+            base_coin_amount
         );
-        mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
+        mint_vault_coin<BaseCoin>(user, vault_cap, vault_coin_amount);
         deposit(vault_cap, base_coin);
+
+        // emit deposit event
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        event::emit_event(&mut vault.user_deposit_events, UserDepositEvent {
+            user_addr: signer::address_of(user),
+            base_coin_amount,
+            vault_coin_amount
+        });
     }
 
     // withdraw base_coin from the vault
@@ -164,16 +247,24 @@ module satay::vault {
     public(friend) fun withdraw_as_user<BaseCoin>(
         user: &signer,
         vault_cap: &VaultCapability,
-        amount: u64
+        vault_coin_amount: u64
     ): Coin<BaseCoin> acquires CoinStore, Vault, VaultCoinCaps {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
-        let withdraw_amount = calculate_base_coin_amount_from_share<BaseCoin>(
+        let base_coin_amount = calculate_base_coin_amount_from_share<BaseCoin>(
             vault_cap,
-            amount
+            vault_coin_amount
         );
-        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
-        withdraw<BaseCoin>(vault_cap, withdraw_amount)
+        burn_vault_coins<BaseCoin>(user, vault_cap, vault_coin_amount);
+
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        event::emit_event(&mut vault.user_withdraw_events, UserWithdrawEvent {
+            user_addr: signer::address_of(user),
+            base_coin_amount,
+            vault_coin_amount,
+        });
+
+        withdraw<BaseCoin>(vault_cap, base_coin_amount)
     }
 
     // calculates amount of BaseCoin to return given an amount of VaultCoin to burn
@@ -214,6 +305,11 @@ module satay::vault {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         vault.management_fee = management_fee;
         vault.performance_fee = performance_fee;
+
+        event::emit_event(&mut vault.update_fees_events, UpdateFeesEvent {
+            management_fee,
+            performance_fee,
+        });
     }
 
     // for strategies
@@ -223,7 +319,7 @@ module satay::vault {
         vault_cap: &VaultCapability,
         debt_ratio: u64,
         _witness: &StrategyType
-    ) acquires Vault {
+    ) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         // check if the strategy's updated debt ratio is valid
@@ -237,7 +333,19 @@ module satay::vault {
             total_debt: 0,
             total_gain: 0,
             total_loss: 0,
-            last_report: timestamp::now_seconds()
+            last_report: timestamp::now_seconds(),
+            debt_ratio_change_events: account::new_event_handle<DebtRatioChangeEvent>(&vault_acc),
+            debt_change_events: account::new_event_handle<DebtChangeEvent>(&vault_acc),
+            gain_events: account::new_event_handle<GainEvent>(&vault_acc),
+            loss_events: account::new_event_handle<LossEvent>(&vault_acc),
+            harvest_events: account::new_event_handle<HarvestEvent>(&vault_acc),
+            assess_fees_events: account::new_event_handle<AssessFeesEvent>(&vault_acc),
+        });
+
+        // emit debt ratio change event
+        let vault_strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        event::emit_event(&mut vault_strategy.debt_ratio_change_events, DebtRatioChangeEvent {
+            debt_ratio,
         });
 
         if(!has_coin<StrategyCoin>(vault_cap)){
@@ -263,6 +371,11 @@ module satay::vault {
 
         // check if the strategy's updated debt ratio is valid
         assert!(vault.debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
+
+        // emit debt ratio change event
+        event::emit_event(&mut strategy.debt_ratio_change_events, DebtRatioChangeEvent {
+            debt_ratio,
+        });
 
         debt_ratio
     }
@@ -372,15 +485,20 @@ module satay::vault {
         };
 
         // calculate amount of share tokens to mint
-        let share_token_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
+        let vault_coin_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
             vault_cap,
             total_fee_amount
         );
 
         // mint vault coins to dao storage
         let caps = borrow_global<VaultCoinCaps<BaseCoin>>(vault_cap.vault_addr);
-        let coins = coin::mint<VaultCoin<BaseCoin>>(share_token_amount, &caps.mint_cap);
+        let coins = coin::mint<VaultCoin<BaseCoin>>(vault_coin_amount, &caps.mint_cap);
         dao_storage::deposit<VaultCoin<BaseCoin>>(vault_cap.vault_addr, coins);
+
+        // emit fee event
+        event::emit_event(&mut strategy.assess_fees_events, AssessFeesEvent {
+            vault_coin_amount
+        });
     }
 
     // report time for StrategyType
@@ -388,18 +506,26 @@ module satay::vault {
         vault_cap: &VaultCapability,
         _witness: &StrategyType
     ) acquires VaultStrategy {
+        let timestamp = timestamp::now_seconds();
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.last_report = timestamp::now_seconds();
+        strategy.last_report = timestamp;
+        event::emit_event(&mut strategy.harvest_events, HarvestEvent {
+            timestamp
+        });
     }
 
     // report a gain for StrategyType
     fun report_gain<StrategyType: drop>(
         vault_cap: &VaultCapability,
-        profit: u64,
+        gain: u64,
         _witness: &StrategyType
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.total_gain = strategy.total_gain + profit;
+        strategy.total_gain = strategy.total_gain + gain;
+        // emit gain event
+        event::emit_event(&mut strategy.gain_events, GainEvent {
+            gain,
+        });
     }
 
     // report a loss for StrategyType
@@ -423,6 +549,11 @@ module satay::vault {
         strategy.total_loss = strategy.total_loss + loss;
         strategy.total_debt = strategy.total_debt - loss;
         vault.total_debt = vault.total_debt - loss;
+
+        // emit loss event
+        event::emit_event(&mut strategy.loss_events, LossEvent {
+            loss,
+        });
     }
 
     // getters
@@ -662,6 +793,9 @@ module satay::vault {
         coin: Coin<CoinType>
     ) acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        event::emit_event(&mut store.deposit_events, DepositEvent {
+            amount: coin::value(&coin)
+        });
         coin::merge(&mut store.coin, coin);
     }
 
@@ -671,6 +805,9 @@ module satay::vault {
         amount: u64
     ): Coin<CoinType> acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        event::emit_event(&mut store.deposit_events, DepositEvent {
+            amount
+        });
         coin::extract(&mut store.coin, amount)
     }
 
@@ -712,6 +849,12 @@ module satay::vault {
 
         vault.total_debt = vault.total_debt + credit - debt_payment;
         strategy.total_debt = strategy.total_debt + credit - debt_payment;
+
+        // emit debt change event
+        event::emit_event(&mut strategy.debt_change_events, DebtChangeEvent {
+            debt_payment,
+            credit
+        })
     }
 
     fun assert_strategy_coin_correct_for_strategy_type<StrategyType: drop, StrategyCoin> (
@@ -786,7 +929,7 @@ module satay::vault {
         vault_cap: &VaultCapability,
         debt_ratio: u64,
         witness: StrategyType
-    ) acquires Vault {
+    ) acquires Vault, VaultStrategy {
         approve_strategy<StrategyType, StrategyCoin>(
             vault_cap,
             debt_ratio,
