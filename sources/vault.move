@@ -128,8 +128,7 @@ module satay::vault {
     }
 
     struct AssessFeesEvent has drop, store {
-        management_fee_amount: u64,
-        performance_fee_amount: u64,
+        vault_coin_amount: u64
     }
 
     // for satay
@@ -480,20 +479,19 @@ module satay::vault {
         };
 
         // calculate amount of share tokens to mint
-        let share_token_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
+        let vault_coin_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
             vault_cap,
             total_fee_amount
         );
 
         // mint vault coins to dao storage
         let caps = borrow_global<VaultCoinCaps<BaseCoin>>(vault_cap.vault_addr);
-        let coins = coin::mint<VaultCoin<BaseCoin>>(share_token_amount, &caps.mint_cap);
+        let coins = coin::mint<VaultCoin<BaseCoin>>(vault_coin_amount, &caps.mint_cap);
         dao_storage::deposit<VaultCoin<BaseCoin>>(vault_cap.vault_addr, coins);
 
         // emit fee event
         event::emit_event(&mut strategy.assess_fees_events, AssessFeesEvent {
-            management_fee_amount,
-            performance_fee_amount,
+            vault_coin_amount
         });
     }
 
