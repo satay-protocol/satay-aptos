@@ -41,6 +41,7 @@ module satay::test_vault {
     const ERR_ASSESS_FEES: u64 = 11;
     const ERR_DEBT_PAYMENT: u64 = 12;
     const ERR_DEPOSIT_PROFIT: u64 = 13;
+    const ERR_FREEZE_VAULT: u64 = 14;
 
     #[test_only]
     fun setup_tests(
@@ -488,6 +489,124 @@ module satay::test_vault {
         coin::deposit<AptosCoin>(user_a_address, coins);
         let expected_withdraw_amount = (total_deposits + farm_amount) / total_deposits * withdraw_amount;
         assert!(withdraw_amount == expected_withdraw_amount, ERR_INCORRECT_VAULT_COIN_AMOUNT);
+    }
+
+
+    // test freeze and unfreeze
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_freeze_vault(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        assert!(vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    #[expected_failure]
+    fun test_freeze_while_frozen(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        vault::test_freeze_vault(&vault_cap);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_unfreeze_vault(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        vault::test_unfreeze_vault(&vault_cap);
+        assert!(!vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    #[expected_failure]
+    fun test_unfreeze_while_unfrozen(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_unfreeze_vault(&vault_cap);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_withdraw_after_freeze(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        vault::test_freeze_vault(&vault_cap);
+        let user_address = signer::address_of(user);
+        let aptos_coins = vault::test_withdraw_as_user<AptosCoin>(user, &vault_cap, USER_DEPOSIT);
+        coin::deposit(user_address, aptos_coins);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_FREEZE_VAULT);
+        assert!(coin::balance<AptosCoin>(user_address) == USER_DEPOSIT, ERR_FREEZE_VAULT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    #[expected_failure]
+    fun test_deposit_after_freeze(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_deposit_after_unfreeze(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        vault::test_unfreeze_vault(&vault_cap);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT, ERR_FREEZE_VAULT);
     }
 
     // test strategy functions
