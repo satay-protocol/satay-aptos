@@ -286,7 +286,11 @@ module satay::vault {
         let total_assets = total_assets<BaseCoin>(vault_cap);
         let share_total_supply_option = coin::supply<VaultCoin<BaseCoin>>();
         let share_total_supply = option::get_with_default<u128>(&share_total_supply_option, 0);
-        math::mul_div_u128((total_assets as u128), (share as u128), share_total_supply)
+        math::calculate_proportion_of_u64_with_u128_denominator(
+            total_assets,
+            share,
+            share_total_supply
+        )
     }
 
     public fun calculate_share_amount_from_base_coin_amount<BaseCoin>(
@@ -297,7 +301,14 @@ module satay::vault {
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
 
         if (total_supply != 0) {
-            math::mul_div_u128(total_supply, (base_coin_amount as u128), (total_base_coin_amount as u128))
+            // this function will abort if total_supply * base_coin_amount > u128::max_value()
+            // in practice, this should never happen. If it does, base_coin_amount should be reduced and split into
+            // two transactions
+            math::mul_u128_u64_div_u64_result_u64(
+                total_supply,
+                base_coin_amount,
+                total_base_coin_amount
+            )
         } else {
             base_coin_amount
         }
@@ -501,12 +512,19 @@ module satay::vault {
             return
         };
 
-        let management_fee_amount = math::mul_div_u128(
-            math::mul_to_u128(strategy.total_debt, duration),
-            (vault.management_fee as u128),
-            math::mul_to_u128(MAX_DEBT_RATIO_BPS, SECS_PER_YEAR)
+        // management_fee is at most 5000, so u64 numerator will not overflow for durations < (2^64 - 1) / 5000
+        // (2^64 - 1) / 5000 seconds equals roughly 5.8 million years
+        // denominator is constant 3.2 * 10 ^ 11, which is less than 2^64 - 1, and cannot overflow
+        let management_fee_amount = math::mul_div(
+            strategy.total_debt,
+            vault.management_fee * duration,
+            MAX_DEBT_RATIO_BPS * SECS_PER_YEAR
         );
-        let performance_fee_amount = math::mul_div(gain, vault.performance_fee, MAX_DEBT_RATIO_BPS);
+        let performance_fee_amount = math::calculate_proportion_of_u64_with_u64_denominator(
+            gain,
+            vault.performance_fee,
+            MAX_DEBT_RATIO_BPS
+        );
 
         let total_fee_amount = management_fee_amount + performance_fee_amount;
         if (total_fee_amount > gain) {
@@ -567,7 +585,11 @@ module satay::vault {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
         if (vault.debt_ratio != 0) {
-            let ratio_change = math::mul_div(loss, vault.debt_ratio, vault.total_debt);
+            let ratio_change = math::calculate_proportion_of_u64_with_u64_denominator(
+                vault.debt_ratio,
+                loss,
+                vault.total_debt
+            );
             if (ratio_change > strategy.debt_ratio) {
                 ratio_change = strategy.debt_ratio;
             };
@@ -692,11 +714,19 @@ module satay::vault {
         let vault_debt_ratio = vault.debt_ratio;
         let vault_total_debt = vault.total_debt;
         let vault_total_assets = total_assets<BaseCoin>(vault_cap);
-        let vault_debt_limit = math::mul_div(vault_debt_ratio, vault_total_assets, MAX_DEBT_RATIO_BPS);
+        let vault_debt_limit = math::calculate_proportion_of_u64_with_u64_denominator(
+            vault_total_assets,
+            vault_debt_ratio,
+            MAX_DEBT_RATIO_BPS
+        );
 
         let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
 
-        let strategy_debt_limit = math::mul_div(strategy.debt_ratio, vault_total_assets, MAX_DEBT_RATIO_BPS);
+        let strategy_debt_limit = math::calculate_proportion_of_u64_with_u64_denominator(
+            vault_total_assets,
+            strategy.debt_ratio,
+            MAX_DEBT_RATIO_BPS
+        );
         let strategy_total_debt = strategy.total_debt;
 
         if (strategy_debt_limit <= strategy_total_debt || vault_debt_limit <= vault_total_debt) {
@@ -731,7 +761,11 @@ module satay::vault {
         };
 
         let vault_total_assets = total_assets<BaseCoin>(vault_cap);
-        let strategy_debt_limit = math::mul_div(strategy.debt_ratio, vault_total_assets, MAX_DEBT_RATIO_BPS);
+        let strategy_debt_limit = math::calculate_proportion_of_u64_with_u64_denominator(
+            vault_total_assets,
+            strategy.debt_ratio,
+            MAX_DEBT_RATIO_BPS
+        );
         let strategy_total_debt = strategy.total_debt;
 
         if (strategy_total_debt <= strategy_debt_limit) {
@@ -811,7 +845,11 @@ module satay::vault {
         let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(user_addr);
         let share_total_supply_option = coin::supply<VaultCoin<BaseCoin>>();
         let share_total_supply = option::get_with_default<u128>(&share_total_supply_option, 0);
-        math::mul_div_u128((total_assets as u128), (user_share_amount as u128), share_total_supply)
+        math::calculate_proportion_of_u64_with_u128_denominator(
+            total_assets,
+            user_share_amount,
+            share_total_supply
+        )
     }
 
     public fun assert_base_coin_correct_for_vault_cap<BaseCoin> (
