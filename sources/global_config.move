@@ -1,8 +1,8 @@
 module satay::global_config {
     use std::signer;
 
-    use aptos_framework::account::SignerCapability;
-    use aptos_framework::account;
+    use aptos_framework::account::{Self, SignerCapability};
+    use aptos_framework::event::{Self, EventHandle};
 
     friend satay::satay;
 
@@ -36,12 +36,15 @@ module satay::global_config {
         governance_address: address,
         new_dao_admin_address: address,
         new_governance_address: address,
+        dao_admin_change_events: EventHandle<DaoAdminChangeEvent>,
+        governance_change_events: EventHandle<GovernanceChangeEvent>,
     }
 
     /// The vault configuration
     struct VaultConfig<phantom BaseCoin> has key {
         vault_manager_address: address,
         new_vault_manager_address: address,
+        vault_manager_change_events: EventHandle<VaultManagerChangeEvent>,
     }
 
     /// The strategy configuration
@@ -50,14 +53,38 @@ module satay::global_config {
         keeper_address: address,
         new_strategist_address: address,
         new_keeper_address: address,
+        strategist_change_events: EventHandle<StrategistChangeEvent>,
+        keeper_change_events: EventHandle<KeeperChangeEvent>,
     }
 
     struct GlobalConfigResourceAccount has key {
         signer_cap: SignerCapability
     }
 
+    // events
+
+    struct DaoAdminChangeEvent has drop, store {
+        new_dao_admin_address: address,
+    }
+
+    struct GovernanceChangeEvent has drop, store {
+        new_governance_address: address,
+    }
+
+    struct VaultManagerChangeEvent has drop, store {
+        new_vault_manager_address: address,
+    }
+
+    struct StrategistChangeEvent has drop, store {
+        new_strategist_address: address,
+    }
+
+    struct KeeperChangeEvent has drop, store {
+        new_keeper_address: address,
+    }
+
     /// Initialize admin contracts when initializing the satay
-    public(friend) fun initialize(satay_admin: &signer) {
+    public(friend) fun initialize(satay_admin: &signer) acquires GlobalConfig {
         assert!(signer::address_of(satay_admin) == @satay, ERR_NOT_SATAY);
 
         let (global_config_signer, signer_cap) = account::create_resource_account(
@@ -72,13 +99,24 @@ module satay::global_config {
             governance_address: @satay,
             new_dao_admin_address: @0x0,
             new_governance_address: @0x0,
+            dao_admin_change_events: account::new_event_handle<DaoAdminChangeEvent>(&global_config_signer),
+            governance_change_events: account::new_event_handle<GovernanceChangeEvent>(&global_config_signer),
+        });
+
+        let global_config_account_address = signer::address_of(&global_config_signer);
+        let global_config = borrow_global_mut<GlobalConfig>(global_config_account_address);
+        event::emit_event(&mut global_config.dao_admin_change_events, DaoAdminChangeEvent {
+            new_dao_admin_address: @satay
+        });
+        event::emit_event(&mut global_config.governance_change_events, GovernanceChangeEvent {
+            new_governance_address: @satay
         });
     }
 
     /// Initialize admin contracts when intializing the vault
     public(friend) fun initialize_vault<BaseCoin>(
         governance: &signer
-    ) acquires GlobalConfigResourceAccount, GlobalConfig {
+    ) acquires GlobalConfigResourceAccount, GlobalConfig, VaultConfig {
         assert_governance(governance);
 
         let global_config_account = borrow_global<GlobalConfigResourceAccount>(@satay);
@@ -87,13 +125,20 @@ module satay::global_config {
         move_to(&global_config_signer, VaultConfig<BaseCoin> {
             vault_manager_address: @satay,
             new_vault_manager_address: @0x0,
+            vault_manager_change_events: account::new_event_handle<VaultManagerChangeEvent>(&global_config_signer),
+        });
+
+        let global_config_account_address = signer::address_of(&global_config_signer);
+        let vault_config = borrow_global_mut<VaultConfig<BaseCoin>>(global_config_account_address);
+        event::emit_event(&mut vault_config.vault_manager_change_events, VaultManagerChangeEvent {
+            new_vault_manager_address: @satay
         });
     }
 
     /// Initialize admin contracts when initializing the strategy
     public(friend) fun initialize_strategy<StrategyType: drop>(
         governance: &signer
-    ) acquires GlobalConfig, GlobalConfigResourceAccount {
+    ) acquires GlobalConfig, GlobalConfigResourceAccount, StrategyConfig {
         assert_governance(governance);
 
         let global_config_account = borrow_global<GlobalConfigResourceAccount>(@satay);
@@ -104,8 +149,21 @@ module satay::global_config {
             keeper_address: @satay,
             new_strategist_address: @0x0,
             new_keeper_address: @0x0,
+            strategist_change_events: account::new_event_handle<StrategistChangeEvent>(&global_config_signer),
+            keeper_change_events: account::new_event_handle<KeeperChangeEvent>(&global_config_signer),
+        });
+
+        let global_config_account_address = signer::address_of(&global_config_signer);
+        let strategy_config = borrow_global_mut<StrategyConfig<StrategyType>>(global_config_account_address);
+        event::emit_event(&mut strategy_config.strategist_change_events, StrategistChangeEvent {
+            new_strategist_address: @satay
+        });
+        event::emit_event(&mut strategy_config.keeper_change_events, KeeperChangeEvent {
+            new_keeper_address: @satay
         });
     }
+
+    // getter functions
 
     public fun get_global_config_account_address(): address acquires GlobalConfigResourceAccount {
         assert!(exists<GlobalConfigResourceAccount>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
@@ -237,13 +295,17 @@ module satay::global_config {
     ) acquires GlobalConfigResourceAccount, GlobalConfig {
         let global_config_account_address = get_global_config_account_address();
 
-        let new_addr = signer::address_of(new_dao_admin);
+        let new_dao_admin_address = signer::address_of(new_dao_admin);
         let config = borrow_global_mut<GlobalConfig>(global_config_account_address);
 
-        assert!(config.new_dao_admin_address == new_addr, ERR_NOT_ADMIN);
+        assert!(config.new_dao_admin_address == new_dao_admin_address, ERR_NOT_ADMIN);
 
-        config.dao_admin_address = new_addr;
+        config.dao_admin_address = new_dao_admin_address;
         config.new_dao_admin_address = @0x0;
+
+        event::emit_event(&mut config.dao_admin_change_events, DaoAdminChangeEvent {
+            new_dao_admin_address
+        });
     }
 
     /// set new Governance address
@@ -266,13 +328,17 @@ module satay::global_config {
     ) acquires GlobalConfigResourceAccount, GlobalConfig {
         let global_config_account_address = get_global_config_account_address();
 
-        let new_addr = signer::address_of(new_governance);
+        let new_governance_address = signer::address_of(new_governance);
         let config = borrow_global_mut<GlobalConfig>(global_config_account_address);
 
-        assert!(config.new_governance_address == new_addr, ERR_NOT_ADMIN);
+        assert!(config.new_governance_address == new_governance_address, ERR_NOT_ADMIN);
 
-        config.governance_address = new_addr;
+        config.governance_address = new_governance_address;
         config.new_governance_address = @0x0;
+
+        event::emit_event(&mut config.governance_change_events, GovernanceChangeEvent {
+            new_governance_address
+        });
     }
 
     /// set new Vault manager address
@@ -295,13 +361,17 @@ module satay::global_config {
     ) acquires GlobalConfigResourceAccount, VaultConfig {
         let global_config_account_address = get_global_config_account_address();
 
-        let new_addr = signer::address_of(new_vault_manager);
+        let new_vault_manager_address = signer::address_of(new_vault_manager);
         let config = borrow_global_mut<VaultConfig<BaseCoin>>(global_config_account_address);
 
-        assert!(config.new_vault_manager_address == new_addr, ERR_NOT_MANAGER);
+        assert!(config.new_vault_manager_address == new_vault_manager_address, ERR_NOT_MANAGER);
 
-        config.vault_manager_address = new_addr;
+        config.vault_manager_address = new_vault_manager_address;
         config.new_vault_manager_address = @0x0;
+
+        event::emit_event(&mut config.vault_manager_change_events, VaultManagerChangeEvent {
+            new_vault_manager_address
+        });
     }
 
     /// set new Strategist address
@@ -324,13 +394,17 @@ module satay::global_config {
     ) acquires GlobalConfigResourceAccount, StrategyConfig {
         let global_config_account_address = get_global_config_account_address();
 
-        let new_addr = signer::address_of(strategist);
+        let new_strategist_address = signer::address_of(strategist);
         let config = borrow_global_mut<StrategyConfig<StrategyType>>(global_config_account_address);
 
-        assert!(config.new_strategist_address == new_addr, ERR_NOT_MANAGER);
+        assert!(config.new_strategist_address == new_strategist_address, ERR_NOT_MANAGER);
 
-        config.strategist_address = new_addr;
+        config.strategist_address = new_strategist_address;
         config.new_strategist_address = @0x0;
+
+        event::emit_event(&mut config.strategist_change_events, StrategistChangeEvent {
+            new_strategist_address
+        });
     }
 
     /// set new Keeper address
@@ -353,12 +427,16 @@ module satay::global_config {
 
         assert!(exists<StrategyConfig<StrategyType>>(global_config_account_address), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let new_addr = signer::address_of(keeper);
+        let new_keeper_address = signer::address_of(keeper);
         let config = borrow_global_mut<StrategyConfig<StrategyType>>(global_config_account_address);
 
-        assert!(config.new_keeper_address == new_addr, ERR_NOT_MANAGER);
+        assert!(config.new_keeper_address == new_keeper_address, ERR_NOT_MANAGER);
 
-        config.keeper_address = new_addr;
+        config.keeper_address = new_keeper_address;
         config.new_keeper_address = @0x0;
+
+        event::emit_event(&mut config.keeper_change_events, KeeperChangeEvent {
+            new_keeper_address
+        });
     }
 }

@@ -9,6 +9,7 @@ module satay::vault {
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability, FreezeCapability};
     use aptos_framework::timestamp;
+    use aptos_framework::event::{Self, EventHandle};
 
     use satay::dao_storage;
     use satay::math;
@@ -21,9 +22,6 @@ module satay::vault {
     const MAX_PERFORMANCE_FEE: u64 = 5000; // 50%
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
 
-    const DEFAULT_MAX_REPORT_DELAY: u64 = 30 * 24 * 3600; // 30 days
-    const DEFAULT_CREDIT_THRESHOLD: u64 = 10000; // 10,000
-
     const ERR_NO_USER_POSITION: u64 = 101;
     const ERR_NOT_ENOUGH_USER_POSITION: u64 = 102;
     const ERR_COIN: u64 = 103;
@@ -32,10 +30,13 @@ module satay::vault {
     const ERR_INVALID_DEBT_RATIO: u64 = 106;
     const ERR_INVALID_FEE: u64 = 107;
     const ERR_INSUFFICIENT_CREDIT: u64 = 108;
-    const ERR_INVALID_SHARE_AMOUNT: u64 = 109;
+    const ERR_VAULT_FROZEN: u64 = 109;
+    const ERR_VAULT_NOT_FROZEN: u64 = 110;
 
     struct CoinStore<phantom CoinType> has key {
-        coin: Coin<CoinType>
+        coin: Coin<CoinType>,
+        deposit_events: EventHandle<DepositEvent>,
+        withdraw_events: EventHandle<WithdrawEvent>,
     }
 
     struct Vault has key {
@@ -45,6 +46,11 @@ module satay::vault {
         performance_fee: u64,
         debt_ratio: u64,
         total_debt: u64,
+        deposits_frozen: bool,
+        user_deposit_events: EventHandle<UserDepositEvent>,
+        user_withdraw_events: EventHandle<UserWithdrawEvent>,
+        update_fees_events: EventHandle<UpdateFeesEvent>,
+        freeze_events: EventHandle<FreezeEvent>,
     }
 
     struct VaultCapability has store, drop {
@@ -68,9 +74,74 @@ module satay::vault {
         total_gain: u64,
         total_loss: u64,
         last_report: u64,
-        max_report_delay: u64,
-        force_harvest_trigger_once: bool,
-        credit_threshold: u64
+        debt_ratio_change_events: EventHandle<DebtRatioChangeEvent>,
+        debt_change_events: EventHandle<DebtChangeEvent>,
+        gain_events: EventHandle<GainEvent>,
+        loss_events: EventHandle<LossEvent>,
+        harvest_events: EventHandle<HarvestEvent>,
+        assess_fees_events: EventHandle<AssessFeesEvent>,
+    }
+
+    // events
+
+    // coin store events
+
+    struct DepositEvent has drop, store {
+        amount: u64,
+    }
+
+    struct WithdrawEvent has drop, store {
+        amount: u64,
+    }
+
+    // vault events
+
+    struct UserDepositEvent has drop, store {
+        user_addr: address,
+        base_coin_amount: u64,
+        vault_coin_amount: u64,
+    }
+
+    struct UserWithdrawEvent has drop, store {
+        user_addr: address,
+        base_coin_amount: u64,
+        vault_coin_amount: u64,
+    }
+
+    struct UpdateFeesEvent has drop, store {
+        management_fee: u64,
+        performance_fee: u64,
+    }
+
+    struct FreezeEvent has drop, store {
+        frozen: bool,
+    }
+
+    // vault strategy events
+
+    struct DebtRatioChangeEvent has drop, store {
+        debt_ratio: u64,
+    }
+
+    struct DebtChangeEvent has drop, store {
+        debt_payment: u64,
+        credit: u64,
+    }
+
+    struct GainEvent has drop, store {
+        gain: u64,
+    }
+
+    struct LossEvent has drop, store {
+        loss: u64,
+    }
+
+    struct HarvestEvent has drop, store {
+        timestamp: u64,
+    }
+
+    struct AssessFeesEvent has drop, store {
+        vault_coin_amount: u64
     }
 
     // for satay
@@ -96,8 +167,13 @@ module satay::vault {
             base_coin_decimals,
             management_fee,
             performance_fee,
+            deposits_frozen: false,
             debt_ratio: 0,
             total_debt: 0,
+            user_deposit_events: account::new_event_handle<UserDepositEvent>(&vault_acc),
+            user_withdraw_events: account::new_event_handle<UserWithdrawEvent>(&vault_acc),
+            update_fees_events: account::new_event_handle<UpdateFeesEvent>(&vault_acc),
+            freeze_events: account::new_event_handle<FreezeEvent>(&vault_acc),
         };
         move_to(&vault_acc, vault);
 
@@ -140,11 +216,12 @@ module satay::vault {
     public(friend) fun add_coin<CoinType>(
         vault_cap: &VaultCapability
     ) {
-        let owner = account::create_signer_with_capability(&vault_cap.storage_cap);
-        move_to(
-            &owner,
-            CoinStore<CoinType> { coin: coin::zero() }
-        );
+        let vault_acc = account::create_signer_with_capability(&vault_cap.storage_cap);
+        move_to(&vault_acc, CoinStore<CoinType> {
+            coin: coin::zero(),
+            deposit_events: account::new_event_handle<DepositEvent>(&vault_acc),
+            withdraw_events: account::new_event_handle<WithdrawEvent>(&vault_acc),
+        });
     }
 
     // user functions
@@ -156,14 +233,24 @@ module satay::vault {
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>
     ) acquires Vault, CoinStore, VaultCoinCaps {
+        assert_vault_active(vault_cap);
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
         // mint share amount
-        let share_token_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
+        let base_coin_amount = coin::value(&base_coin);
+        let vault_coin_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
             vault_cap,
-            coin::value(&base_coin)
+            base_coin_amount
         );
-        mint_vault_coin<BaseCoin>(user, vault_cap, share_token_amount);
+        mint_vault_coin<BaseCoin>(user, vault_cap, vault_coin_amount);
         deposit(vault_cap, base_coin);
+
+        // emit deposit event
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        event::emit_event(&mut vault.user_deposit_events, UserDepositEvent {
+            user_addr: signer::address_of(user),
+            base_coin_amount,
+            vault_coin_amount
+        });
     }
 
     // withdraw base_coin from the vault
@@ -171,16 +258,24 @@ module satay::vault {
     public(friend) fun withdraw_as_user<BaseCoin>(
         user: &signer,
         vault_cap: &VaultCapability,
-        amount: u64
+        vault_coin_amount: u64
     ): Coin<BaseCoin> acquires CoinStore, Vault, VaultCoinCaps {
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
-        let withdraw_amount = calculate_base_coin_amount_from_share<BaseCoin>(
+        let base_coin_amount = calculate_base_coin_amount_from_share<BaseCoin>(
             vault_cap,
-            amount
+            vault_coin_amount
         );
-        burn_vault_coins<BaseCoin>(user, vault_cap, amount);
-        withdraw<BaseCoin>(vault_cap, withdraw_amount)
+        burn_vault_coins<BaseCoin>(user, vault_cap, vault_coin_amount);
+
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        event::emit_event(&mut vault.user_withdraw_events, UserWithdrawEvent {
+            user_addr: signer::address_of(user),
+            base_coin_amount,
+            vault_coin_amount,
+        });
+
+        withdraw<BaseCoin>(vault_cap, base_coin_amount)
     }
 
     // calculates amount of BaseCoin to return given an amount of VaultCoin to burn
@@ -232,6 +327,29 @@ module satay::vault {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
         vault.management_fee = management_fee;
         vault.performance_fee = performance_fee;
+
+        event::emit_event(&mut vault.update_fees_events, UpdateFeesEvent {
+            management_fee,
+            performance_fee,
+        });
+    }
+
+    public(friend) fun freeze_vault(vault_cap: &VaultCapability) acquires Vault {
+        assert_vault_active(vault_cap);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.deposits_frozen = true;
+        event::emit_event(&mut vault.freeze_events, FreezeEvent {
+            frozen: true,
+        });
+    }
+
+    public(friend) fun unfreeze_vault(vault_cap: &VaultCapability) acquires Vault {
+        assert_vault_not_active(vault_cap);
+        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        vault.deposits_frozen = false;
+        event::emit_event(&mut vault.freeze_events, FreezeEvent {
+            frozen: false,
+        });
     }
 
     // for strategies
@@ -241,7 +359,7 @@ module satay::vault {
         vault_cap: &VaultCapability,
         debt_ratio: u64,
         _witness: &StrategyType
-    ) acquires Vault {
+    ) acquires Vault, VaultStrategy {
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         // check if the strategy's updated debt ratio is valid
@@ -256,9 +374,18 @@ module satay::vault {
             total_gain: 0,
             total_loss: 0,
             last_report: timestamp::now_seconds(),
-            max_report_delay: DEFAULT_MAX_REPORT_DELAY, // 30 days
-            force_harvest_trigger_once: false,
-            credit_threshold: DEFAULT_CREDIT_THRESHOLD * math::pow_10(vault.base_coin_decimals)
+            debt_ratio_change_events: account::new_event_handle<DebtRatioChangeEvent>(&vault_acc),
+            debt_change_events: account::new_event_handle<DebtChangeEvent>(&vault_acc),
+            gain_events: account::new_event_handle<GainEvent>(&vault_acc),
+            loss_events: account::new_event_handle<LossEvent>(&vault_acc),
+            harvest_events: account::new_event_handle<HarvestEvent>(&vault_acc),
+            assess_fees_events: account::new_event_handle<AssessFeesEvent>(&vault_acc),
+        });
+
+        // emit debt ratio change event
+        let vault_strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
+        event::emit_event(&mut vault_strategy.debt_ratio_change_events, DebtRatioChangeEvent {
+            debt_ratio,
         });
 
         if(!has_coin<StrategyCoin>(vault_cap)){
@@ -285,36 +412,12 @@ module satay::vault {
         // check if the strategy's updated debt ratio is valid
         assert!(vault.debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
 
+        // emit debt ratio change event
+        event::emit_event(&mut strategy.debt_ratio_change_events, DebtRatioChangeEvent {
+            debt_ratio,
+        });
+
         debt_ratio
-    }
-
-    // update strategy max report delay
-    public(friend) fun update_strategy_max_report_delay<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        max_report_delay: u64,
-        _witness: &StrategyType
-    ) acquires VaultStrategy {
-        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.max_report_delay = max_report_delay;
-    }
-
-    // update strategy credit threshold
-    public(friend) fun update_strategy_credit_threshold<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        credit_threshold: u64,
-        _witness: &StrategyType
-    ) acquires VaultStrategy {
-        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.credit_threshold = credit_threshold;
-    }
-
-    // set strategy force harvest trigger once
-    public(friend) fun set_strategy_force_harvest_trigger_once<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        _witness: &StrategyType
-    ) acquires VaultStrategy {
-        let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.force_harvest_trigger_once = true;
     }
 
     public(friend) fun deposit_profit<StrategyType: drop, BaseCoin>(
@@ -429,15 +532,20 @@ module satay::vault {
         };
 
         // calculate amount of share tokens to mint
-        let share_token_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
+        let vault_coin_amount = calculate_share_amount_from_base_coin_amount<BaseCoin>(
             vault_cap,
             total_fee_amount
         );
 
         // mint vault coins to dao storage
         let caps = borrow_global<VaultCoinCaps<BaseCoin>>(vault_cap.vault_addr);
-        let coins = coin::mint<VaultCoin<BaseCoin>>(share_token_amount, &caps.mint_cap);
+        let coins = coin::mint<VaultCoin<BaseCoin>>(vault_coin_amount, &caps.mint_cap);
         dao_storage::deposit<VaultCoin<BaseCoin>>(vault_cap.vault_addr, coins);
+
+        // emit fee event
+        event::emit_event(&mut strategy.assess_fees_events, AssessFeesEvent {
+            vault_coin_amount
+        });
     }
 
     // report time for StrategyType
@@ -445,19 +553,26 @@ module satay::vault {
         vault_cap: &VaultCapability,
         _witness: &StrategyType
     ) acquires VaultStrategy {
+        let timestamp = timestamp::now_seconds();
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.last_report = timestamp::now_seconds();
-        strategy.force_harvest_trigger_once = false;
+        strategy.last_report = timestamp;
+        event::emit_event(&mut strategy.harvest_events, HarvestEvent {
+            timestamp
+        });
     }
 
     // report a gain for StrategyType
     fun report_gain<StrategyType: drop>(
         vault_cap: &VaultCapability,
-        profit: u64,
+        gain: u64,
         _witness: &StrategyType
     ) acquires VaultStrategy {
         let strategy = borrow_global_mut<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.total_gain = strategy.total_gain + profit;
+        strategy.total_gain = strategy.total_gain + gain;
+        // emit gain event
+        event::emit_event(&mut strategy.gain_events, GainEvent {
+            gain,
+        });
     }
 
     // report a loss for StrategyType
@@ -485,6 +600,11 @@ module satay::vault {
         strategy.total_loss = strategy.total_loss + loss;
         strategy.total_debt = strategy.total_debt - loss;
         vault.total_debt = vault.total_debt - loss;
+
+        // emit loss event
+        event::emit_event(&mut strategy.loss_events, LossEvent {
+            loss,
+        });
     }
 
     // getters
@@ -510,6 +630,13 @@ module satay::vault {
     ): (u64, u64) acquires Vault {
         let vault = borrow_global<Vault>(vault_cap.vault_addr);
         (vault.management_fee, vault.performance_fee)
+    }
+
+    public fun is_vault_frozen(
+        vault_cap: &VaultCapability
+    ): bool acquires Vault {
+        let vault = borrow_global<Vault>(vault_cap.vault_addr);
+        vault.deposits_frozen
     }
 
     public fun get_debt_ratio(
@@ -686,30 +813,6 @@ module satay::vault {
         strategy.last_report
     }
 
-    // gets the max report delay for a given StrategyType
-    public fun max_report_delay<StrategyType: drop>(
-        vault_cap: &VaultCapability
-    ): u64 acquires VaultStrategy {
-        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.max_report_delay
-    }
-
-    // gets the force harvest trigger once for a given StrategyType
-    public fun force_harvest_trigger_once<StrategyType: drop>(
-        vault_cap: &VaultCapability
-    ): bool acquires VaultStrategy {
-        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.force_harvest_trigger_once
-    }
-
-    // gets the credit threshold for a given StrategyType
-    public fun credit_threshold<StrategyType: drop>(
-        vault_cap: &VaultCapability
-    ): u64 acquires VaultStrategy {
-        let strategy = borrow_global<VaultStrategy<StrategyType>>(vault_cap.vault_addr);
-        strategy.credit_threshold
-    }
-
     public fun get_strategy_coin_type<StrategyType: drop>(
         vault_cap: &VaultCapability
     ): TypeInfo acquires VaultStrategy {
@@ -764,6 +867,9 @@ module satay::vault {
         coin: Coin<CoinType>
     ) acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        event::emit_event(&mut store.deposit_events, DepositEvent {
+            amount: coin::value(&coin)
+        });
         coin::merge(&mut store.coin, coin);
     }
 
@@ -773,6 +879,9 @@ module satay::vault {
         amount: u64
     ): Coin<CoinType> acquires CoinStore {
         let store = borrow_global_mut<CoinStore<CoinType>>(vault_cap.vault_addr);
+        event::emit_event(&mut store.deposit_events, DepositEvent {
+            amount
+        });
         coin::extract(&mut store.coin, amount)
     }
 
@@ -814,6 +923,12 @@ module satay::vault {
 
         vault.total_debt = vault.total_debt + credit - debt_payment;
         strategy.total_debt = strategy.total_debt + credit - debt_payment;
+
+        // emit debt change event
+        event::emit_event(&mut strategy.debt_change_events, DebtChangeEvent {
+            debt_payment,
+            credit
+        })
     }
 
     fun assert_strategy_coin_correct_for_strategy_type<StrategyType: drop, StrategyCoin> (
@@ -828,6 +943,14 @@ module satay::vault {
         performance_fee: u64
     ) {
         assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
+    }
+
+    fun assert_vault_active(vault_cap: &VaultCapability) acquires Vault {
+        assert!(!is_vault_frozen(vault_cap), ERR_VAULT_FROZEN);
+    }
+
+    fun assert_vault_not_active(vault_cap: &VaultCapability) acquires Vault {
+        assert!(is_vault_frozen(vault_cap), ERR_VAULT_NOT_FROZEN);
     }
 
     // test functions
@@ -888,7 +1011,7 @@ module satay::vault {
         vault_cap: &VaultCapability,
         debt_ratio: u64,
         witness: StrategyType
-    ) acquires Vault {
+    ) acquires Vault, VaultStrategy {
         approve_strategy<StrategyType, StrategyCoin>(
             vault_cap,
             debt_ratio,
@@ -903,6 +1026,20 @@ module satay::vault {
         performance_fee: u64
     ) acquires Vault {
         update_fee(vault_cap, management_fee, performance_fee);
+    }
+
+    #[test_only]
+    public fun test_freeze_vault(
+        vault_cap: &VaultCapability
+    ) acquires Vault {
+        freeze_vault(vault_cap);
+    }
+
+    #[test_only]
+    public fun test_unfreeze_vault(
+        vault_cap: &VaultCapability
+    ) acquires Vault {
+        unfreeze_vault(vault_cap);
     }
 
     #[test_only]
@@ -968,43 +1105,6 @@ module satay::vault {
         update_strategy_debt_ratio<StrategyType>(
             vault_cap,
             debt_ratio,
-            witness
-        );
-    }
-
-    #[test_only]
-    public fun test_update_strategy_max_report_delay<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        max_report_delay: u64,
-        witness: &StrategyType
-    ) acquires VaultStrategy {
-        update_strategy_max_report_delay<StrategyType>(
-            vault_cap,
-            max_report_delay,
-            witness
-        );
-    }
-
-    #[test_only]
-    public fun test_update_strategy_credit_threshold<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        credit_threshold: u64,
-        witness: &StrategyType
-    ) acquires VaultStrategy {
-        update_strategy_credit_threshold<StrategyType>(
-            vault_cap,
-            credit_threshold,
-            witness
-        );
-    }
-
-    #[test_only]
-    public fun test_set_force_harvest_trigger_once<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        witness: &StrategyType
-    ) acquires VaultStrategy {
-        set_strategy_force_harvest_trigger_once<StrategyType>(
-            vault_cap,
             witness
         );
     }

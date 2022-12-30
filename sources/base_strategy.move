@@ -300,25 +300,8 @@ module satay::base_strategy {
         );
     }
 
-    // update the strategy credit threshold
-    public fun update_credit_threshold<StrategyType: drop, BaseCoin>(
-        vault_manager: &signer,
-        vault_id: u64,
-        credit_threshold: u64,
-        witness: StrategyType
-    ) {
-        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
-        global_config::assert_vault_manager<BaseCoin>(vault_manager);
-
-        satay::update_strategy_credit_threshold<StrategyType>(
-            vault_id,
-            credit_threshold,
-            &witness
-        );
-    }
-
-    // set the strategy force harvest trigger once
-    public fun set_force_harvest_trigger_once<StrategyType: drop, BaseCoin>(
+    // revoke the strategy
+    public fun revoke_strategy<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
         witness: StrategyType
@@ -326,25 +309,8 @@ module satay::base_strategy {
         satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
         global_config::assert_vault_manager<BaseCoin>(vault_manager);
 
-        satay::set_strategy_force_harvest_trigger_once<StrategyType>(
-            vault_id,
-            &witness,
-        );
-    }
-
-    // update the strategy max report delay
-    public fun update_max_report_delay<StrategyType: drop, BaseCoin>(
-        strategist: &signer,
-        vault_id: u64,
-        max_report_delay: u64,
-        witness: StrategyType
-    ) {
-        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
-        global_config::assert_strategist<StrategyType, BaseCoin>(strategist);
-
-        satay::update_strategy_max_report_delay<StrategyType>(
-            vault_id,
-            max_report_delay,
+        satay::update_strategy_debt_ratio<StrategyType>(
+            vault_id,0,
             &witness
         );
     }

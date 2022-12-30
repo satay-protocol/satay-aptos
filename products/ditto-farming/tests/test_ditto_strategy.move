@@ -25,6 +25,8 @@ module satay_ditto_farming::test_ditto_strategy {
     use satay_ditto_farming::mock_ditto_farming;
     use satay::base_strategy;
     use liquidity_mining::mock_liquidity_mining;
+    use satay_ditto_farming::mock_ditto_farming_strategy::DittoStrategy;
+    use satay_ditto_farming::mock_ditto_farming::DittoFarmingCoin;
 
     const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
 
@@ -38,6 +40,7 @@ module satay_ditto_farming::test_ditto_strategy {
     const USER_DEPOSIT_AMOUNT: u64 = 1000000;
 
     const ERR_HARVEST: u64 = 1;
+    const ERR_REVOKE: u64 = 2;
 
     fun setup_liquidity_pool(
         aptos_framework: &signer,
@@ -220,5 +223,46 @@ module satay_ditto_farming::test_ditto_strategy {
 
         mock_ditto_farming_strategy::harvest(manager_acc, 0);
         mock_ditto_farming_strategy::tend(manager_acc, 0);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        pool_account = @liquidswap_pool_account,
+        manager_acc = @satay,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        ditto_farming_strategy = @satay_ditto_farming,
+        user = @0x45,
+    )]
+    fun test_revoke(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        pool_account: & signer,
+        manager_acc: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        ditto_farming_strategy: &signer,
+        user: &signer,
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            pool_account,
+            manager_acc,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            ditto_farming_strategy,
+            user
+        );
+        mock_ditto_farming_strategy::harvest(manager_acc, 0);
+        mock_ditto_farming_strategy::revoke(manager_acc, 0);
+        let vault_cap = satay::open_vault(0);
+        assert!(vault::credit_available<DittoStrategy, AptosCoin>(&vault_cap) == 0, ERR_REVOKE);
+        assert!(vault::balance<DittoFarmingCoin>(&vault_cap) == 0, ERR_REVOKE);
+        satay::close_vault(0, vault_cap);
     }
 }

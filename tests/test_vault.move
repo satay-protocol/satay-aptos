@@ -13,7 +13,6 @@ module satay::test_vault {
 
     use satay::vault::{Self, VaultCapability, VaultCoin};
     use satay::coins::{Self, USDT};
-    use satay::math;
     use satay::dao_storage;
 
     struct TestStrategy has drop {}
@@ -42,6 +41,7 @@ module satay::test_vault {
     const ERR_ASSESS_FEES: u64 = 11;
     const ERR_DEBT_PAYMENT: u64 = 12;
     const ERR_DEPOSIT_PROFIT: u64 = 13;
+    const ERR_FREEZE_VAULT: u64 = 14;
 
     #[test_only]
     fun setup_tests(
@@ -491,6 +491,124 @@ module satay::test_vault {
         assert!(withdraw_amount == expected_withdraw_amount, ERR_INCORRECT_VAULT_COIN_AMOUNT);
     }
 
+
+    // test freeze and unfreeze
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_freeze_vault(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        assert!(vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    #[expected_failure]
+    fun test_freeze_while_frozen(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        vault::test_freeze_vault(&vault_cap);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_unfreeze_vault(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        vault::test_unfreeze_vault(&vault_cap);
+        assert!(!vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    #[expected_failure]
+    fun test_unfreeze_while_unfrozen(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_unfreeze_vault(&vault_cap);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_withdraw_after_freeze(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        vault::test_freeze_vault(&vault_cap);
+        let user_address = signer::address_of(user);
+        let aptos_coins = vault::test_withdraw_as_user<AptosCoin>(user, &vault_cap, USER_DEPOSIT);
+        coin::deposit(user_address, aptos_coins);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_FREEZE_VAULT);
+        assert!(coin::balance<AptosCoin>(user_address) == USER_DEPOSIT, ERR_FREEZE_VAULT);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    #[expected_failure]
+    fun test_deposit_after_freeze(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        vault_manager=@satay,
+        user=@0x46,
+    )]
+    fun test_deposit_after_unfreeze(
+        aptos_framework: &signer,
+        vault_manager: &signer,
+        user: &signer
+    ){
+        let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        vault::test_freeze_vault(&vault_cap);
+        vault::test_unfreeze_vault(&vault_cap);
+        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT, ERR_FREEZE_VAULT);
+    }
+
     // test strategy functions
 
     #[test(
@@ -519,10 +637,6 @@ module satay::test_vault {
         assert!(vault::debt_out_standing<TestStrategy, AptosCoin>(&vault_cap) == 0, ERR_STRATEGY);
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == 0, ERR_STRATEGY);
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_STRATEGY);
-        assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == DEFAULT_MAX_REPORT_DELAY, ERR_STRATEGY);
-        let expected_credit_threshold = DEFAULT_CREDIT_THRESHOLD * math::pow_10(coin::decimals<AptosCoin>());
-        assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == expected_credit_threshold, ERR_STRATEGY);
-        assert!(!vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY);
         assert!(vault::get_strategy_coin_type<TestStrategy>(&vault_cap) == type_info::type_of<USDT>(), ERR_STRATEGY);
     }
 
@@ -920,28 +1034,6 @@ module satay::test_vault {
 
         let credit_available = new_debt_ratio * vault::total_assets<AptosCoin>(&vault_cap) / MAX_DEBT_RATIO_BPS;
         assert!(vault::credit_available<TestStrategy, AptosCoin>(&vault_cap) == credit_available, ERR_STRATEGY_UPDATE);
-
-        let new_max_report_delay = 100;
-        vault::test_update_strategy_max_report_delay<TestStrategy>(
-            &vault_cap,
-            new_max_report_delay,
-            &TestStrategy {}
-        );
-        assert!(vault::max_report_delay<TestStrategy>(&vault_cap) == new_max_report_delay, ERR_STRATEGY_UPDATE);
-
-        let new_credit_threshold = 100;
-        vault::test_update_strategy_credit_threshold<TestStrategy>(
-            &vault_cap,
-            new_credit_threshold,
-            &TestStrategy {}
-        );
-        assert!(vault::credit_threshold<TestStrategy>(&vault_cap) == new_credit_threshold, ERR_STRATEGY_UPDATE);
-
-        vault::test_set_force_harvest_trigger_once<TestStrategy>(
-            &vault_cap,
-            &TestStrategy {}
-        );
-        assert!(vault::force_harvest_trigger_once<TestStrategy>(&vault_cap), ERR_STRATEGY_UPDATE);
     }
 
     #[test(
