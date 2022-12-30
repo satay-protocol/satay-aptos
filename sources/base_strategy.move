@@ -4,7 +4,6 @@ module satay::base_strategy {
 
     use aptos_framework::coin::{Self, Coin};
 
-    use satay::global_config;
     use satay::vault::{Self, VaultCapability, VaultCoin};
     use satay::satay::{Self, VaultCapLock};
 
@@ -44,16 +43,6 @@ module satay::base_strategy {
             debt_ratio,
             &witness
         );
-
-        // add a CoinStore for the StrategyCoin
-        let (
-            vault_cap,
-            stop_handle
-        ) = open_vault<StrategyType>(vault_id, witness);
-        if (!vault::has_coin<StrategyCoin>(&vault_cap)) {
-            vault::add_coin<StrategyCoin>(&vault_cap);
-        };
-        close_vault<StrategyType>(vault_cap, stop_handle);
     }
 
     // strategy coin deposit and withdraw
@@ -84,11 +73,10 @@ module satay::base_strategy {
     // for harvest
 
     public fun open_vault_for_harvest<StrategyType: drop, BaseCoin>(
-        keeper: &signer,
+        _keeper: &signer,
         vault_id: u64,
         witness: StrategyType,
     ) : (VaultCapability, VaultCapLock<StrategyType>) {
-        global_config::assert_keeper<StrategyType, BaseCoin>(keeper);
         open_vault<StrategyType>(
             vault_id,
             witness
@@ -184,12 +172,10 @@ module satay::base_strategy {
     // for tend
 
     public fun open_vault_for_tend<StrategyType: drop, BaseCoin>(
-        keeper: &signer,
+        _keeper: &signer,
         vault_id: u64,
         witness: StrategyType,
     ): (VaultCapability, TendLock<StrategyType>) {
-        global_config::assert_keeper<StrategyType, BaseCoin>(keeper);
-
         let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
             vault_id,
             witness
@@ -231,7 +217,10 @@ module satay::base_strategy {
         share_amount: u64,
         witness: StrategyType
     ): (VaultCapability, UserWithdrawLock<StrategyType>) {
-        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(vault_id, witness);
+        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
+            vault_id,
+            witness
+        );
 
         // check if user is eligible to withdraw
         let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(signer::address_of(user));
@@ -284,16 +273,14 @@ module satay::base_strategy {
     // admin functions
 
     // update the strategy debt ratio
-    public fun update_debt_ratio<StrategyType: drop, BaseCoin>(
+    public fun update_debt_ratio<StrategyType: drop>(
         vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType
     ) {
-        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
-        global_config::assert_vault_manager<BaseCoin>(vault_manager);
-
         satay::update_strategy_debt_ratio<StrategyType>(
+            vault_manager,
             vault_id,
             debt_ratio,
             &witness
@@ -301,22 +288,17 @@ module satay::base_strategy {
     }
 
     // revoke the strategy
-    public fun revoke_strategy<StrategyType: drop, BaseCoin>(
+    public fun revoke_strategy<StrategyType: drop>(
         vault_manager: &signer,
         vault_id: u64,
         witness: StrategyType
     ) {
-        satay::assert_base_coin_correct_for_vault<BaseCoin>(vault_id);
-        global_config::assert_vault_manager<BaseCoin>(vault_manager);
-
-        satay::update_strategy_debt_ratio<StrategyType>(
-            vault_id,0,
-            &witness
+        update_debt_ratio<StrategyType>(
+            vault_manager,
+            vault_id,
+            0,
+            witness
         );
-    }
-
-    public fun get_vault_address(vault_cap: &VaultCapability) : address {
-        vault::get_vault_addr(vault_cap)
     }
 
     public fun balance<CoinType>(vault_cap: &VaultCapability) : u64 {

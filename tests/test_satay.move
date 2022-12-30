@@ -792,6 +792,7 @@ module satay::test_satay {
 
         let debt_ratio = 100;
         satay::test_update_strategy_debt_ratio(
+            satay,
             0,
             debt_ratio,
             TestStrategy {}

@@ -352,7 +352,7 @@ module satay::test_base_strategy {
         );
 
         let debt_ratio = 100;
-        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+        base_strategy::update_debt_ratio<TestStrategy>(
             satay,
             0,
             debt_ratio,
@@ -800,7 +800,7 @@ module satay::test_base_strategy {
 
         harvest(aptos_framework, satay, coins_manager, user);
 
-        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+        base_strategy::update_debt_ratio<TestStrategy>(
             satay,
             0,
             0,
@@ -865,7 +865,7 @@ module satay::test_base_strategy {
 
         satay::test_unlock_vault(vault_cap, vault_cap_lock);
 
-        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+        base_strategy::update_debt_ratio<TestStrategy>(
             satay,
             0,
             0,
@@ -971,7 +971,7 @@ module satay::test_base_strategy {
 
         harvest(aptos_framework, satay, coins_manager, user);
 
-        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+        base_strategy::update_debt_ratio<TestStrategy>(
             satay,
             0,
             0,
@@ -1083,7 +1083,7 @@ module satay::test_base_strategy {
         );
 
         harvest(aptos_framework, satay, coins_manager, user);
-        base_strategy::update_debt_ratio<TestStrategy, AptosCoin>(
+        base_strategy::update_debt_ratio<TestStrategy>(
             satay,
             0,
             0,
@@ -1397,6 +1397,7 @@ module satay::test_base_strategy {
         coin::deposit(@aptos_framework, aptos);
 
         vault::test_update_strategy_debt_ratio<TestStrategy>(
+            satay,
             &vault_cap,
             0,
             &TestStrategy {}

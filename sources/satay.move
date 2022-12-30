@@ -33,8 +33,6 @@ module satay::satay {
         strategy_type: StrategyType
     }
 
-    // called by managers
-
     // create manager account and store in sender's account
     public entry fun initialize(
         satay: &signer
@@ -44,6 +42,8 @@ module satay::satay {
         move_to(satay, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
     }
 
+    // governance functions
+
     // create new vault for BaseCoin
     public entry fun new_vault<BaseCoin>(
         governance: &signer,
@@ -51,12 +51,9 @@ module satay::satay {
         management_fee: u64,
         performance_fee: u64
     ) acquires ManagerAccount {
-        global_config::assert_governance(governance);
 
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        global_config::initialize_vault<BaseCoin>(governance);
 
         // get vault id and update next id
         let vault_id = account.next_vault_id;
@@ -73,51 +70,80 @@ module satay::satay {
         );
     }
 
+    // vault manager fucntions
+
     public entry fun update_vault_fee(
-        governance: &signer,
+        vault_manager: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ) acquires ManagerAccount {
-        global_config::assert_governance(governance);
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
 
         let vault_info = table::borrow(&account.vaults, vault_id);
         let vault_cap = option::borrow(&vault_info.vault_cap);
 
-        vault::update_fee(vault_cap, management_fee, performance_fee);
+        vault::update_fee(
+            vault_manager,
+            vault_cap,
+            management_fee,
+            performance_fee
+        );
     }
 
     public entry fun freeze_vault(
-        governance: &signer,
+        vault_manager: &signer,
         vault_id: u64
     ) acquires ManagerAccount {
-        global_config::assert_governance(governance);
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
 
         let vault_info = table::borrow(&account.vaults, vault_id);
         let vault_cap = option::borrow(&vault_info.vault_cap);
 
-        vault::freeze_vault(vault_cap);
+        vault::freeze_vault(
+            vault_manager,
+            vault_cap
+        );
     }
 
     public entry fun unfreeze_vault(
-        governance: &signer,
+        vault_manager: &signer,
         vault_id: u64
     ) acquires ManagerAccount {
-        global_config::assert_governance(governance);
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
 
         let vault_info = table::borrow(&account.vaults, vault_id);
         let vault_cap = option::borrow(&vault_info.vault_cap);
 
-        vault::unfreeze_vault(vault_cap);
+        vault::unfreeze_vault(
+            vault_manager,
+            vault_cap
+        );
     }
 
-    // called by users
+    // allows Strategy to get VaultCapability of vault_id of manager_addr
+    public(friend) fun approve_strategy<StrategyType: drop, StrategyCoin>(
+        vault_manager: &signer,
+        vault_id: u64,
+        debt_ratio: u64,
+        witness: &StrategyType
+    ) acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        vault::approve_strategy<StrategyType, StrategyCoin>(
+            vault_manager,
+            option::borrow(&vault_info.vault_cap),
+            debt_ratio,
+            witness
+        );
+    }
+
+    // user functions
 
     // user deposits amount of BaseCoin into vault_id of manager_addr
     public entry fun deposit<BaseCoin>(
@@ -153,28 +179,7 @@ module satay::satay {
         coin::deposit(user_addr, base_coin);
     }
 
-    // called by strategies
-
-    // allows Strategy to get VaultCapability of vault_id of manager_addr
-    public(friend) fun approve_strategy<StrategyType: drop, StrategyCoin>(
-        governance: &signer,
-        vault_id: u64,
-        debt_ratio: u64,
-        witness: &StrategyType
-    ) acquires ManagerAccount {
-        global_config::assert_governance(governance);
-        global_config::initialize_strategy<StrategyType>(governance);
-
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::approve_strategy<StrategyType, StrategyCoin>(
-            option::borrow(&vault_info.vault_cap),
-            debt_ratio,
-            witness
-        );
-    }
+    // strategy functions
 
     // get VaultCapability of vault_id of manager_addr
     // StrategyType must be approved
@@ -225,6 +230,7 @@ module satay::satay {
 
     // update the strategy debt ratio
     public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
+        vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: &StrategyType
@@ -236,6 +242,7 @@ module satay::satay {
         assert!(vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap)), ERR_VAULT_NO_STRATEGY);
 
         vault::update_strategy_debt_ratio<StrategyType>(
+            vault_manager,
             option::borrow(&vault_info.vault_cap),
             debt_ratio,
             witness
@@ -261,6 +268,7 @@ module satay::satay {
     }
 
     // get vault address for vault_id
+    #[test_only]
     public fun get_vault_address_by_id(
         vault_id: u64
     ): address acquires ManagerAccount {
@@ -367,13 +375,13 @@ module satay::satay {
 
     #[test_only]
     public fun test_approve_strategy<StrategyType: drop, StrategyCoin>(
-        governance: &signer,
+        vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType,
     ) acquires ManagerAccount {
         approve_strategy<StrategyType, StrategyCoin>(
-            governance,
+            vault_manager,
             vault_id,
             debt_ratio,
             &witness
@@ -382,11 +390,13 @@ module satay::satay {
 
     #[test_only]
     public fun test_update_strategy_debt_ratio<StrategyType: drop>(
+        vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType
     ) acquires ManagerAccount {
         update_strategy_debt_ratio<StrategyType>(
+            vault_manager,
             vault_id,
             debt_ratio,
             &witness

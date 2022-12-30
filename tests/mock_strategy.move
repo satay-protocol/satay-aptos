@@ -148,7 +148,7 @@ module satay::mock_strategy {
         vault_id: u64,
         debt_ratio: u64
     ) {
-        base_strategy::update_debt_ratio<MockStrategy, AptosCoin>(
+        base_strategy::update_debt_ratio<MockStrategy>(
             vault_manager,
             vault_id,
             debt_ratio,
@@ -160,7 +160,7 @@ module satay::mock_strategy {
         vault_manager: &signer,
         vault_id: u64
     ) {
-        base_strategy::revoke_strategy<MockStrategy, AptosCoin>(
+        base_strategy::revoke_strategy<MockStrategy>(
             vault_manager,
             vault_id,
             MockStrategy {}
