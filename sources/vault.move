@@ -206,6 +206,9 @@ module satay::vault {
         let total_supply = option::get_with_default<u128>(&coin::supply<VaultCoin<BaseCoin>>(), 0);
 
         if (total_supply != 0) {
+            // this function will abort if total_supply * base_coin_amount > u128::max_value()
+            // in practice, this should never happen. If it does, base_coin_amount should be reduced and split into
+            // two transactions
             math::mul_u128_u64_div_u64_result_u64(
                 total_supply,
                 base_coin_amount,
