@@ -283,55 +283,6 @@ module satay::test_global_config {
     #[test(
         aptos_framework=@aptos_framework,
         satay=@satay,
-        new_strategist=@0x1
-    )]
-    fun test_set_strategist(
-        aptos_framework: &signer,
-        satay: &signer,
-        new_strategist: &signer,
-    ) {
-        initialize_with_vault_and_strategy(aptos_framework, satay);
-        let new_strategist_address = signer::address_of(new_strategist);
-        global_config::set_strategist<MockStrategy, AptosCoin>(satay, new_strategist_address);
-        global_config::assert_strategist<MockStrategy, AptosCoin>(satay);
-        global_config::accept_strategist<MockStrategy>(new_strategist);
-        global_config::assert_strategist<MockStrategy, AptosCoin>(new_strategist);
-    }
-
-    #[test(
-        aptos_framework=@aptos_framework,
-        satay=@satay,
-        non_strategist=@0x1
-    )]
-    #[expected_failure]
-    fun test_set_strategist_reject(
-        aptos_framework: &signer,
-        satay: &signer,
-        non_strategist: &signer,
-    ) {
-        initialize_with_vault_and_strategy(aptos_framework, satay);
-        let new_strategist_address = signer::address_of(non_strategist);
-        global_config::set_strategist<MockStrategy, AptosCoin>(non_strategist, new_strategist_address);
-    }
-
-    #[test(
-        aptos_framework=@aptos_framework,
-        satay=@satay,
-        non_strategist=@0x1
-    )]
-    #[expected_failure]
-    fun test_accept_strategist_reject(
-        aptos_framework: &signer,
-        satay: &signer,
-        non_strategist: &signer,
-    ) {
-        initialize_with_vault_and_strategy(aptos_framework, satay);
-        global_config::accept_strategist<MockStrategy>(non_strategist);
-    }
-
-    #[test(
-        aptos_framework=@aptos_framework,
-        satay=@satay,
         new_keeper=@0x1
     )]
     fun test_set_keeper(

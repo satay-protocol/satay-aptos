@@ -23,11 +23,8 @@ module satay::global_config {
     /// When user is not manager
     const ERR_NOT_MANAGER: u64 = 404;
 
-    /// When user is not strategist
-    const ERR_NOT_STRATEGIST: u64 = 405;
-
     /// When user is not keeper
-    const ERR_NOT_KEEPER: u64 = 406;
+    const ERR_NOT_KEEPER: u64 = 405;
 
 
     /// The global configuration
@@ -49,11 +46,8 @@ module satay::global_config {
 
     /// The strategy configuration
     struct StrategyConfig<phantom StrategyType> has key {
-        strategist_address: address,
         keeper_address: address,
-        new_strategist_address: address,
         new_keeper_address: address,
-        strategist_change_events: EventHandle<StrategistChangeEvent>,
         keeper_change_events: EventHandle<KeeperChangeEvent>,
     }
 
@@ -73,10 +67,6 @@ module satay::global_config {
 
     struct VaultManagerChangeEvent has drop, store {
         new_vault_manager_address: address,
-    }
-
-    struct StrategistChangeEvent has drop, store {
-        new_strategist_address: address,
     }
 
     struct KeeperChangeEvent has drop, store {
@@ -145,19 +135,13 @@ module satay::global_config {
         let global_config_signer = account::create_signer_with_capability(&global_config_account.signer_cap);
 
         move_to(&global_config_signer, StrategyConfig<StrategyType> {
-            strategist_address: @satay,
             keeper_address: @satay,
-            new_strategist_address: @0x0,
             new_keeper_address: @0x0,
-            strategist_change_events: account::new_event_handle<StrategistChangeEvent>(&global_config_signer),
             keeper_change_events: account::new_event_handle<KeeperChangeEvent>(&global_config_signer),
         });
 
         let global_config_account_address = signer::address_of(&global_config_signer);
         let strategy_config = borrow_global_mut<StrategyConfig<StrategyType>>(global_config_account_address);
-        event::emit_event(&mut strategy_config.strategist_change_events, StrategistChangeEvent {
-            new_strategist_address: @satay
-        });
         event::emit_event(&mut strategy_config.keeper_change_events, KeeperChangeEvent {
             new_keeper_address: @satay
         });
@@ -202,16 +186,6 @@ module satay::global_config {
         config.vault_manager_address
     }
 
-    /// Get strategist address
-    public fun get_strategist_address<StrategyType: drop>(): address acquires StrategyConfig, GlobalConfigResourceAccount {
-        let global_config_account_address = get_global_config_account_address();
-
-        assert!(exists<StrategyConfig<StrategyType>>(global_config_account_address), ERR_CONFIG_DOES_NOT_EXIST);
-
-        let config = borrow_global<StrategyConfig<StrategyType>>(global_config_account_address);
-        config.strategist_address
-    }
-
     /// Get keeper address
     public fun get_keeper_address<StrategyType: drop>(): address acquires StrategyConfig, GlobalConfigResourceAccount {
         let global_config_account_address = get_global_config_account_address();
@@ -249,20 +223,6 @@ module satay::global_config {
         );
     }
 
-    /// is Strategist
-    public fun assert_strategist<StrategyType: drop, BaseCoin>(
-        strategist: &signer
-    ) acquires GlobalConfigResourceAccount, GlobalConfig, VaultConfig, StrategyConfig {
-        let addr = signer::address_of(strategist);
-
-        assert!(
-            get_governance_address() == addr ||
-            get_vault_manager_address<BaseCoin>() == addr ||
-            get_strategist_address<StrategyType>() == addr,
-            ERR_NOT_STRATEGIST
-        );
-    }
-
     /// is Keeper
     public fun assert_keeper<StrategyType: drop, BaseCoin>(
         keeper: &signer
@@ -272,7 +232,6 @@ module satay::global_config {
         assert!(
             get_governance_address() == addr ||
             get_vault_manager_address<BaseCoin>() == addr ||
-            get_strategist_address<StrategyType>() == addr ||
             get_keeper_address<StrategyType>() == addr,
             ERR_NOT_KEEPER
         );
@@ -371,39 +330,6 @@ module satay::global_config {
 
         event::emit_event(&mut config.vault_manager_change_events, VaultManagerChangeEvent {
             new_vault_manager_address
-        });
-    }
-
-    /// set new Strategist address
-    public entry fun set_strategist<StrategyType: drop, BaseCoin>(
-        strategist: &signer,
-        new_addr: address
-    ) acquires GlobalConfigResourceAccount, GlobalConfig, VaultConfig, StrategyConfig {
-        assert_strategist<StrategyType, BaseCoin>(strategist);
-
-        let global_config_account_address = get_global_config_account_address();
-
-        let config = borrow_global_mut<StrategyConfig<StrategyType>>(global_config_account_address);
-
-        config.new_strategist_address = new_addr;
-    }
-
-    /// accept new Strategist address
-    public entry fun accept_strategist<StrategyType: drop>(
-        strategist: &signer
-    ) acquires GlobalConfigResourceAccount, StrategyConfig {
-        let global_config_account_address = get_global_config_account_address();
-
-        let new_strategist_address = signer::address_of(strategist);
-        let config = borrow_global_mut<StrategyConfig<StrategyType>>(global_config_account_address);
-
-        assert!(config.new_strategist_address == new_strategist_address, ERR_NOT_MANAGER);
-
-        config.strategist_address = new_strategist_address;
-        config.new_strategist_address = @0x0;
-
-        event::emit_event(&mut config.strategist_change_events, StrategistChangeEvent {
-            new_strategist_address
         });
     }
 
