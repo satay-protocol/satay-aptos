@@ -23,6 +23,8 @@ module satay_ditto_farming::ditto_farming {
     use ditto_staking::ditto_staking;
     use liquidity_mining::liquidity_mining;
 
+    use satay::math::{calculate_proportion_of_u64_with_u64_denominator};
+
     // acts as signer in stake LP call
     struct FarmingAccountCapability has key {
         signer_cap: SignerCapability,
@@ -36,6 +38,10 @@ module satay_ditto_farming::ditto_farming {
         burn_cap: BurnCapability<DittoFarmingCoin>,
         freeze_cap: FreezeCapability<DittoFarmingCoin>
     }
+
+    // 5% accepted slippage
+    const MINIMUM_AMOUNT_BPS: u64 = 75000;
+    const MAX_BPS: u64 = 10000;
 
     const ERR_NOT_ADMIN: u64 = 1;
 
@@ -155,11 +161,26 @@ module satay_ditto_farming::ditto_farming {
         staptos_coins: Coin<StakedAptos>,
         product_address: address
     ) : (Coin<LP<AptosCoin, StakedAptos, Stable>>, Coin<AptosCoin>) {
+        let min_aptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            coin::value(&aptos_coins),
+            MINIMUM_AMOUNT_BPS,
+            MAX_BPS
+        );
+        let min_staptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            coin::value(&staptos_coins),
+            MINIMUM_AMOUNT_BPS,
+            MAX_BPS
+        );
         let (
             residual_aptos_coins,
             residual_staptos_coins,
             lp
-        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(aptos_coins, 0, staptos_coins, 0);
+        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(
+            aptos_coins,
+            min_aptos_amount,
+            staptos_coins,
+            min_staptos_amount
+        );
 
         if(coin::value(&residual_staptos_coins) == 0){
             coin::destroy_zero(residual_staptos_coins);
@@ -231,10 +252,23 @@ module satay_ditto_farming::ditto_farming {
         lp_coins: Coin<LP<AptosCoin, StakedAptos, Stable>>
     ) : Coin<AptosCoin> {
         // remove liquidity for lp_coins
+        let (apt_amount, stapt_amount) = get_reserves_for_lp_coins<AptosCoin, StakedAptos, Stable>(
+            coin::value(&lp_coins)
+        );
+        let min_aptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            apt_amount,
+            MINIMUM_AMOUNT_BPS,
+            MAX_BPS
+        );
+        let min_staptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            stapt_amount,
+            MINIMUM_AMOUNT_BPS,
+            MAX_BPS
+        );
         let (aptos_coin, staked_aptos) = remove_liquidity<AptosCoin, StakedAptos, Stable>(
             lp_coins,
-            1,
-            1
+            min_aptos_amount,
+            min_staptos_amount
         );
         // swap returned stAPT for APT
         coin::merge(&mut aptos_coin, swap_stapt_for_apt(staked_aptos));
@@ -302,9 +336,17 @@ module satay_ditto_farming::ditto_farming {
     // swap StakedAptos for AptosCoin on Liquidswap
     fun swap_stapt_for_apt(staptos_coins: Coin<StakedAptos>) : Coin<AptosCoin> {
         // swap on liquidswap AMM
+        let expected_swap_out = get_apt_amount_for_farming_coin_amount(
+            coin::value<StakedAptos>(&staptos_coins)
+        );
+        let minimum_apt_out = calculate_proportion_of_u64_with_u64_denominator(
+            expected_swap_out,
+            MINIMUM_AMOUNT_BPS,
+            MAX_BPS
+        );
         swap_exact_coin_for_coin<StakedAptos, AptosCoin, Stable>(
             staptos_coins,
-            0
+            minimum_apt_out
         )
     }
 }

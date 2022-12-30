@@ -20,8 +20,10 @@ module satay_ditto_farming::test_ditto_farming {
     use satay_ditto_farming::mock_ditto_farming::{Self, DittoFarmingCoin};
     use liquidity_mining::mock_liquidity_mining;
 
-    const INITIAL_LIQUIDITY: u64 = 10000000000;
-    const DEPOSIT_AMOUNT: u64 = 1000000;
+    use satay::math::pow10;
+
+    const INITIAL_LIQUIDITY: u64 = 1000;
+    const DEPOSIT_AMOUNT: u64 = 100000000;
 
     #[test_only]
     fun setup_tests(
@@ -32,6 +34,9 @@ module satay_ditto_farming::test_ditto_farming {
         liquidity_mining: &signer,
         user: &signer
     ) {
+
+        let initial_liquidity = INITIAL_LIQUIDITY * pow10(8);
+
         stake::initialize_for_test(aptos_framework);
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
         mock_liquidity_mining::initialize(liquidity_mining);
@@ -52,10 +57,10 @@ module satay_ditto_farming::test_ditto_farming {
         coin::register<StakedAptos>(user);
 
 
-        aptos_coin::mint(aptos_framework, user_address, INITIAL_LIQUIDITY);
+        aptos_coin::mint(aptos_framework, user_address, initial_liquidity);
 
-        let apt = coin::withdraw<AptosCoin>(user, INITIAL_LIQUIDITY);
-        let stapt = mock_ditto_staking::mint_staked_aptos(INITIAL_LIQUIDITY);
+        let apt = coin::withdraw<AptosCoin>(user, initial_liquidity);
+        let stapt = mock_ditto_staking::mint_staked_aptos(initial_liquidity);
 
         let lp = liquidity_pool::mint<AptosCoin, StakedAptos, Stable>(
             apt,
@@ -97,8 +102,8 @@ module satay_ditto_farming::test_ditto_farming {
 
         let (apt_reserves, stapt_reserves) = router_v2::get_reserves_size<AptosCoin, StakedAptos, Stable>();
 
-        assert!(apt_reserves == INITIAL_LIQUIDITY + DEPOSIT_AMOUNT / 2, 2);
-        assert!(stapt_reserves == INITIAL_LIQUIDITY + DEPOSIT_AMOUNT / 2, 3);
+        assert!(apt_reserves == INITIAL_LIQUIDITY * pow10(8) + DEPOSIT_AMOUNT / 2, 2);
+        assert!(stapt_reserves == INITIAL_LIQUIDITY * pow10(8) + DEPOSIT_AMOUNT / 2, 3);
     }
 
     #[test(

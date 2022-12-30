@@ -23,9 +23,11 @@ module satay_ditto_farming::mock_ditto_farming {
     use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
     use liquidity_mining::mock_liquidity_mining;
 
-    // acts as signer in stake LP call
-    struct FarmingAccountCapability has key {
+    use satay::math::{calculate_proportion_of_u64_with_u64_denominator, pow10};
+
+    struct FarmingAccount has key {
         signer_cap: SignerCapability,
+        slippage_tolerance_bps: u64,
     }
 
     // coin issued upon apply_position
@@ -36,6 +38,10 @@ module satay_ditto_farming::mock_ditto_farming {
         burn_cap: BurnCapability<DittoFarmingCoin>,
         freeze_cap: FreezeCapability<DittoFarmingCoin>
     }
+
+    // 5% accepted slippage
+    const INIT_SLIPPAGE_TOLERANCE_BPS: u64 = 9500;
+    const MAX_BPS: u64 = 10000;
 
     const ERR_NOT_ADMIN: u64 = 1;
 
@@ -50,8 +56,9 @@ module satay_ditto_farming::mock_ditto_farming {
             manager,
             b"ditto_farming_product"
         );
-        move_to(manager, FarmingAccountCapability {
-            signer_cap
+        move_to(manager, FarmingAccount {
+            signer_cap,
+            slippage_tolerance_bps: INIT_SLIPPAGE_TOLERANCE_BPS
         });
 
         // initailze DittoFarmingCoin
@@ -64,7 +71,7 @@ module satay_ditto_farming::mock_ditto_farming {
             manager,
             string::utf8(b"Ditto Farming Coin"),
             string::utf8(b"DFC"),
-            6,
+            coin::decimals<LP<AptosCoin, StakedAptos, Stable>>(),
             true
         );
         move_to(
@@ -87,7 +94,7 @@ module satay_ditto_farming::mock_ditto_farming {
     public entry fun deposit(
         user: &signer,
         amount: u64
-    ) acquires FarmingAccountCapability, DittoFarmingCoinCaps {
+    ) acquires FarmingAccount, DittoFarmingCoinCaps {
         let user_addr = signer::address_of(user);
 
         if(!coin::is_account_registered<DittoFarmingCoin>(user_addr)){
@@ -107,7 +114,7 @@ module satay_ditto_farming::mock_ditto_farming {
     public entry fun withdraw(
         user: &signer,
         amount: u64
-    ) acquires FarmingAccountCapability, DittoFarmingCoinCaps {
+    ) acquires FarmingAccount, DittoFarmingCoinCaps {
         let ditto_farming_coin = coin::withdraw<DittoFarmingCoin>(user, amount);
         let aptos_coin = liquidate_position(ditto_farming_coin);
         coin::deposit<AptosCoin>(signer::address_of(user), aptos_coin);
@@ -117,11 +124,11 @@ module satay_ditto_farming::mock_ditto_farming {
     public fun apply_position(
         aptos_coins: Coin<AptosCoin>,
         user_addr: address,
-    ): (Coin<DittoFarmingCoin>, Coin<AptosCoin>) acquires FarmingAccountCapability, DittoFarmingCoinCaps {
+    ): (Coin<DittoFarmingCoin>, Coin<AptosCoin>) acquires FarmingAccount, DittoFarmingCoinCaps {
         let deposit_amount = coin::value(&aptos_coins);
         if(deposit_amount > 0){
-            let ditto_farming_cap = borrow_global<FarmingAccountCapability>(@satay_ditto_farming);
-            let ditto_farming_signer = account::create_signer_with_capability(&ditto_farming_cap.signer_cap);
+            let ditto_farming_account = borrow_global<FarmingAccount>(@satay_ditto_farming);
+            let ditto_farming_signer = account::create_signer_with_capability(&ditto_farming_account.signer_cap);
             let ditto_farming_address = signer::address_of(&ditto_farming_signer);
 
             // exchange optimal amount of apt for stAPT
@@ -130,7 +137,8 @@ module satay_ditto_farming::mock_ditto_farming {
             let (lp, residual_aptos) = add_apt_st_apt_lp(
                 aptos_coins,
                 st_apt,
-                ditto_farming_address
+                ditto_farming_address,
+                ditto_farming_account.slippage_tolerance_bps
             );
             // stake LP token and mint DittoFarmingCoin
             let ditto_farming_coins = stake_lp_and_mint(lp, &ditto_farming_signer);
@@ -153,13 +161,29 @@ module satay_ditto_farming::mock_ditto_farming {
     fun add_apt_st_apt_lp(
         aptos_coins: Coin<AptosCoin>,
         staptos_coins: Coin<StakedAptos>,
-        product_address: address
+        product_address: address,
+        slippage_tolerance_bps: u64
     ) : (Coin<LP<AptosCoin, StakedAptos, Stable>>, Coin<AptosCoin>) {
+        let min_aptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            coin::value(&aptos_coins),
+            slippage_tolerance_bps,
+            MAX_BPS
+        );
+        let min_staptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            coin::value(&staptos_coins),
+            slippage_tolerance_bps,
+            MAX_BPS
+        );
         let (
             residual_aptos_coins,
             residual_staptos_coins,
             lp
-        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(aptos_coins, 0, staptos_coins, 0);
+        ) = add_liquidity<AptosCoin, StakedAptos, Stable>(
+            aptos_coins,
+            min_aptos_amount,
+            staptos_coins,
+            min_staptos_amount
+        );
 
         if(coin::value(&residual_staptos_coins) == 0){
             coin::destroy_zero(residual_staptos_coins);
@@ -182,8 +206,12 @@ module satay_ditto_farming::mock_ditto_farming {
         let ditto_farming_addr = signer::address_of(ditto_farming_signer);
         let farming_coin_caps = borrow_global<DittoFarmingCoinCaps>(ditto_farming_addr);
         let lp_coin_amount = coin::value(&lp_coins);
+
         coin::deposit(ditto_farming_addr, lp_coins);
-        mock_liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(ditto_farming_signer, lp_coin_amount);
+        mock_liquidity_mining::stake<LP<AptosCoin, StakedAptos, Stable>>(
+            ditto_farming_signer,
+            lp_coin_amount
+        );
         coin::mint<DittoFarmingCoin>(
             lp_coin_amount,
             &farming_coin_caps.mint_cap
@@ -193,13 +221,13 @@ module satay_ditto_farming::mock_ditto_farming {
     // liquidates DittoFarmingCoin for AptosCoin
     public fun liquidate_position(
         ditto_farming_coins: Coin<DittoFarmingCoin>,
-    ): Coin<AptosCoin> acquires FarmingAccountCapability, DittoFarmingCoinCaps {
-        let ditto_farming_cap = borrow_global<FarmingAccountCapability>(@satay_ditto_farming);
-        let ditto_farming_signer = account::create_signer_with_capability(&ditto_farming_cap.signer_cap);
+    ): Coin<AptosCoin> acquires FarmingAccount, DittoFarmingCoinCaps {
+        let ditto_farming_account = borrow_global<FarmingAccount>(@satay_ditto_farming);
+        let ditto_farming_signer = account::create_signer_with_capability(&ditto_farming_account.signer_cap);
 
         let lp_coins = unstake_lp_and_burn(ditto_farming_coins, &ditto_farming_signer);
 
-        liquidate_lp_coins(lp_coins)
+        liquidate_lp_coins(lp_coins, ditto_farming_account.slippage_tolerance_bps)
     }
 
     // unstake LP<AptosCoin, StakedAptos> from Ditto liquidity_mining module
@@ -224,16 +252,30 @@ module satay_ditto_farming::mock_ditto_farming {
 
     // removes LP<AptosCoin, StakedAptos> from Liquidswap for AptosCoin
     fun liquidate_lp_coins(
-        lp_coins: Coin<LP<AptosCoin, StakedAptos, Stable>>
+        lp_coins: Coin<LP<AptosCoin, StakedAptos, Stable>>,
+        slippage_tolerance_bps: u64
     ) : Coin<AptosCoin> {
         // remove liquidity for lp_coins
+        let (apt_amount, stapt_amount) = get_reserves_for_lp_coins<AptosCoin, StakedAptos, Stable>(
+            coin::value(&lp_coins)
+        );
+        let min_aptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            apt_amount,
+            slippage_tolerance_bps,
+            MAX_BPS
+        );
+        let min_staptos_amount = calculate_proportion_of_u64_with_u64_denominator(
+            stapt_amount,
+            slippage_tolerance_bps,
+            MAX_BPS
+        );
         let (aptos_coin, staked_aptos) = remove_liquidity<AptosCoin, StakedAptos, Stable>(
             lp_coins,
-            1,
-            1
+            min_aptos_amount,
+            min_staptos_amount
         );
         // swap returned stAPT for APT
-        coin::merge(&mut aptos_coin, swap_stapt_for_apt(staked_aptos));
+        coin::merge(&mut aptos_coin, swap_stapt_for_apt(staked_aptos, slippage_tolerance_bps));
         // return APT
         aptos_coin
     }
@@ -242,7 +284,7 @@ module satay_ditto_farming::mock_ditto_farming {
     // deposit returned DittoFarmingCoin and AptosCoin to user account
     public entry fun tend(
         user: &signer,
-    ) acquires FarmingAccountCapability, DittoFarmingCoinCaps {
+    ) acquires FarmingAccount, DittoFarmingCoinCaps {
         let (dito_farming_coins, residual_aptos_coins) = reinvest_returns(user);
         coin::deposit(signer::address_of(user), dito_farming_coins);
         coin::deposit(signer::address_of(user), residual_aptos_coins);
@@ -251,7 +293,7 @@ module satay_ditto_farming::mock_ditto_farming {
 
     public fun reinvest_returns(
         user: &signer,
-    ): (Coin<DittoFarmingCoin>, Coin<AptosCoin>) acquires FarmingAccountCapability, DittoFarmingCoinCaps {
+    ): (Coin<DittoFarmingCoin>, Coin<AptosCoin>) acquires FarmingAccount, DittoFarmingCoinCaps {
         let aptos_coins = claim_rewards_from_ditto();
         apply_position(aptos_coins, signer::address_of(user))
     }
@@ -297,17 +339,26 @@ module satay_ditto_farming::mock_ditto_farming {
     }
 
     // swap StakedAptos for AptosCoin on Liquidswap
-    fun swap_stapt_for_apt(staptos_coins: Coin<StakedAptos>) : Coin<AptosCoin> {
+    fun swap_stapt_for_apt(staptos_coins: Coin<StakedAptos>, slippage_tolerance_bps: u64) : Coin<AptosCoin> {
         // swap on liquidswap AMM
+        let minimum_apt_out = calculate_proportion_of_u64_with_u64_denominator(
+            get_stapt_per_apt(coin::value(&staptos_coins)),
+            slippage_tolerance_bps,
+            MAX_BPS
+        );
         swap_exact_coin_for_coin<StakedAptos, AptosCoin, Stable>(
             staptos_coins,
-            0
+            minimum_apt_out
         )
     }
 
-    public fun get_lp_reserves_amount() : u64 acquires FarmingAccountCapability {
-        let ditto_strategy_cap = borrow_global<FarmingAccountCapability>(@satay_ditto_farming);
+    public fun get_lp_reserves_amount() : u64 acquires FarmingAccount {
+        let ditto_strategy_cap = borrow_global<FarmingAccount>(@satay_ditto_farming);
         let ditto_strategy_address = account::get_signer_capability_address(&ditto_strategy_cap.signer_cap);
         coin::balance<LP<AptosCoin, StakedAptos, Stable>>(ditto_strategy_address)
+    }
+
+    public fun get_stapt_per_apt(stapt_amount: u64) : u64 {
+        stapt_amount * mock_ditto_staking::get_stapt_index() / pow10(8)
     }
 }
