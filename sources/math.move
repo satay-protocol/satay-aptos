@@ -14,9 +14,9 @@ module satay::math {
 
     public fun mul_div(x: u64, y: u64, z: u64): u64 {
         assert!(z != 0, ERR_DIVIDE_BY_ZERO);
-        let r = (x as u128) * (y as u128) / (z as u128);
-        assert_can_cast_to_u64(r);
-        (r as u64)
+        let res = (x as u128) * (y as u128) / (z as u128);
+        assert_can_cast_to_u64(res);
+        (res as u64)
     }
 
     public fun calculate_proportion_of_u64_with_u64_denominator(x: u64, numerator: u64, denominator: u64): u64 {
