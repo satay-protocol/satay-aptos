@@ -15,7 +15,7 @@ module satay::math {
 
     public fun mul_div(x: u64, y: u64, z: u64): u64 {
         assert!(z != 0, ERR_DIVIDE_BY_ZERO);
-        assert_can_cast_to_u64((x as u128) * (y as u128));
+        assert_can_cast_to_u64((x as u128) * (y as u128) / (z as u128));
         ((x as u128) * (y as u128) / (z as u128) as u64)
     }
 
