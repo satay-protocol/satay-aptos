@@ -4,7 +4,7 @@ module satay::mock_strategy {
     use aptos_framework::aptos_coin::AptosCoin;
 
     use satay::base_strategy;
-    use satay::vault::VaultCapability;
+    use satay::vault::{VaultCapability, VaultCoin};
     use satay::aptos_wrapper_product::{Self, WrappedAptos};
     use aptos_framework::coin;
 
@@ -110,13 +110,14 @@ module satay::mock_strategy {
         vault_id: u64,
         share_amount: u64,
     ) {
+        let vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, share_amount);
         let (
             vault_cap,
             user_withdraw_lock
         ) = base_strategy::open_vault_for_user_withdraw<MockStrategy, AptosCoin, WrappedAptos>(
             user,
             vault_id,
-            share_amount,
+            vault_coins,
             MockStrategy {}
         );
 
@@ -126,7 +127,7 @@ module satay::mock_strategy {
         let to_return = coin::zero<AptosCoin>();
         if(amount_needed > 0){
             let wrapped_aptos_to_withdraw = get_wrapped_amount_for_aptos_amount(amount_needed);
-            let wrapped_aptos = base_strategy::withdraw_strategy_coin<MockStrategy, WrappedAptos>(
+            let wrapped_aptos = base_strategy::withdraw_strategy_coin_for_liquidation<MockStrategy, WrappedAptos, AptosCoin>(
                 &vault_cap,
                 wrapped_aptos_to_withdraw,
                 vault_cap_lock,

@@ -1,12 +1,11 @@
 module satay::satay {
     use std::option::{Self, Option};
-    use std::signer;
 
     use aptos_framework::coin;
     use aptos_std::table::{Self, Table};
 
     use satay::global_config;
-    use satay::vault::{Self, VaultCapability};
+    use satay::vault::{Self, VaultCapability, VaultCoin};
 
     friend satay::base_strategy;
 
@@ -161,14 +160,28 @@ module satay::satay {
         amount: u64
     ) acquires ManagerAccount {
         assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
+        let account = borrow_global_mut<ManagerAccount>(@satay);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::extract(&mut vault_info.vault_cap);
 
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
+        let user_cap = vault::get_user_capability(
+            user,
+            vault_cap,
+        );
+        let base_coins = coin::withdraw<BaseCoin>(user, amount);
+        let vault_coins = vault::deposit_as_user(&user_cap, base_coins);
 
-        let base_coin = coin::withdraw<BaseCoin>(user, amount);
+        let (
+            vault_cap,
+            user_addr
+        ) = vault::destroy_user_capability(user_cap);
 
-        vault::deposit_as_user(user, vault_cap, base_coin);
+        if(!coin::is_account_registered<VaultCoin<BaseCoin>>(user_addr)){
+            coin::register<VaultCoin<BaseCoin>>(user);
+        };
+        coin::deposit(user_addr, vault_coins);
+
+        option::fill(&mut vault_info.vault_cap, vault_cap);
     }
 
     // user withdraws amount of BaseCoin from vault_id of manager_addr
@@ -178,14 +191,25 @@ module satay::satay {
         amount: u64
     ) acquires ManagerAccount {
         assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
+        let account = borrow_global_mut<ManagerAccount>(@satay);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::extract(&mut vault_info.vault_cap);
 
-        let vault_info = table::borrow(&account.vaults, vault_id);
+        let user_cap = vault::get_user_capability(
+            user,
+            vault_cap,
+        );
+        let vault_coins = coin::withdraw<VaultCoin<BaseCoin>>(user, amount);
+        let base_coins = vault::withdraw_as_user<BaseCoin>(&user_cap, vault_coins);
 
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        let user_addr = signer::address_of(user);
-        let base_coin = vault::withdraw_as_user<BaseCoin>(user, vault_cap, amount);
-        coin::deposit(user_addr, base_coin);
+        let (
+            vault_cap,
+            user_addr
+        ) = vault::destroy_user_capability(user_cap);
+
+        coin::deposit(user_addr, base_coins);
+
+        option::fill(&mut vault_info.vault_cap, vault_cap);
     }
 
     // strategy functions

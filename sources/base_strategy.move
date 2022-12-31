@@ -1,10 +1,10 @@
 module satay::base_strategy {
 
-    use std::signer;
+    // use std::signer;
 
     use aptos_framework::coin::{Self, Coin};
 
-    use satay::vault::{Self, VaultCapability, VaultCoin};
+    use satay::vault::{Self, VaultCapability, VaultCoin, UserCapability};
     use satay::satay::{Self, VaultCapLock};
 
     const ERR_NOT_ENOUGH_FUND: u64 = 301;
@@ -12,10 +12,12 @@ module satay::base_strategy {
     const ERR_LOSS: u64 = 303;
     const ERR_DEBT_OUT_STANDING: u64 = 304;
     const ERR_HARVEST: u64 = 305;
+    const ERR_INSUFFICIENT_USER_RETURN: u64 = 306;
 
-    struct UserWithdrawLock<StrategyType: drop> {
+    struct UserWithdrawLock<StrategyType: drop, phantom BaseCoin> {
         vault_cap_lock: VaultCapLock<StrategyType>,
         amount_needed: u64,
+        vault_coins: Coin<VaultCoin<BaseCoin>>
     }
 
     struct HarvestLock<StrategyType: drop> {
@@ -65,6 +67,18 @@ module satay::base_strategy {
     ): Coin<StrategyCoin> {
         vault::withdraw_strategy_coin<StrategyType, StrategyCoin>(
             vault_cap,
+            amount,
+            satay::get_strategy_witness(stop_handle),
+        )
+    }
+
+    public fun withdraw_strategy_coin_for_liquidation<StrategyType: drop, StrategyCoin, BaseCoin>(
+        user_cap: &UserCapability,
+        amount: u64,
+        stop_handle: &VaultCapLock<StrategyType>
+    ): Coin<StrategyCoin> {
+        vault::withdraw_strategy_coin_for_liquidation<StrategyType, StrategyCoin, BaseCoin>(
+            user_cap,
             amount,
             satay::get_strategy_witness(stop_handle),
         )
@@ -214,56 +228,58 @@ module satay::base_strategy {
     public fun open_vault_for_user_withdraw<StrategyType: drop, BaseCoin, StrategyCoin>(
         user: &signer,
         vault_id: u64,
-        share_amount: u64,
+        vault_coins: Coin<VaultCoin<BaseCoin>>,
         witness: StrategyType
-    ): (VaultCapability, UserWithdrawLock<StrategyType>) {
+    ): (UserCapability, UserWithdrawLock<StrategyType, BaseCoin>) {
         let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
             vault_id,
             witness
         );
 
-        // check if user is eligible to withdraw
-        let user_share_amount = coin::balance<VaultCoin<BaseCoin>>(signer::address_of(user));
-        assert!(user_share_amount >= share_amount, ERR_NOT_ENOUGH_FUND);
-
         // check if vault has enough balance
+        let vault_coin_amount = coin::value(&vault_coins);
         let vault_balance = vault::balance<BaseCoin>(&vault_cap);
-        let value = vault::calculate_base_coin_amount_from_share<BaseCoin>(&vault_cap, share_amount);
+        let value = vault::calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
+            &vault_cap,
+            vault_coin_amount
+        );
         assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
 
         let amount_needed = value - vault_balance;
         let total_debt = vault::total_debt<StrategyType>(&vault_cap);
-        if (amount_needed > total_debt) {
-            amount_needed = total_debt;
-        };
+        assert!(total_debt >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
 
-        (vault_cap, UserWithdrawLock<StrategyType> {
+        let user_cap = vault::get_user_capability(
+            user,
+            vault_cap,
+        );
+
+        (user_cap, UserWithdrawLock<StrategyType, BaseCoin> {
             vault_cap_lock,
-            amount_needed
+            amount_needed,
+            vault_coins
         })
     }
 
     public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
-        vault_cap: VaultCapability,
-        user_withdraw_lock: UserWithdrawLock<StrategyType>,
+        user_cap: UserCapability,
+        user_withdraw_lock: UserWithdrawLock<StrategyType, BaseCoin>,
         coins: Coin<BaseCoin>,
     ) {
-        let UserWithdrawLock<StrategyType> {
+        let UserWithdrawLock<StrategyType, BaseCoin> {
             vault_cap_lock,
-            amount_needed
+            amount_needed,
+            vault_coins
         } = user_withdraw_lock;
 
+
+        assert!(coin::value(&coins) >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
+
         let witness = satay::get_strategy_witness(&vault_cap_lock);
-
-        let value = coin::value(&coins);
-
-        if (amount_needed > value) {
-            vault::report_loss<StrategyType>(&vault_cap, amount_needed - value, witness);
-        };
-
-        vault::debt_payment(
-            &vault_cap,
+        let vault_cap = vault::user_liquidation(
+            user_cap,
             coins,
+            vault_coins,
             witness
         );
 
@@ -317,14 +333,14 @@ module satay::base_strategy {
         harvest_lock.debt_payment
     }
 
-    public fun get_user_withdraw_vault_cap_lock<StrategyType: drop>(
-        user_withdraw_lock: &UserWithdrawLock<StrategyType>
+    public fun get_user_withdraw_vault_cap_lock<StrategyType: drop, BaseCoin>(
+        user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>
     ): &VaultCapLock<StrategyType> {
         &user_withdraw_lock.vault_cap_lock
     }
 
-    public fun get_user_withdraw_amount_needed<StrategyType: drop>(
-        user_withdraw_lock: &UserWithdrawLock<StrategyType>
+    public fun get_user_withdraw_amount_needed<StrategyType: drop, BaseCoin>(
+        user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>
     ): u64 {
         user_withdraw_lock.amount_needed
     }

@@ -53,6 +53,7 @@ module satay::test_vault {
         stake::initialize_for_test(aptos_framework);
         account::create_account_for_test(signer::address_of(user));
         coin::register<AptosCoin>(user);
+        coin::register<VaultCoin<AptosCoin>>(user);
         satay::initialize(satay)
     }
 
@@ -103,11 +104,12 @@ module satay::test_vault {
     fun user_deposit_base_coin(
         aptos_framework: &signer,
         user: &signer,
-        vault_cap: &VaultCapability,
-    ) {
-        aptos_coin::mint(aptos_framework, signer::address_of(user), USER_DEPOSIT);
+        vault_cap: VaultCapability,
+    ): VaultCapability {
+        let user_address = signer::address_of(user);
+        aptos_coin::mint(aptos_framework, user_address, USER_DEPOSIT);
         let base_coin = coin::withdraw<AptosCoin>(user, USER_DEPOSIT);
-        vault::test_deposit_as_user(user, vault_cap, base_coin);
+        vault::test_deposit_as_user(user, vault_cap, base_coin)
     }
 
     fun cleanup_tests(
@@ -275,9 +277,9 @@ module satay::test_vault {
         let amount = 100;
 
         aptos_coin::mint(aptos_framework, user_address, amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user, amount)
         );
 
@@ -308,10 +310,10 @@ module satay::test_vault {
         coins::register_coin<USDT>(token_admin);
         coins::mint_coin<USDT>(token_admin, user_address, amount);
 
-        vault::test_deposit_as_user<USDT>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user,
-            &vault_cap,
-            coin::withdraw<USDT>(user, amount)
+            vault_cap,
+            coin::withdraw<AptosCoin>(user, amount)
         );
         cleanup_tests(vault_cap);
     }
@@ -333,17 +335,16 @@ module satay::test_vault {
         let amount = 100;
 
         aptos_coin::mint(aptos_framework, user_address, amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user, amount)
         );
-        let base_coins = vault::test_withdraw_as_user<AptosCoin>(
+        vault_cap = vault::test_withdraw_as_user<AptosCoin>(
             user,
-            &vault_cap,
-            amount
+            vault_cap,
+            coin::withdraw<VaultCoin<AptosCoin>>(user, amount)
         );
-        coin::deposit<AptosCoin>(user_address, base_coins);
         assert!(vault::vault_coin_balance<AptosCoin>(user_address) == 0, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(coin::balance<AptosCoin>(user_address) == amount, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_DEPOIST_WITHDRAW_AS_USER);
@@ -367,17 +368,16 @@ module satay::test_vault {
         let amount = 100;
 
         aptos_coin::mint(aptos_framework, user_address, amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user, amount)
         );
-        let base_coins = vault::test_withdraw_as_user<USDT>(
+        vault_cap = vault::test_withdraw_as_user<USDT>(
             user,
-            &vault_cap,
-            amount
+            vault_cap,
+            coin::withdraw<VaultCoin<USDT>>(user, amount)
         );
-        coin::deposit<USDT>(user_address, base_coins);
         cleanup_tests(vault_cap);
     }
 
@@ -398,17 +398,16 @@ module satay::test_vault {
         let amount = 100;
 
         aptos_coin::mint(aptos_framework, user_address, amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user, amount)
         );
-        let base_coins = vault::test_withdraw_as_user<AptosCoin>(
+        vault_cap = vault::test_withdraw_as_user<AptosCoin>(
             user,
-            &vault_cap,
-            amount + 1
+            vault_cap,
+            coin::withdraw<VaultCoin<AptosCoin>>(user, amount + 1)
         );
-        coin::deposit<AptosCoin>(user_address, base_coins);
         cleanup_tests(vault_cap);
     }
 
@@ -428,8 +427,9 @@ module satay::test_vault {
         let amount = 100;
 
         aptos_coin::mint(aptos_framework, user_address, amount);
-        vault::test_deposit_as_user<AptosCoin>(
-            user, &vault_cap,
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
+            user,
+            vault_cap,
             coin::withdraw<AptosCoin>(user, amount / 2)
         );
         vault::test_deposit<AptosCoin>(
@@ -439,8 +439,11 @@ module satay::test_vault {
 
         assert!(vault::vault_coin_balance<AptosCoin>(user_address) == amount / 2, ERR_DEPOIST_WITHDRAW_AS_USER);
 
-        let base_coins = vault::test_withdraw_as_user<AptosCoin>(user, &vault_cap, amount / 2);
-        coin::deposit<AptosCoin>(user_address, base_coins);
+        vault_cap = vault::test_withdraw_as_user<AptosCoin>(
+            user,
+            vault_cap,
+            coin::withdraw<VaultCoin<AptosCoin>>(user, amount / 2)
+        );
 
         assert!(vault::vault_coin_balance<AptosCoin>(user_address) == 0, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(coin::balance<AptosCoin>(user_address) == amount, ERR_DEPOIST_WITHDRAW_AS_USER);
@@ -469,9 +472,9 @@ module satay::test_vault {
         let user_a_amount = 1000;
         let user_a_deposit_amount = 100;
         aptos_coin::mint(aptos_framework, user_a_address, user_a_amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user_a,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user_a, user_a_deposit_amount)
         );
         assert!(vault::vault_coin_balance<AptosCoin>(user_a_address) == user_a_deposit_amount, ERR_INCORRECT_VAULT_COIN_AMOUNT);
@@ -481,21 +484,23 @@ module satay::test_vault {
         let user_b_amount = 1000;
         let user_b_deposit_amount = 1000;
         aptos_coin::mint(aptos_framework, user_b_address, user_b_amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        coin::register<VaultCoin<AptosCoin>>(user_b);
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user_b,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(
                 user_b,
                 user_b_deposit_amount
-            ));
+            )
+        );
         assert!(vault::vault_coin_balance<AptosCoin>(user_b_address) == user_b_deposit_amount, ERR_INCORRECT_VAULT_COIN_AMOUNT);
 
         // userA deposit 400 coins
         // userA should have 500 shares in total
         let user_a_second_deposit_amount = 400;
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user_a,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user_a, user_a_second_deposit_amount)
         );
         let user_a_total_deposits = user_a_deposit_amount + user_a_second_deposit_amount;
@@ -507,13 +512,13 @@ module satay::test_vault {
         // userA should withdraw (1500 + 300) * 500 / 1500
         let total_deposits = user_a_total_deposits + user_b_deposit_amount + farm_amount;
         let user_a_withdraw_amount = user_a_total_deposits;
-        let coins = vault::test_withdraw_as_user<AptosCoin>(
+        let user_a_balance_before = coin::balance<AptosCoin>(user_a_address);
+        vault_cap = vault::test_withdraw_as_user<AptosCoin>(
             user_a,
-            &vault_cap,
-            user_a_withdraw_amount
+            vault_cap,
+            coin::withdraw<VaultCoin<AptosCoin>>(user_a, user_a_withdraw_amount)
         );
-        let withdraw_amount = coin::value(&coins);
-        coin::deposit<AptosCoin>(user_a_address, coins);
+        let withdraw_amount = coin::balance<AptosCoin>(user_a_address) - user_a_balance_before;
         let expected_withdraw_amount = (total_deposits + farm_amount) / total_deposits * withdraw_amount;
         assert!(withdraw_amount == expected_withdraw_amount, ERR_INCORRECT_VAULT_COIN_AMOUNT);
         cleanup_tests(vault_cap);
@@ -607,13 +612,16 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        let vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
         let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         vault::test_freeze_vault(&vault_manager_cap);
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         let user_address = signer::address_of(user);
-        let aptos_coins = vault::test_withdraw_as_user<AptosCoin>(user, &vault_cap, USER_DEPOSIT);
-        coin::deposit(user_address, aptos_coins);
+        vault_cap = vault::test_withdraw_as_user<AptosCoin>(
+            user,
+            vault_cap,
+            coin::withdraw<VaultCoin<AptosCoin>>(user, USER_DEPOSIT)
+        );
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_FREEZE_VAULT);
         assert!(coin::balance<AptosCoin>(user_address) == USER_DEPOSIT, ERR_FREEZE_VAULT);
         cleanup_tests(vault_cap);
@@ -634,7 +642,7 @@ module satay::test_vault {
         let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         vault::test_freeze_vault(&vault_manager_cap);
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
-        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
         cleanup_tests(vault_cap);
     }
 
@@ -653,7 +661,7 @@ module satay::test_vault {
         vault::test_freeze_vault(&vault_manager_cap);
         vault::test_unfreeze_vault(&vault_manager_cap);
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
-        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT, ERR_FREEZE_VAULT);
         cleanup_tests(vault_cap);
     }
@@ -861,7 +869,7 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
-        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
 
         let credit_available = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
         let base_coin = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
@@ -892,25 +900,25 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
-        user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
 
         let seconds = 1000;
         timestamp::fast_forward_seconds(seconds);
 
         let profit_amount = 100;
+        aptos_coin::mint(aptos_framework, signer::address_of(user), profit_amount);
+        let profit = coin::withdraw<AptosCoin>(user, profit_amount);
         let performance_fee = profit_amount * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
         let management_fee = (
             vault::total_debt<TestStrategy>(&vault_cap) *
                 seconds * MANAGEMENT_FEE / MAX_DEBT_RATIO_BPS /
                 SECS_PER_YEAR
         );
-        let expected_fee = vault::calculate_share_amount_from_base_coin_amount<AptosCoin>(
+        let expected_fee = vault::calculate_vault_coin_amount_from_base_coin_amount<AptosCoin>(
             &vault_cap,
             performance_fee + management_fee
         );
 
-        aptos_coin::mint(aptos_framework, signer::address_of(user), profit_amount);
-        let profit = coin::withdraw<AptosCoin>(user, profit_amount);
         vault::test_deposit_profit<TestStrategy, AptosCoin>(&vault_cap, profit, &TestStrategy {});
 
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT + profit_amount, ERR_DEPOSIT_PROFIT);
@@ -1177,9 +1185,9 @@ module satay::test_vault {
         let user_address = signer::address_of(user);
         let amount = 100;
         aptos_coin::mint(aptos_framework, user_address, amount);
-        vault::test_deposit_as_user<AptosCoin>(
+        vault_cap = vault::test_deposit_as_user<AptosCoin>(
             user,
-            &vault_cap,
+            vault_cap,
             coin::withdraw<AptosCoin>(user, amount)
         );
 
@@ -1198,7 +1206,7 @@ module satay::test_vault {
         let management_fee_amount = total_debt * duration * management_fee / MAX_DEBT_RATIO_BPS / SECS_PER_YEAR;
         let performance_fee_amount = gain * performance_fee / MAX_DEBT_RATIO_BPS;
         let total_fee = management_fee_amount + performance_fee_amount;
-        let expected_share_token_amount = vault::calculate_share_amount_from_base_coin_amount<AptosCoin>(
+        let expected_share_token_amount = vault::calculate_vault_coin_amount_from_base_coin_amount<AptosCoin>(
             &vault_cap,
             total_fee
         );
