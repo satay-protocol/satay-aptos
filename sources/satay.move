@@ -78,17 +78,19 @@ module satay::satay {
         performance_fee: u64
     ) acquires ManagerAccount {
         assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
+        let account = borrow_global_mut<ManagerAccount>(@satay);
 
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::extract(&mut vault_info.vault_cap);
 
+        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
         vault::update_fee(
-            vault_manager,
-            vault_cap,
+            &vault_manager_cap,
             management_fee,
             performance_fee
         );
+
+        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
     }
 
     public entry fun freeze_vault(
@@ -96,15 +98,17 @@ module satay::satay {
         vault_id: u64
     ) acquires ManagerAccount {
         assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
+        let account = borrow_global_mut<ManagerAccount>(@satay);
 
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::extract(&mut vault_info.vault_cap);
 
+        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
         vault::freeze_vault(
-            vault_manager,
-            vault_cap
+            &vault_manager_cap
         );
+
+        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
     }
 
     public entry fun unfreeze_vault(
@@ -112,15 +116,17 @@ module satay::satay {
         vault_id: u64
     ) acquires ManagerAccount {
         assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
+        let account = borrow_global_mut<ManagerAccount>(@satay);
 
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::extract(&mut vault_info.vault_cap);
 
+        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
         vault::unfreeze_vault(
-            vault_manager,
-            vault_cap
+            &vault_manager_cap
         );
+
+        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
     }
 
     // allows Strategy to get VaultCapability of vault_id of manager_addr
@@ -131,15 +137,19 @@ module satay::satay {
         witness: &StrategyType
     ) acquires ManagerAccount {
         assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
+        let account = borrow_global_mut<ManagerAccount>(@satay);
 
-        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::extract(&mut vault_info.vault_cap);
+
+        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
         vault::approve_strategy<StrategyType, StrategyCoin>(
-            vault_manager,
-            option::borrow(&vault_info.vault_cap),
+            &vault_manager_cap,
             debt_ratio,
             witness
         );
+
+        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
     }
 
     // user functions

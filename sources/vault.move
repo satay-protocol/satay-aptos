@@ -56,12 +56,6 @@ module satay::vault {
         freeze_events: EventHandle<FreezeEvent>,
     }
 
-    struct VaultCapability has store, drop {
-        storage_cap: SignerCapability,
-        vault_id: u64,
-        vault_addr: address,
-    }
-
     struct VaultCoin<phantom BaseCoin> has key {}
 
     struct VaultCoinCaps<phantom BaseCoin> has key {
@@ -83,6 +77,18 @@ module satay::vault {
         loss_events: EventHandle<LossEvent>,
         harvest_events: EventHandle<HarvestEvent>,
         assess_fees_events: EventHandle<AssessFeesEvent>,
+    }
+
+    // capabilities
+
+    struct VaultCapability has store, drop {
+        storage_cap: SignerCapability,
+        vault_id: u64,
+        vault_addr: address,
+    }
+
+    struct VaultManagerCapability {
+        vault_cap: VaultCapability
     }
 
     // events
@@ -224,6 +230,25 @@ module satay::vault {
         vault_cap
     }
 
+    // capability functions
+
+    public(friend) fun get_vault_manager_capability(
+        vault_manager: &signer,
+        vault_cap: VaultCapability
+    ): VaultManagerCapability {
+        vault_config::assert_vault_manager(vault_manager, vault_cap.vault_addr);
+        VaultManagerCapability { vault_cap }
+    }
+
+    public(friend) fun destroy_vault_manager_capability(
+        vault_manager_cap: VaultManagerCapability
+    ): VaultCapability {
+        let VaultManagerCapability {
+            vault_cap
+        } = vault_manager_cap;
+        vault_cap
+    }
+
     // user functions
 
     // deposit base_coin into the vault
@@ -318,16 +343,13 @@ module satay::vault {
 
     // update vault fee
     public(friend) fun update_fee(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability,
+        vault_manager_cap: &VaultManagerCapability,
         management_fee: u64,
         performance_fee: u64
     ) acquires Vault {
-        vault_config::assert_vault_manager(vault_manager, vault_cap.vault_addr);
-
         assert_fee_amounts(management_fee, performance_fee);
 
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        let vault = borrow_global_mut<Vault>(vault_manager_cap.vault_cap.vault_addr);
         vault.management_fee = management_fee;
         vault.performance_fee = performance_fee;
 
@@ -338,12 +360,10 @@ module satay::vault {
     }
 
     public(friend) fun freeze_vault(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability
+       vault_manager_cap: &VaultManagerCapability
     ) acquires Vault {
-        vault_config::assert_vault_manager(vault_manager, vault_cap.vault_addr);
-        assert_vault_active(vault_cap);
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        assert_vault_active(&vault_manager_cap.vault_cap);
+        let vault = borrow_global_mut<Vault>(vault_manager_cap.vault_cap.vault_addr);
         vault.deposits_frozen = true;
         event::emit_event(&mut vault.freeze_events, FreezeEvent {
             frozen: true,
@@ -351,12 +371,10 @@ module satay::vault {
     }
 
     public(friend) fun unfreeze_vault(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability
+        vault_manager_cap: &VaultManagerCapability
     ) acquires Vault {
-        vault_config::assert_vault_manager(vault_manager, vault_cap.vault_addr);
-        assert_vault_not_active(vault_cap);
-        let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
+        assert_vault_not_active(&vault_manager_cap.vault_cap);
+        let vault = borrow_global_mut<Vault>(vault_manager_cap.vault_cap.vault_addr);
         vault.deposits_frozen = false;
         event::emit_event(&mut vault.freeze_events, FreezeEvent {
             frozen: false,
@@ -365,13 +383,11 @@ module satay::vault {
 
     // approves strategy for vault
     public(friend) fun approve_strategy<StrategyType: drop, StrategyCoin>(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability,
+        vault_manager_cap: &VaultManagerCapability,
         debt_ratio: u64,
         witness: &StrategyType
     ) acquires Vault, VaultStrategy {
-        vault_config::assert_vault_manager(vault_manager, vault_cap.vault_addr);
-
+        let vault_cap = &vault_manager_cap.vault_cap;
         let vault = borrow_global_mut<Vault>(vault_cap.vault_addr);
 
         // check if the strategy's updated debt ratio is valid
@@ -1048,15 +1064,23 @@ module satay::vault {
     }
 
     #[test_only]
+    public fun test_get_vault_manager_cap(vault_manager: &signer, vault_cap: VaultCapability): VaultManagerCapability {
+        get_vault_manager_capability(vault_manager, vault_cap)
+    }
+
+    #[test_only]
+    public fun test_destroy_vault_manager_cap(vault_manager_cap: VaultManagerCapability): VaultCapability {
+        destroy_vault_manager_capability(vault_manager_cap)
+    }
+
+    #[test_only]
     public fun test_approve_strategy<StrategyType: drop, StrategyCoin>(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability,
+        vault_manager_cap: &VaultManagerCapability,
         debt_ratio: u64,
         witness: StrategyType
     ) acquires Vault, VaultStrategy {
         approve_strategy<StrategyType, StrategyCoin>(
-            vault_manager,
-            vault_cap,
+            vault_manager_cap,
             debt_ratio,
             &witness
         );
@@ -1064,14 +1088,12 @@ module satay::vault {
 
     #[test_only]
     public fun test_update_fee(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability,
+        vault_manager_cap: &VaultManagerCapability,
         management_fee: u64,
         performance_fee: u64
     ) acquires Vault {
         update_fee(
-            vault_manager,
-            vault_cap,
+            vault_manager_cap,
             management_fee,
             performance_fee
         );
@@ -1079,23 +1101,19 @@ module satay::vault {
 
     #[test_only]
     public fun test_freeze_vault(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability
+        vault_manager_cap: &VaultManagerCapability,
     ) acquires Vault {
         freeze_vault(
-            vault_manager,
-            vault_cap
+            vault_manager_cap
         );
     }
 
     #[test_only]
     public fun test_unfreeze_vault(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability
+        vault_manager_cap: &VaultManagerCapability,
     ) acquires Vault {
         unfreeze_vault(
-            vault_manager,
-            vault_cap
+            vault_manager_cap
         );
     }
 

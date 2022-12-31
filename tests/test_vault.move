@@ -11,7 +11,7 @@ module satay::test_vault {
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::timestamp;
 
-    use satay::vault::{Self, VaultCapability, VaultCoin};
+    use satay::vault::{Self, VaultCapability, VaultCoin, VaultManagerCapability};
     use satay::coins::{Self, USDT};
     use satay::dao_storage;
     use satay::satay;
@@ -80,12 +80,10 @@ module satay::test_vault {
 
     #[test_only]
     fun approve_strategy(
-        vault_manager: &signer,
-        vault_cap: &VaultCapability,
+        vault_manager_cap: &VaultManagerCapability
     ) {
         vault::test_approve_strategy<TestStrategy, USDT>(
-            vault_manager,
-            vault_cap,
+            vault_manager_cap,
             DEBT_RATIO,
             TestStrategy {}
         )
@@ -97,8 +95,9 @@ module satay::test_vault {
         user: &signer,
     ): VaultCapability {
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        approve_strategy(vault_manager, &vault_cap);
-        vault_cap
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        approve_strategy(&vault_manager_cap);
+        vault::test_destroy_vault_manager_cap(vault_manager_cap)
     }
 
     fun user_deposit_base_coin(
@@ -153,7 +152,9 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
         let management_fee = 1000;
         let performance_fee = 2000;
-        vault::test_update_fee(vault_manager, &vault_cap, management_fee, performance_fee);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_update_fee(&vault_manager_cap, management_fee, performance_fee);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         let (management_fee_val, performance_fee_val) = vault::get_fees(&vault_cap);
         assert!(management_fee_val == management_fee, ERR_FEES);
         assert!(performance_fee_val == performance_fee, ERR_FEES);
@@ -171,9 +172,11 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         let management_fee = 5001;
         let performance_fee = 0;
-        vault::test_update_fee(vault_manager, &vault_cap, management_fee, performance_fee);
+        vault::test_update_fee(&vault_manager_cap, management_fee, performance_fee);
+        vault::test_destroy_vault_manager_cap(vault_manager_cap);
     }
 
     #[test(
@@ -188,9 +191,11 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         let management_fee = 0;
         let performance_fee = 5001;
-        vault::test_update_fee(vault_manager, &vault_cap, management_fee, performance_fee);
+        vault::test_update_fee(&vault_manager_cap, management_fee, performance_fee);
+        vault::test_destroy_vault_manager_cap(vault_manager_cap);
     }
 
     // test deposit and withdraw
@@ -509,7 +514,9 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         assert!(vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
     }
 
@@ -525,8 +532,10 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault::test_destroy_vault_manager_cap(vault_manager_cap);
     }
 
     #[test(
@@ -540,8 +549,10 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
-        vault::test_unfreeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault::test_unfreeze_vault(&vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         assert!(!vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
     }
 
@@ -557,7 +568,9 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        vault::test_unfreeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_unfreeze_vault(&vault_manager_cap);
+        vault::test_destroy_vault_manager_cap(vault_manager_cap);
     }
 
     #[test(
@@ -572,7 +585,9 @@ module satay::test_vault {
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
         user_deposit_base_coin(aptos_framework, user, &vault_cap);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         let user_address = signer::address_of(user);
         let aptos_coins = vault::test_withdraw_as_user<AptosCoin>(user, &vault_cap, USER_DEPOSIT);
         coin::deposit(user_address, aptos_coins);
@@ -592,7 +607,9 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         user_deposit_base_coin(aptos_framework, user, &vault_cap);
     }
 
@@ -607,8 +624,10 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-        vault::test_freeze_vault(vault_manager, &vault_cap);
-        vault::test_unfreeze_vault(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        vault::test_freeze_vault(&vault_manager_cap);
+        vault::test_unfreeze_vault(&vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         user_deposit_base_coin(aptos_framework, user, &vault_cap);
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT, ERR_FREEZE_VAULT);
     }
@@ -626,8 +645,9 @@ module satay::test_vault {
         user: &signer
     ){
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
-
-        approve_strategy(vault_manager, &vault_cap);
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
+        approve_strategy(&vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
 
         let user_address = signer::address_of(user);
         let amount = 100;
