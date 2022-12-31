@@ -39,18 +39,20 @@ module satay_ditto_farming::ditto_farming_strategy {
 
     // initialize vault_id to accept strategy
     public entry fun initialize(
-        governance: &signer,
+        vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64
     ) {
         // initialize through base_strategy_module
         base_strategy::initialize<DittoStrategy, DittoFarmingCoin>(
-            governance,
+            vault_manager,
             vault_id,
             debt_ratio,
             DittoStrategy {}
         );
     }
+
+    // keeper functions
 
     // harvests the Strategy, realizing any profits or losses and adjusting the Strategy's position.
     public entry fun harvest(
@@ -180,8 +182,7 @@ module satay_ditto_farming::ditto_farming_strategy {
         )
     }
 
-    // tend
-
+    // collects and reinvests rewards
     public entry fun tend(
         keeper: &signer,
         vault_id: u64
@@ -208,7 +209,7 @@ module satay_ditto_farming::ditto_farming_strategy {
         )
     }
 
-    // admin functions
+    // user functions
 
     // called when vault does not have enough BaseCoin in reserves, and must reclaim funds from strategy
     public entry fun withdraw_for_user(
@@ -270,6 +271,8 @@ module satay_ditto_farming::ditto_farming_strategy {
         );
     }
 
+    // admin functions
+
     // update the strategy debt ratio
     public entry fun update_debt_ratio(
         vault_manager: &signer,
@@ -297,8 +300,10 @@ module satay_ditto_farming::ditto_farming_strategy {
         harvest(vault_manager, vault_id);
     }
 
+    // getter functions
+
     // get total AptosCoin balance for strategy
-    fun get_strategy_aptos_balance(
+    public fun get_strategy_aptos_balance(
         vault_cap: &VaultCapability,
         residual_aptos: &Coin<AptosCoin>
     ): u64 {
@@ -307,13 +312,5 @@ module satay_ditto_farming::ditto_farming_strategy {
         // convert LP coin to aptos
         let deployed_balance = ditto_farming::get_apt_amount_for_farming_coin_amount(ditto_staked_lp_amount);
         coin::value(residual_aptos) + deployed_balance
-    }
-
-    public fun name() : vector<u8> {
-        b"Ditto LP Farming Strategy"
-    }
-
-    public fun version() : vector<u8> {
-        b"0.0.1"
     }
 }

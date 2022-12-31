@@ -46,7 +46,7 @@ module satay::math {
         assert!(x <= (MAX_U64 as u128), OVERFLOW);
     }
 
-    #[test_only]
+    /// will overflow for x > 19
     public fun pow10(x: u64): u64 {
         let res = 1;
         let i = 0;
