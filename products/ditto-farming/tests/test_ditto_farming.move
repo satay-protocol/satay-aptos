@@ -20,17 +20,30 @@ module satay_ditto_farming::test_ditto_farming {
     use satay_ditto_farming::mock_ditto_farming::{Self, DittoFarmingCoin};
     use liquidity_mining::mock_liquidity_mining;
 
-    const INITIAL_LIQUIDITY: u64 = 10000000000;
-    const DEPOSIT_AMOUNT: u64 = 1000000;
+    use satay::math::pow10;
 
-    #[test_only]
+    const INITIAL_LIQUIDITY: u64 = 25000;
+    const DEPOSIT_AMOUNT: u64 = 10;
+
+    const ERR_INITIALIZE: u64 = 1;
+    const ERR_DEPOSIT: u64 = 2;
+    const ERR_WITHDRAW: u64 = 3;
+    const ERR_MANAGER: u64 = 4;
+    const ERR_SLIPPAGE_TOLERANCE: u64 = 5;
+
+    fun to_8_dp(amount: u64): u64 {
+        amount * pow10(8)
+    }
+
     fun setup_tests(
         aptos_framework: &signer,
         pool_owner: &signer,
         ditto_farming: &signer,
         ditto_staking: &signer,
         liquidity_mining: &signer,
-        user: &signer
+        user: &signer,
+        initial_liquidity: u64,
+        deposit_amount: u64,
     ) {
         stake::initialize_for_test(aptos_framework);
         mock_ditto_staking::initialize_staked_aptos(ditto_staking);
@@ -52,10 +65,10 @@ module satay_ditto_farming::test_ditto_farming {
         coin::register<StakedAptos>(user);
 
 
-        aptos_coin::mint(aptos_framework, user_address, INITIAL_LIQUIDITY);
+        aptos_coin::mint(aptos_framework, user_address, initial_liquidity);
+        let apt = coin::withdraw<AptosCoin>(user, initial_liquidity);
 
-        let apt = coin::withdraw<AptosCoin>(user, INITIAL_LIQUIDITY);
-        let stapt = mock_ditto_staking::mint_staked_aptos(INITIAL_LIQUIDITY);
+        let stapt = mock_ditto_staking::mint_staked_aptos(initial_liquidity);
 
         let lp = liquidity_pool::mint<AptosCoin, StakedAptos, Stable>(
             apt,
@@ -64,9 +77,40 @@ module satay_ditto_farming::test_ditto_farming {
         coin::register<LP<AptosCoin, StakedAptos, Stable>>(user);
         coin::deposit(user_address, lp);
 
-        aptos_coin::mint(aptos_framework, user_address, DEPOSIT_AMOUNT);
+        aptos_coin::mint(aptos_framework, user_address, deposit_amount);
 
         mock_ditto_farming::initialize(ditto_farming);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    public fun test_initialize(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT),
+        );
+        assert!(mock_ditto_farming::get_manager_address() == @satay_ditto_farming, ERR_INITIALIZE);
+        assert!(mock_ditto_farming::get_lp_slippage_tolerance() == 9500, ERR_INITIALIZE);
+        assert!(mock_ditto_farming::get_swap_slippage_tolerance() == 9500, ERR_INITIALIZE);
     }
 
     #[test(
@@ -85,20 +129,30 @@ module satay_ditto_farming::test_ditto_farming {
         liquidity_mining: &signer,
         user: &signer
     ) {
-        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, liquidity_mining, user);
-        mock_ditto_farming::deposit(user, DEPOSIT_AMOUNT);
+        let initial_liquidity_amount = to_8_dp(50000);
+        let deposit_amount = to_8_dp(1);
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            initial_liquidity_amount,
+            deposit_amount
+        );
+        mock_ditto_farming::deposit(user, deposit_amount);
 
         let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
         let farming_account_lp_balance = mock_liquidity_mining::get_lp_amount();
 
-        assert!(user_farming_coin_balance > 0, 1);
-        assert!(farming_account_lp_balance > 0, 2);
-        assert!(farming_account_lp_balance == user_farming_coin_balance, 3);
+        assert!(user_farming_coin_balance > 0, ERR_DEPOSIT);
+        assert!(farming_account_lp_balance > 0, ERR_DEPOSIT);
+        assert!(farming_account_lp_balance == user_farming_coin_balance, ERR_DEPOSIT);
 
         let (apt_reserves, stapt_reserves) = router_v2::get_reserves_size<AptosCoin, StakedAptos, Stable>();
-
-        assert!(apt_reserves == INITIAL_LIQUIDITY + DEPOSIT_AMOUNT / 2, 2);
-        assert!(stapt_reserves == INITIAL_LIQUIDITY + DEPOSIT_AMOUNT / 2, 3);
+        assert!(apt_reserves == initial_liquidity_amount + deposit_amount / 2, ERR_DEPOSIT);
+        assert!(stapt_reserves == initial_liquidity_amount + deposit_amount / 2, ERR_DEPOSIT);
     }
 
     #[test(
@@ -117,15 +171,31 @@ module satay_ditto_farming::test_ditto_farming {
         liquidity_mining: &signer,
         user: &signer
     ) {
-        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, liquidity_mining, user);
-        mock_ditto_farming::deposit(user, 0);
+        let initial_liquidity_amount = to_8_dp(50000);
+        let deposit_amount = to_8_dp(0);
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            initial_liquidity_amount,
+            deposit_amount
+        );
+        mock_ditto_farming::deposit(user, deposit_amount);
 
         let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
         let farming_account_lp_balance = mock_ditto_farming::get_lp_reserves_amount();
 
-        assert!(user_farming_coin_balance == 0, 1);
-        assert!(farming_account_lp_balance == 0, 2);
+        assert!(user_farming_coin_balance == 0, ERR_DEPOSIT);
+        assert!(farming_account_lp_balance == 0, ERR_DEPOSIT);
+
+        let (apt_reserves, stapt_reserves) = router_v2::get_reserves_size<AptosCoin, StakedAptos, Stable>();
+        assert!(apt_reserves == initial_liquidity_amount + deposit_amount / 2, ERR_DEPOSIT);
+        assert!(stapt_reserves == initial_liquidity_amount + deposit_amount / 2, ERR_DEPOSIT);
     }
+
 
     #[test(
         aptos_framework = @aptos_framework,
@@ -143,8 +213,19 @@ module satay_ditto_farming::test_ditto_farming {
         liquidity_mining: &signer,
         user: &signer
     ) {
-        setup_tests(aptos_framework, pool_owner, ditto_farming, ditto_staking, liquidity_mining, user);
-        mock_ditto_farming::deposit(user, DEPOSIT_AMOUNT);
+        let initial_liquidity_amount = to_8_dp(50000);
+        let deposit_amount = to_8_dp(1);
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            initial_liquidity_amount,
+            deposit_amount
+        );
+        mock_ditto_farming::deposit(user, deposit_amount);
 
         let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
         let (
@@ -157,7 +238,365 @@ module satay_ditto_farming::test_ditto_farming {
 
         let user_aptos_balance = coin::balance<AptosCoin>(signer::address_of(user));
         assert!(user_aptos_balance == resultant_aptos_balance, 1);
-
     }
 
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_withdraw_slippage_too_high(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        let initial_liquidity_amount = to_8_dp(100);
+        let deposit_amount = to_8_dp(100);
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            initial_liquidity_amount,
+            deposit_amount
+        );
+        mock_ditto_farming::deposit(user, deposit_amount);
+
+        let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
+        mock_ditto_farming::withdraw(user, user_farming_coin_balance);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_withdraw_higher_slippage_tolerance(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        let initial_liquidity_amount = to_8_dp(100);
+        let deposit_amount = to_8_dp(100);
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            initial_liquidity_amount,
+            deposit_amount
+        );
+        mock_ditto_farming::deposit(user, deposit_amount);
+        mock_ditto_farming::set_swap_slippage_tolerance_bps(ditto_farming, 10);
+
+        let user_farming_coin_balance = coin::balance<DittoFarmingCoin>(signer::address_of(user));
+        let (
+            apt_returned,
+            stapt_returned
+        ) = router_v2::get_reserves_for_lp_coins<AptosCoin, StakedAptos, Stable>(user_farming_coin_balance);
+        let resultant_aptos_balance = apt_returned + router_v2::get_amount_out<StakedAptos, AptosCoin, Stable>(stapt_returned);
+
+        mock_ditto_farming::withdraw(user, user_farming_coin_balance);
+        let user_aptos_balance = coin::balance<AptosCoin>(signer::address_of(user));
+        assert!(user_aptos_balance == resultant_aptos_balance, 1);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    public fun test_set_manager(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        mock_ditto_farming::set_manager_address(ditto_farming, signer::address_of(user));
+        assert!(mock_ditto_farming::get_manager_address() == signer::address_of(ditto_farming), ERR_MANAGER);
+        mock_ditto_farming::accept_new_manager(user);
+        assert!(mock_ditto_farming::get_manager_address() == signer::address_of(user), ERR_MANAGER);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_set_manager_unauthorized(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        mock_ditto_farming::set_manager_address(user, signer::address_of(user));
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99,
+        user2 = @0x98
+    )]
+    #[expected_failure]
+    public fun test_accept_manager_unauthorized(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer,
+        user2: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        mock_ditto_farming::set_manager_address(ditto_farming, signer::address_of(user));
+        mock_ditto_farming::accept_new_manager(user2);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    public fun test_set_lp_slippage_tolerance(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        let lp_slippage_tolerance_bps = 100;
+        mock_ditto_farming::set_lp_slippage_tolerance_bps(ditto_farming, lp_slippage_tolerance_bps);
+        assert!(mock_ditto_farming::get_lp_slippage_tolerance() == lp_slippage_tolerance_bps, ERR_SLIPPAGE_TOLERANCE);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_set_lp_slippage_tolerance_unauthorized(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        let lp_slippage_tolerance_bps = 100;
+        mock_ditto_farming::set_lp_slippage_tolerance_bps(user, lp_slippage_tolerance_bps);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_set_lp_slippage_tolerance_too_high(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        let lp_slippage_tolerance_bps = 10001;
+        mock_ditto_farming::set_lp_slippage_tolerance_bps(ditto_farming, lp_slippage_tolerance_bps);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    public fun test_set_swap_slippage_tolerance(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        let swap_slippage_tolerance_bps = 100;
+        mock_ditto_farming::set_swap_slippage_tolerance_bps(ditto_farming, swap_slippage_tolerance_bps);
+        assert!(mock_ditto_farming::get_swap_slippage_tolerance() == swap_slippage_tolerance_bps, ERR_SLIPPAGE_TOLERANCE);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_set_swap_slippage_tolerance_unauthorized(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        let swap_slippage_tolerance_bps = 100;
+        mock_ditto_farming::set_swap_slippage_tolerance_bps(user, swap_slippage_tolerance_bps);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        pool_owner = @liquidswap,
+        ditto_farming = @satay_ditto_farming,
+        ditto_staking = @ditto_staking,
+        liquidity_mining = @liquidity_mining,
+        user = @0x99
+    )]
+    #[expected_failure]
+    public fun test_set_swap_slippage_tolerance_too_high(
+        aptos_framework: &signer,
+        pool_owner: &signer,
+        ditto_farming: &signer,
+        ditto_staking: &signer,
+        liquidity_mining: &signer,
+        user: &signer
+    ) {
+        setup_tests(
+            aptos_framework,
+            pool_owner,
+            ditto_farming,
+            ditto_staking,
+            liquidity_mining,
+            user,
+            to_8_dp(INITIAL_LIQUIDITY),
+            to_8_dp(DEPOSIT_AMOUNT)
+        );
+        let swap_slippage_tolerance_bps = 10001;
+        mock_ditto_farming::set_swap_slippage_tolerance_bps(ditto_farming, swap_slippage_tolerance_bps);
+    }
 }

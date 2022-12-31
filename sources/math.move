@@ -45,4 +45,15 @@ module satay::math {
     public fun assert_can_cast_to_u64(x: u128) {
         assert!(x <= (MAX_U64 as u128), OVERFLOW);
     }
+
+    /// will overflow for x > 19
+    public fun pow10(x: u64): u64 {
+        let res = 1;
+        let i = 0;
+        while (i < x) {
+            res = res * 10;
+            i = i + 1;
+        };
+        res
+    }
 }

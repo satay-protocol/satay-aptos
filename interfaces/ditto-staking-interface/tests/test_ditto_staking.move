@@ -46,7 +46,7 @@ module ditto_staking::test_ditto_staking {
         aptos_framework=@aptos_framework,
         user=@0x11
     )]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure]
     public fun test_initialize_staked_aptos_reject(
         aptos_framework: &signer,
         ditto: &signer,

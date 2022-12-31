@@ -7,6 +7,7 @@ module ditto_staking::mock_ditto_staking {
     use aptos_framework::coin::{Self, MintCapability, BurnCapability, FreezeCapability, Coin};
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::account::{Self, SignerCapability};
+    use aptos_std::math64::pow;
 
     struct StakedAptos {}
 
@@ -19,6 +20,7 @@ module ditto_staking::mock_ditto_staking {
     // acts as signer in stake LP call
     struct AccountCapability has key {
         signer_cap: SignerCapability,
+        apt_per_st_apt: u64,
     }
 
     const ERR_UNAUTHORIZED_INITIALIZE: u64 = 1;
@@ -28,7 +30,8 @@ module ditto_staking::mock_ditto_staking {
 
         let (account, signer_cap) = account::create_resource_account(ditto, b"ditto-strategy");
         move_to(ditto, AccountCapability {
-            signer_cap
+            signer_cap,
+            apt_per_st_apt: 1 * pow(10, 8),
         });
 
         coin::register<AptosCoin>(&account);
@@ -83,7 +86,10 @@ module ditto_staking::mock_ditto_staking {
         let aptos_amount = coin::value(&aptos);
         let caps = borrow_global_mut<StakedAptosCaps>(account_address);
         coin::deposit(account_address, aptos);
-        coin::mint(aptos_amount, &mut caps.mint_cap)
+        coin::mint(
+            aptos_amount * account_capability.apt_per_st_apt / pow(10, 8),
+            &mut caps.mint_cap
+        )
     }
 
     public fun exchange_staptos(
@@ -106,5 +112,10 @@ module ditto_staking::mock_ditto_staking {
         let account_address = account::get_signer_capability_address(&account_capability.signer_cap);
         let caps = borrow_global_mut<StakedAptosCaps>(account_address);
         coin::mint(amount, &mut caps.mint_cap)
+    }
+
+    public fun get_stapt_index(): u64   acquires AccountCapability {
+        let account_capability = borrow_global<AccountCapability>(@ditto_staking);
+        account_capability.apt_per_st_apt
     }
 }

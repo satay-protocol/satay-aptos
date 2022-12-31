@@ -35,7 +35,7 @@ module satay_ditto_farming::test_ditto_strategy {
 
     const MANAGEMENT_FEE: u64 = 200;
     const PERFOAMANCE_FEE: u64 = 500;
-    const DEBT_RATIO: u64 = 5000;
+    const DEBT_RATIO: u64 = 4000;
 
     const USER_DEPOSIT_AMOUNT: u64 = 1000000;
 
@@ -180,9 +180,10 @@ module satay_ditto_farming::test_ditto_strategy {
         let vault_cap = satay::open_vault(0);
         let vault_addr = vault::get_vault_addr(&vault_cap);
         assert!(
-            base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT * DEBT_RATIO / MAX_DEBT_RATIO_BPS,
+            base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT - DEPOSIT_AMOUNT * DEBT_RATIO / MAX_DEBT_RATIO_BPS,
             ERR_HARVEST
         );
+        assert!(base_strategy::balance<DittoFarmingCoin>(&vault_cap) > 0, ERR_HARVEST);
         assert!(check_dao_fee(vault_addr) == 0, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
     }
