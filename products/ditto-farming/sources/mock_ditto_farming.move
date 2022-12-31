@@ -18,12 +18,11 @@ module satay_ditto_farming::mock_ditto_farming {
         get_reserves_for_lp_coins,
         get_amount_out
     };
-    use liquidswap::math::mul_div;
 
     use ditto_staking::mock_ditto_staking::{Self, StakedAptos};
     use liquidity_mining::mock_liquidity_mining;
 
-    use satay::math::{calculate_proportion_of_u64_with_u64_denominator, pow10};
+    use satay::math::{calculate_proportion_of_u64_with_u64_denominator, pow10, mul_div};
 
     struct FarmingAccount has key {
         signer_cap: SignerCapability,
@@ -363,11 +362,11 @@ module satay_ditto_farming::mock_ditto_farming {
     }
 
     // swap StakedAptos for AptosCoin on Liquidswap
-    fun swap_stapt_for_apt(staptos_coins: Coin<StakedAptos>, slippage_tolerance_bps: u64) : Coin<AptosCoin> {
+    fun swap_stapt_for_apt(staptos_coins: Coin<StakedAptos>, swap_slippage_tolerance_bps: u64) : Coin<AptosCoin> {
         // swap on liquidswap AMM
         let minimum_apt_out = calculate_proportion_of_u64_with_u64_denominator(
             get_stapt_per_apt(coin::value(&staptos_coins)),
-            slippage_tolerance_bps,
+            swap_slippage_tolerance_bps,
             MAX_BPS
         );
         swap_exact_coin_for_coin<StakedAptos, AptosCoin, Stable>(
@@ -419,7 +418,7 @@ module satay_ditto_farming::mock_ditto_farming {
     }
 
     public fun get_stapt_per_apt(stapt_amount: u64): u64 {
-        stapt_amount * mock_ditto_staking::get_stapt_index() / pow10(8)
+        mul_div(stapt_amount, mock_ditto_staking::get_stapt_index(), pow10(8))
     }
 
     public fun get_manager_address(): address acquires FarmingAccount {
