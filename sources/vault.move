@@ -81,7 +81,7 @@ module satay::vault {
 
     // capabilities
 
-    struct VaultCapability has store, drop {
+    struct VaultCapability has store {
         storage_cap: SignerCapability,
         vault_id: u64,
         vault_addr: address,
@@ -1061,6 +1061,15 @@ module satay::vault {
         amount: u64
     ) : Coin<CoinType> acquires CoinStore {
         withdraw<CoinType>(vault_cap, amount)
+    }
+
+    #[test_only]
+    public fun test_destroy_vault_cap(vault_cap: VaultCapability) {
+        let VaultCapability {
+            storage_cap: _,
+            vault_addr: _,
+            vault_id: _
+        } = vault_cap;
     }
 
     #[test_only]

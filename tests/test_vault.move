@@ -110,6 +110,12 @@ module satay::test_vault {
         vault::test_deposit_as_user(user, vault_cap, base_coin);
     }
 
+    fun cleanup_tests(
+        vault_cap: VaultCapability,
+    ) {
+        vault::test_destroy_vault_cap(vault_cap);
+    }
+
     #[test(
         aptos_framework=@aptos_framework,
         vault_manager=@satay,
@@ -135,6 +141,7 @@ module satay::test_vault {
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, 0);
 
         assert!(vault::vault_cap_has_id(&vault_cap, 0), 0);
+        cleanup_tests(vault_cap);
     }
 
     // test fees
@@ -158,6 +165,7 @@ module satay::test_vault {
         let (management_fee_val, performance_fee_val) = vault::get_fees(&vault_cap);
         assert!(management_fee_val == management_fee, ERR_FEES);
         assert!(performance_fee_val == performance_fee, ERR_FEES);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -176,7 +184,8 @@ module satay::test_vault {
         let management_fee = 5001;
         let performance_fee = 0;
         vault::test_update_fee(&vault_manager_cap, management_fee, performance_fee);
-        vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -195,7 +204,8 @@ module satay::test_vault {
         let management_fee = 0;
         let performance_fee = 5001;
         vault::test_update_fee(&vault_manager_cap, management_fee, performance_fee);
-        vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        cleanup_tests(vault_cap);
     }
 
     // test deposit and withdraw
@@ -218,6 +228,7 @@ module satay::test_vault {
         aptos_coin::mint(aptos_framework, user_address, amount);
         vault::test_deposit<AptosCoin>(&vault_cap, coin::withdraw<AptosCoin>(user, amount));
         assert!(vault::balance<AptosCoin>(&vault_cap) == amount, ERR_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -242,6 +253,7 @@ module satay::test_vault {
         coin::deposit<AptosCoin>(user_address, aptos_coin);
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_DEPOSIT_WITHDRAW);
         assert!(coin::balance<AptosCoin>(user_address) == amount, ERR_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     // test deposit and withdraw as user
@@ -272,6 +284,7 @@ module satay::test_vault {
         assert!(vault::balance<AptosCoin>(&vault_cap) == amount, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(vault::is_vault_coin_registered<AptosCoin>(user_address), ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(vault::vault_coin_balance<AptosCoin>(user_address) == amount, ERR_DEPOIST_WITHDRAW_AS_USER);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -300,6 +313,7 @@ module satay::test_vault {
             &vault_cap,
             coin::withdraw<USDT>(user, amount)
         );
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -333,6 +347,7 @@ module satay::test_vault {
         assert!(vault::vault_coin_balance<AptosCoin>(user_address) == 0, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(coin::balance<AptosCoin>(user_address) == amount, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_DEPOIST_WITHDRAW_AS_USER);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -363,6 +378,7 @@ module satay::test_vault {
             amount
         );
         coin::deposit<USDT>(user_address, base_coins);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -393,6 +409,7 @@ module satay::test_vault {
             amount + 1
         );
         coin::deposit<AptosCoin>(user_address, base_coins);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -427,6 +444,7 @@ module satay::test_vault {
 
         assert!(vault::vault_coin_balance<AptosCoin>(user_address) == 0, ERR_DEPOIST_WITHDRAW_AS_USER);
         assert!(coin::balance<AptosCoin>(user_address) == amount, ERR_DEPOIST_WITHDRAW_AS_USER);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -498,6 +516,7 @@ module satay::test_vault {
         coin::deposit<AptosCoin>(user_a_address, coins);
         let expected_withdraw_amount = (total_deposits + farm_amount) / total_deposits * withdraw_amount;
         assert!(withdraw_amount == expected_withdraw_amount, ERR_INCORRECT_VAULT_COIN_AMOUNT);
+        cleanup_tests(vault_cap);
     }
 
 
@@ -518,6 +537,7 @@ module satay::test_vault {
         vault::test_freeze_vault(&vault_manager_cap);
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         assert!(vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -535,7 +555,8 @@ module satay::test_vault {
         let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         vault::test_freeze_vault(&vault_manager_cap);
         vault::test_freeze_vault(&vault_manager_cap);
-        vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -554,6 +575,7 @@ module satay::test_vault {
         vault::test_unfreeze_vault(&vault_manager_cap);
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         assert!(!vault::is_vault_frozen(&vault_cap), ERR_FREEZE_VAULT);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -570,7 +592,8 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault(aptos_framework, vault_manager, user);
         let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         vault::test_unfreeze_vault(&vault_manager_cap);
-        vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -593,6 +616,7 @@ module satay::test_vault {
         coin::deposit(user_address, aptos_coins);
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_FREEZE_VAULT);
         assert!(coin::balance<AptosCoin>(user_address) == USER_DEPOSIT, ERR_FREEZE_VAULT);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -611,6 +635,7 @@ module satay::test_vault {
         vault::test_freeze_vault(&vault_manager_cap);
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         user_deposit_base_coin(aptos_framework, user, &vault_cap);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -630,6 +655,7 @@ module satay::test_vault {
         vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         user_deposit_base_coin(aptos_framework, user, &vault_cap);
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT, ERR_FREEZE_VAULT);
+        cleanup_tests(vault_cap);
     }
 
     // test strategy functions
@@ -662,6 +688,7 @@ module satay::test_vault {
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == 0, ERR_STRATEGY);
         assert!(vault::last_report<TestStrategy>(&vault_cap) == timestamp::now_seconds(), ERR_STRATEGY);
         assert!(vault::get_strategy_coin_type<TestStrategy>(&vault_cap) == type_info::type_of<USDT>(), ERR_STRATEGY);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -687,6 +714,7 @@ module satay::test_vault {
             &TestStrategy {}
         );
         assert!(vault::balance<AptosCoin>(&vault_cap) == amount, ERR_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -716,6 +744,7 @@ module satay::test_vault {
             incorrect_base_coins,
             &TestStrategy {}
         );
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -751,6 +780,7 @@ module satay::test_vault {
 
         assert!(coin::balance<AptosCoin>(user_address) == withdraw_amount, ERR_STRATEGY_BASE_COIN_DEPOSIT_WITHDRAW);
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == withdraw_amount, ERR_STRATEGY_BASE_COIN_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -784,6 +814,7 @@ module satay::test_vault {
             &TestStrategy {}
         );
         coin::deposit(user_address, base_coins);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -816,6 +847,7 @@ module satay::test_vault {
             &TestStrategy {}
         );
         coin::deposit(user_address, base_coins);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -846,6 +878,7 @@ module satay::test_vault {
 
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT - credit_available + debt_payment_amount, ERR_DEPOSIT_WITHDRAW);
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit_available - debt_payment_amount, ERR_DEBT_PAYMENT);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -883,6 +916,7 @@ module satay::test_vault {
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT + profit_amount, ERR_DEPOSIT_PROFIT);
         let vault_address = vault::get_vault_addr(&vault_cap);
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_address) == expected_fee, ERR_DEPOSIT_PROFIT);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -913,6 +947,7 @@ module satay::test_vault {
             &TestStrategy {}
         );
         assert!(vault::balance<USDT>(&vault_cap) == amount, ERR_STRATEGY_COIN_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -938,6 +973,7 @@ module satay::test_vault {
             incorrect_strategy_coin,
             &TestStrategy {}
         );
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -974,6 +1010,7 @@ module satay::test_vault {
         );
         coin::deposit(user_address, strategy_coins);
         assert!(coin::balance<USDT>(user_address) == amount, ERR_STRATEGY_COIN_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -1010,6 +1047,7 @@ module satay::test_vault {
         );
         coin::deposit(user_address, strategy_coins);
         assert!(coin::balance<USDT>(user_address) == amount, ERR_STRATEGY_COIN_DEPOSIT_WITHDRAW);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -1033,6 +1071,7 @@ module satay::test_vault {
             &TestStrategy {}
         );
         coin::deposit(user_address, strategy_coins);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -1059,6 +1098,7 @@ module satay::test_vault {
 
         let credit_available = new_debt_ratio * vault::total_assets<AptosCoin>(&vault_cap) / MAX_DEBT_RATIO_BPS;
         assert!(vault::credit_available<TestStrategy, AptosCoin>(&vault_cap) == credit_available, ERR_STRATEGY_UPDATE);
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -1081,6 +1121,7 @@ module satay::test_vault {
             new_debt_ratio,
             &TestStrategy {}
         );
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -1118,7 +1159,7 @@ module satay::test_vault {
         assert!(vault::total_loss<TestStrategy>(&vault_cap) == loss_amount, ERR_REPORTING);
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit - loss_amount, ERR_REPORTING);
 
-
+        cleanup_tests(vault_cap);
     }
 
     #[test(
@@ -1170,5 +1211,7 @@ module satay::test_vault {
         coin::deposit(user_address, aptos_coin);
         let collected_fees = dao_storage::balance<VaultCoin<AptosCoin>>(vault::get_vault_addr(&vault_cap));
         assert!(expected_share_token_amount == collected_fees, ERR_ASSESS_FEES);
+
+        cleanup_tests(vault_cap);
     }
 }
