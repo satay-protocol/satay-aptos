@@ -55,7 +55,6 @@ module satay::test_base_strategy {
 
         satay::new_vault<AptosCoin>(
             satay,
-            b"Aptos vault",
             MANAGEMENT_FEE,
             PERFORMANCE_FEE
         );

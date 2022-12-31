@@ -31,7 +31,6 @@ module satay::test_mock_strategy {
         satay::initialize(satay);
         satay::new_vault<AptosCoin>(
             satay,
-            b"aptos_vault",
             0,
             0
         );

@@ -152,13 +152,17 @@ module satay::vault {
     // create new vault with BaseCoin as its base coin type
     public(friend) fun new<BaseCoin>(
         governance: &signer, 
-        seed: vector<u8>, 
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
         global_config::assert_governance(governance);
         assert_fee_amounts(management_fee, performance_fee);
+
+        // create vault coin name
+        let vault_coin_name = coin::name<BaseCoin>();
+        string::append_utf8(&mut vault_coin_name, b" Vault");
+        let seed = *string::bytes(&vault_coin_name);
 
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
@@ -705,14 +709,6 @@ module satay::vault {
         exists<CoinStore<CoinType>>(vault_cap.vault_addr)
     }
 
-    // gets vault address from vault_cap
-    #[test_only]
-    public fun get_vault_addr(
-        vault_cap: &VaultCapability
-    ): address {
-        vault_cap.vault_addr
-    }
-
     // strategy fields
 
     // check if vault of vault_cap has StrategyType
@@ -871,6 +867,16 @@ module satay::vault {
         )
     }
 
+    // test getters
+
+    // gets vault address from vault_cap
+    #[test_only]
+    public fun get_vault_addr(
+        vault_cap: &VaultCapability
+    ): address {
+        vault_cap.vault_addr
+    }
+
     // private functions
 
     // create a new CoinStore for CoinType
@@ -995,14 +1001,12 @@ module satay::vault {
     #[test_only]
     public fun new_test<BaseCoin>(
         governance: &signer, 
-        seed: vector<u8>, 
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
         new<BaseCoin>(
             governance,
-            seed,
             vault_id,
             management_fee,
             performance_fee

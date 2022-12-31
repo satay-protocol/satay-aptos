@@ -62,7 +62,6 @@ module satay::test_vault {
     ): VaultCapability {
         vault::new_test<AptosCoin>(
             vault_manager,
-            b"test_vault",
             0,
             MANAGEMENT_FEE,
             PERFORMANCE_FEE

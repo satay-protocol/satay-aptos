@@ -52,7 +52,6 @@ module satay::test_satay {
     ) {
         satay::new_vault<AptosCoin>(
             satay,
-            b"Aptos vault",
             MANAGEMENT_FEE,
             PERFORMANCE_FEE
         );
@@ -213,7 +212,6 @@ module satay::test_satay {
         create_vault(satay);
         satay::new_vault<USDT>(
             satay,
-            b"USDT vault",
             MANAGEMENT_FEE,
             PERFORMANCE_FEE
         );

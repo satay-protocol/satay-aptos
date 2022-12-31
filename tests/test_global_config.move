@@ -3,7 +3,6 @@ module satay::test_global_config {
 
     use std::signer;
 
-    use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::stake;
 
     use satay::satay;
@@ -15,17 +14,6 @@ module satay::test_global_config {
     ) {
         stake::initialize_for_test(aptos_framework);
         satay::initialize(satay);
-    }
-
-    fun create_vault(
-        governance: &signer,
-    ) {
-        satay::new_vault<AptosCoin>(
-            governance,
-            b"aptos_vault",
-            0,
-            0
-        );
     }
 
     #[test(

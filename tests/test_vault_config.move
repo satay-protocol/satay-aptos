@@ -22,7 +22,6 @@ module satay::test_vault_config {
     ) {
         satay::new_vault<AptosCoin>(
             governance,
-            b"aptos_vault",
             0,
             0
         )

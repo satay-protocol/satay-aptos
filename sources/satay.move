@@ -47,7 +47,6 @@ module satay::satay {
     // create new vault for BaseCoin
     public entry fun new_vault<BaseCoin>(
         governance: &signer,
-        seed: vector<u8>,
         management_fee: u64,
         performance_fee: u64
     ) acquires ManagerAccount {
@@ -60,7 +59,7 @@ module satay::satay {
         account.next_vault_id = account.next_vault_id + 1;
 
         // create vault and add to manager vaults table
-        let vault_cap = vault::new<BaseCoin>(governance, seed, vault_id, management_fee, performance_fee);
+        let vault_cap = vault::new<BaseCoin>(governance, vault_id, management_fee, performance_fee);
         table::add(
             &mut account.vaults,
             vault_id,
