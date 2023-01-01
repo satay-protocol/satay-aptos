@@ -52,7 +52,6 @@ module satay::test_satay {
     ) {
         satay::new_vault<AptosCoin>(
             satay,
-            b"Aptos vault",
             MANAGEMENT_FEE,
             PERFORMANCE_FEE
         );
@@ -213,7 +212,6 @@ module satay::test_satay {
         create_vault(satay);
         satay::new_vault<USDT>(
             satay,
-            b"USDT vault",
             MANAGEMENT_FEE,
             PERFORMANCE_FEE
         );
@@ -640,10 +638,9 @@ module satay::test_satay {
             stop_handle
         ) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {}
+            &TestStrategy {}
         );
 
-        assert!(satay::get_strategy_witness(&stop_handle) == &TestStrategy {}, ERR_LOCK_UNLOCK);
         satay::test_assert_vault_cap_and_stop_handle_match<TestStrategy>(&vault_cap, &stop_handle);
 
         satay::test_unlock_vault<TestStrategy>(vault_cap, stop_handle);
@@ -677,7 +674,7 @@ module satay::test_satay {
 
         let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {}
+            &TestStrategy {}
         );
         satay::test_unlock_vault<TestStrategy>(
             vault_cap,
@@ -686,7 +683,7 @@ module satay::test_satay {
 
         let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy2>(
             0,
-            TestStrategy2 {}
+            &TestStrategy2 {}
         );
         satay::test_unlock_vault<TestStrategy2>(
             vault_cap,
@@ -717,7 +714,7 @@ module satay::test_satay {
 
         let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy2>(
             0,
-            TestStrategy2 {}
+            &TestStrategy2 {}
         );
         satay::test_unlock_vault<TestStrategy2>(
             vault_cap,
@@ -754,11 +751,11 @@ module satay::test_satay {
 
         let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {}
+            &TestStrategy {}
         );
         let (vault_cap_2, vault_lock_2) = satay::test_lock_vault<TestStrategy2>(
             0,
-            TestStrategy2 {}
+            &TestStrategy2 {}
         );
         satay::test_unlock_vault<TestStrategy2>(
             vault_cap_2,
@@ -792,6 +789,7 @@ module satay::test_satay {
 
         let debt_ratio = 100;
         satay::test_update_strategy_debt_ratio(
+            satay,
             0,
             debt_ratio,
             TestStrategy {}
