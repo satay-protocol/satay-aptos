@@ -255,12 +255,14 @@ module satay::base_strategy {
 
         assert!(coin::value(&coins) >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
 
-        let vault_cap = vault::user_liquidation(
-            user_cap,
+        vault::user_liquidation(
+            &user_cap,
             coins,
             vault_coins,
             &witness
         );
+
+        let (vault_cap, _) = vault::destroy_user_capability(user_cap);
 
         close_vault<StrategyType>(vault_cap, vault_cap_lock);
     }

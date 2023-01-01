@@ -1103,12 +1103,13 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
 
         let new_debt_ratio = 500;
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         vault::test_update_strategy_debt_ratio<TestStrategy>(
-            vault_manager,
-            &vault_cap,
+            &vault_manager_cap,
             new_debt_ratio,
             &TestStrategy {}
         );
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         assert!(vault::debt_ratio<TestStrategy>(&vault_cap) == new_debt_ratio, ERR_STRATEGY_UPDATE);
         assert!(vault::get_debt_ratio(&vault_cap) == new_debt_ratio, ERR_STRATEGY_UPDATE);
 
@@ -1131,12 +1132,13 @@ module satay::test_vault {
         let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
 
         let new_debt_ratio = MAX_DEBT_RATIO_BPS + 1;
+        let vault_manager_cap = vault::test_get_vault_manager_cap(vault_manager, vault_cap);
         vault::test_update_strategy_debt_ratio<TestStrategy>(
-            vault_manager,
-            &vault_cap,
+            &vault_manager_cap,
             new_debt_ratio,
             &TestStrategy {}
         );
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
         cleanup_tests(vault_cap);
     }
 
@@ -1330,12 +1332,13 @@ module satay::test_vault {
         );
         coin::deposit(signer::address_of(user), aptos);
 
+        let vault_manager_cap = vault::test_get_vault_manager_cap(satay, vault_cap);
         vault::test_update_strategy_debt_ratio<TestStrategy>(
-            satay,
-            &vault_cap,
+            &vault_manager_cap,
             0,
             &TestStrategy {}
         );
+        vault_cap = vault::test_destroy_vault_manager_cap(vault_manager_cap);
 
         let strategy_balance = credit;
         let (profit, loss, debt_payment) = vault::test_prepare_return<TestStrategy, AptosCoin>(
