@@ -43,6 +43,7 @@ module satay::test_vault {
     const ERR_DEBT_PAYMENT: u64 = 12;
     const ERR_DEPOSIT_PROFIT: u64 = 13;
     const ERR_FREEZE_VAULT: u64 = 14;
+    const ERR_PREPARE_RETURN: u64 = 15;
 
     #[test_only]
     fun setup_tests(
@@ -860,15 +861,15 @@ module satay::test_vault {
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         user=@0x46,
     )]
     fun test_debt_payment(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
         vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
 
         let credit_available = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
@@ -881,8 +882,10 @@ module satay::test_vault {
 
         let debt_payment_amount = 50;
         let debt_payment = coin::extract(&mut base_coin, debt_payment_amount);
-        vault::test_debt_payment<TestStrategy, AptosCoin>(&vault_cap, debt_payment, &TestStrategy {});
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
+        vault::test_debt_payment<TestStrategy, AptosCoin>(&keeper_cap, debt_payment);
         coin::deposit(signer::address_of(user), base_coin);
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT - credit_available + debt_payment_amount, ERR_DEPOSIT_WITHDRAW);
         assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit_available - debt_payment_amount, ERR_DEBT_PAYMENT);
@@ -891,15 +894,15 @@ module satay::test_vault {
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         user=@0x46,
     )]
     fun test_deposit_profit(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
         vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
 
         let seconds = 1000;
@@ -919,7 +922,9 @@ module satay::test_vault {
             performance_fee + management_fee
         );
 
-        vault::test_deposit_profit<TestStrategy, AptosCoin>(&vault_cap, profit, &TestStrategy {});
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
+        vault::test_deposit_profit<TestStrategy, AptosCoin>(&keeper_cap, profit);
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         assert!(vault::balance<AptosCoin>(&vault_cap) == USER_DEPOSIT + profit_amount, ERR_DEPOSIT_PROFIT);
         let vault_address = vault::get_vault_addr(&vault_cap);
@@ -929,17 +934,17 @@ module satay::test_vault {
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         token_admin=@satay,
         user=@0x46
     )]
     fun test_deposit_strategy_coin(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         token_admin: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
 
         coins::register_coin<USDT>(token_admin);
 
@@ -949,54 +954,56 @@ module satay::test_vault {
         coins::mint_coin<USDT>(token_admin, user_address, amount);
         let strategy_coins = coin::withdraw<USDT>(user, amount);
 
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
         vault::test_deposit_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_coins,
-            &TestStrategy {}
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
         assert!(vault::balance<USDT>(&vault_cap) == amount, ERR_STRATEGY_COIN_DEPOSIT_WITHDRAW);
         cleanup_tests(vault_cap);
     }
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         user=@0x46
     )]
     #[expected_failure]
     fun test_deposit_incorrect_strategy_coin(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
 
         let user_address = signer::address_of(user);
         let amount = 100;
         aptos_coin::mint(aptos_framework, user_address, amount);
         let incorrect_strategy_coin = coin::withdraw<AptosCoin>(user, amount);
 
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
         vault::test_deposit_strategy_coin<TestStrategy, AptosCoin>(
-            &vault_cap,
+            &keeper_cap,
             incorrect_strategy_coin,
-            &TestStrategy {}
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
         cleanup_tests(vault_cap);
     }
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         token_admin=@satay,
         user=@0x46
     )]
     fun test_withdraw_strategy_coin(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         token_admin: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
 
         coins::register_coin<USDT>(token_admin);
 
@@ -1006,16 +1013,16 @@ module satay::test_vault {
         coins::mint_coin<USDT>(token_admin, user_address, amount);
         let strategy_coins = coin::withdraw<USDT>(user, amount);
 
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
         vault::test_deposit_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_coins,
-            &TestStrategy {}
         );
         let strategy_coins = vault::test_withdraw_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             amount,
-            &TestStrategy {}
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
         coin::deposit(user_address, strategy_coins);
         assert!(coin::balance<USDT>(user_address) == amount, ERR_STRATEGY_COIN_DEPOSIT_WITHDRAW);
         cleanup_tests(vault_cap);
@@ -1023,17 +1030,17 @@ module satay::test_vault {
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         token_admin=@satay,
         user=@0x46
     )]
     fun test_withdraw_strategy_coin_over_balance(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         token_admin: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
 
         coins::register_coin<USDT>(token_admin);
 
@@ -1043,42 +1050,43 @@ module satay::test_vault {
         coins::mint_coin<USDT>(token_admin, user_address, amount);
         let strategy_coins = coin::withdraw<USDT>(user, amount);
 
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
         vault::test_deposit_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_coins,
-            &TestStrategy {}
         );
         let strategy_coins = vault::test_withdraw_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             amount + 1000,
-            &TestStrategy {}
         );
         coin::deposit(user_address, strategy_coins);
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
         assert!(coin::balance<USDT>(user_address) == amount, ERR_STRATEGY_COIN_DEPOSIT_WITHDRAW);
         cleanup_tests(vault_cap);
     }
 
     #[test(
         aptos_framework=@aptos_framework,
-        vault_manager=@satay,
+        keeper=@satay,
         user=@0x46
     )]
     #[expected_failure]
     fun test_withdraw_incorrect_strategy_coin(
         aptos_framework: &signer,
-        vault_manager: &signer,
+        keeper: &signer,
         user: &signer
     ){
-        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, vault_manager, user);
+        let vault_cap = setup_tests_with_vault_and_strategy(aptos_framework, keeper, user);
 
         let user_address = signer::address_of(user);
 
+        let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
         let strategy_coins = vault::test_withdraw_strategy_coin<TestStrategy, AptosCoin>(
-            &vault_cap,
+            &keeper_cap,
             100,
-            &TestStrategy {}
         );
         coin::deposit(user_address, strategy_coins);
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
         cleanup_tests(vault_cap);
     }
 
@@ -1219,6 +1227,124 @@ module satay::test_vault {
         coin::deposit(user_address, aptos_coin);
         let collected_fees = dao_storage::balance<VaultCoin<AptosCoin>>(vault::get_vault_addr(&vault_cap));
         assert!(expected_share_token_amount == collected_fees, ERR_ASSESS_FEES);
+
+        cleanup_tests(vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        user = @0x47
+    )]
+    fun test_prepare_return_profit(
+        aptos_framework: &signer,
+        satay: &signer,
+        user: &signer,
+    ){
+        let vault_cap = setup_tests_with_vault_and_strategy(
+            aptos_framework,
+            satay,
+            user,
+        );
+
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
+
+        let strategy_balance = 500;
+        let (profit, loss, debt_payment) = vault::test_prepare_return<TestStrategy, AptosCoin>(
+            &vault_cap,
+            strategy_balance,
+        );
+
+        assert!(profit == strategy_balance, ERR_PREPARE_RETURN);
+        assert!(loss == 0, ERR_PREPARE_RETURN);
+        assert!(debt_payment == 0, ERR_PREPARE_RETURN);
+
+        cleanup_tests(vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        user = @0x47
+    )]
+    fun test_prepare_return_loss(
+        aptos_framework: &signer,
+        satay: &signer,
+        user: &signer,
+    ){
+        let loss_amount = 50;
+
+        let vault_cap = setup_tests_with_vault_and_strategy(
+            aptos_framework,
+            satay,
+            user,
+        );
+
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
+
+        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        vault::test_update_total_debt<TestStrategy>(
+            &vault_cap,
+            credit,
+            0,
+            &TestStrategy {}
+        );
+
+        let strategy_balance = credit - loss_amount;
+        let (profit, loss, debt_payment) = vault::test_prepare_return<TestStrategy, AptosCoin>(
+            &vault_cap,
+            strategy_balance,
+        );
+        assert!(profit == 0, ERR_PREPARE_RETURN);
+        assert!(loss == loss_amount, ERR_PREPARE_RETURN);
+        assert!(debt_payment == 0, ERR_PREPARE_RETURN);
+
+        cleanup_tests(vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        user = @0x47
+    )]
+    fun test_prepare_return_debt_payment(
+        aptos_framework: &signer,
+        satay: &signer,
+        user: &signer,
+    ){
+
+        let vault_cap = setup_tests_with_vault_and_strategy(
+            aptos_framework,
+            satay,
+            user,
+        );
+
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
+
+        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+
+        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
+            &vault_cap,
+            credit,
+            &TestStrategy {}
+        );
+        coin::deposit(signer::address_of(user), aptos);
+
+        vault::test_update_strategy_debt_ratio<TestStrategy>(
+            satay,
+            &vault_cap,
+            0,
+            &TestStrategy {}
+        );
+
+        let strategy_balance = credit;
+        let (profit, loss, debt_payment) = vault::test_prepare_return<TestStrategy, AptosCoin>(
+            &vault_cap,
+            strategy_balance,
+        );
+        assert!(profit == 0, ERR_PREPARE_RETURN);
+        assert!(loss == 0, ERR_PREPARE_RETURN);
+        assert!(debt_payment == credit, ERR_PREPARE_RETURN);
 
         cleanup_tests(vault_cap);
     }

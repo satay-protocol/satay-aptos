@@ -190,15 +190,22 @@ module satay::test_base_strategy {
 
         let (vault_cap, stop_handle) = satay::test_lock_vault(
             0,
+            &TestStrategy {}
+        );
+
+        let keeper_cap = vault::test_get_keeper_cap<TestStrategy>(
+            satay,
+            vault_cap,
             TestStrategy {}
         );
 
         base_strategy::deposit_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &stop_handle
         );
-        assert!(base_strategy::balance<USDT>(&vault_cap) == amount, ERR_DEPOSIT);
+        assert!(base_strategy::harvest_balance<TestStrategy, USDT>(&keeper_cap) == amount, ERR_DEPOSIT);
+
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         satay::test_unlock_vault(vault_cap, stop_handle);
     }
@@ -230,14 +237,21 @@ module satay::test_base_strategy {
 
         let (vault_cap, stop_handle) = satay::test_lock_vault(
             0,
+            &TestStrategy {}
+        );
+
+        let keeper_cap = vault::test_get_keeper_cap<TestStrategy>(
+            satay,
+            vault_cap,
             TestStrategy {}
         );
 
         base_strategy::deposit_strategy_coin<TestStrategy, BTC>(
-            &vault_cap,
+            &keeper_cap,
             btc,
-            &stop_handle
         );
+
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         satay::test_unlock_vault(vault_cap, stop_handle);
     }
@@ -268,23 +282,29 @@ module satay::test_base_strategy {
 
         let (vault_cap, stop_handle) = satay::test_lock_vault(
             0,
+            &TestStrategy {}
+        );
+
+        let keeper_cap = vault::test_get_keeper_cap<TestStrategy>(
+            satay,
+            vault_cap,
             TestStrategy {}
         );
 
         base_strategy::deposit_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &stop_handle
         );
         let strategy_coins = base_strategy::withdraw_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             amount,
-            &stop_handle
         );
         coin::deposit(user_address, strategy_coins);
 
-        assert!(base_strategy::balance<USDT>(&vault_cap) == 0, ERR_WITHDRAW);
+        assert!(base_strategy::harvest_balance<TestStrategy, USDT>(&keeper_cap) == 0, ERR_WITHDRAW);
         assert!(coin::balance<USDT>(user_address) == amount, ERR_WITHDRAW);
+
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         satay::test_unlock_vault(vault_cap, stop_handle);
     }
@@ -316,20 +336,26 @@ module satay::test_base_strategy {
 
         let (vault_cap, stop_handle) = satay::test_lock_vault(
             0,
+            &TestStrategy {}
+        );
+
+        let keeper_cap = vault::test_get_keeper_cap<TestStrategy>(
+            satay,
+            vault_cap,
             TestStrategy {}
         );
 
         base_strategy::deposit_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &stop_handle
         );
         let strategy_coins = base_strategy::withdraw_strategy_coin<TestStrategy, BTC>(
-            &vault_cap,
+            &keeper_cap,
             amount,
-            &stop_handle
         );
         coin::deposit(user_address, strategy_coins);
+
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         satay::test_unlock_vault(vault_cap, stop_handle);
     }
@@ -411,17 +437,17 @@ module satay::test_base_strategy {
             user,
         );
 
-        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+        let (keeper_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {}
         );
 
         let strategy_balance = 0;
-        let credit_available = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        let credit_available = vault::keeper_credit_available<TestStrategy, AptosCoin>(&keeper_cap);
 
         let (to_apply, harvest_lock) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_balance,
             vault_cap_lock
         );
@@ -436,7 +462,7 @@ module satay::test_base_strategy {
         let usdt = apply_position(coins_manager, coins_manager, to_apply);
 
         base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
-            vault_cap,
+            keeper_cap,
             harvest_lock,
             coin::zero(),
             coin::zero(),
@@ -465,7 +491,7 @@ module satay::test_base_strategy {
             user,
         );
 
-        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+        let (keeper_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {}
@@ -475,10 +501,10 @@ module satay::test_base_strategy {
         timestamp::fast_forward_seconds(seconds);
 
         let strategy_balance = profit_amount;
-        let credit_available = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        let credit_available = vault::keeper_credit_available<TestStrategy, AptosCoin>(&keeper_cap);
 
         let (to_apply, harvest_lock) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_balance,
             vault_cap_lock
         );
@@ -496,7 +522,7 @@ module satay::test_base_strategy {
         let usdt = apply_position(coins_manager, coins_manager, to_apply);
 
         base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
-            vault_cap,
+            keeper_cap,
             harvest_lock,
             coin::zero(),
             profit_coins,
@@ -524,22 +550,21 @@ module satay::test_base_strategy {
         );
 
 
-        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+        let (keeper_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {}
         );
 
-        let debt_amount = vault::credit_available<TestStrategy, AptosCoin>(
-            &vault_cap
+        let debt_amount = vault::keeper_credit_available<TestStrategy, AptosCoin>(
+            &keeper_cap
         );
         let loss_amount = debt_amount / 2;
 
 
-        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
-            &vault_cap,
+        let aptos = vault::test_keeper_withdraw_base_coin<TestStrategy, AptosCoin>(
+            &keeper_cap,
             debt_amount,
-            &TestStrategy {}
         );
         coin::deposit(signer::address_of(user), aptos);
 
@@ -547,7 +572,7 @@ module satay::test_base_strategy {
         let strategy_balance = debt_amount - loss_amount;
 
         let (to_apply, harvest_lock) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_balance,
             vault_cap_lock
         );
@@ -557,18 +582,25 @@ module satay::test_base_strategy {
         let debt_payment = base_strategy::get_harvest_debt_payment(&harvest_lock);
         let profit = base_strategy::get_harvest_profit(&harvest_lock);
 
-        assert!(debt_payment == 0, ERR_PROCESS_HARVEST);
-        assert!(profit == 0, ERR_PROCESS_HARVEST);
-        assert!(vault::total_debt<TestStrategy>(&vault_cap) == debt_amount - loss_amount, ERR_PROCESS_HARVEST);
-        assert!(vault::debt_ratio<TestStrategy>(&vault_cap) == DEBT_RATIO / 2, ERR_PROCESS_HARVEST);
+
 
         base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
-            vault_cap,
+            keeper_cap,
             harvest_lock,
             coin::zero(),
             coin::zero(),
             usdt
         );
+
+        let vault_cap = satay::open_vault(
+            0,
+        );
+        assert!(debt_payment == 0, ERR_PROCESS_HARVEST);
+        assert!(profit == 0, ERR_PROCESS_HARVEST);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == debt_amount - loss_amount, ERR_PROCESS_HARVEST);
+        assert!(vault::debt_ratio<TestStrategy>(&vault_cap) == DEBT_RATIO / 2, ERR_PROCESS_HARVEST);
+        satay::close_vault(0, vault_cap);
+
     }
 
     fun harvest(
@@ -577,29 +609,26 @@ module satay::test_base_strategy {
         coins_manager: &signer,
         user: &signer,
     ){
-        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+        let (keeper_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {}
         );
 
-        let strategy_balance = base_strategy::balance<USDT>(&vault_cap);
+        let strategy_balance = base_strategy::harvest_balance<TestStrategy, USDT>(&keeper_cap);
 
         let (to_apply, harvest_lock) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_balance,
             vault_cap_lock
         );
-
-        let vault_cap_lock = base_strategy::get_harvest_vault_cap_lock(&harvest_lock);
 
         let debt_payment = base_strategy::get_harvest_debt_payment(&harvest_lock);
         let profit = base_strategy::get_harvest_profit(&harvest_lock);
 
         let strategy_coins_to_liquidate = base_strategy::withdraw_strategy_coin<TestStrategy, USDT>(
-            &vault_cap,
+            &keeper_cap,
             debt_payment + profit,
-            vault_cap_lock
         );
         let liquidated_coins = liquidate_position(aptos_framework, user, strategy_coins_to_liquidate);
         let debt_payment = coin::extract<AptosCoin>(&mut liquidated_coins, debt_payment);
@@ -609,7 +638,7 @@ module satay::test_base_strategy {
         let usdt = apply_position(coins_manager, coins_manager, to_apply);
 
         base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
-            vault_cap,
+            keeper_cap,
             harvest_lock,
             debt_payment,
             profit,
@@ -680,7 +709,7 @@ module satay::test_base_strategy {
 
         let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {},
+            &TestStrategy {}
         );
 
         let balance_before = base_strategy::balance<AptosCoin>(
@@ -690,11 +719,13 @@ module satay::test_base_strategy {
         let profit = 50;
         coins::mint_coin<USDT>(coins_manager, signer::address_of(user), profit);
         let usdt = coin::withdraw<USDT>(user, profit);
+
+        let keeper_cap = vault::test_get_keeper_cap(satay, vault_cap, TestStrategy{});
         base_strategy::deposit_strategy_coin(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &vault_cap_lock
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         let performance_fee = profit * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
         let management_fee = (
@@ -744,7 +775,7 @@ module satay::test_base_strategy {
 
         let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {},
+            &TestStrategy {},
         );
 
         let credit_available = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
@@ -752,11 +783,13 @@ module satay::test_base_strategy {
         let profit = 50;
         coins::mint_coin<USDT>(coins_manager, signer::address_of(user), profit);
         let usdt = coin::withdraw<USDT>(user, profit);
+
+        let keeper_cap = vault::test_get_keeper_cap(satay, vault_cap, TestStrategy {});
         base_strategy::deposit_strategy_coin(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &vault_cap_lock
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         let performance_fee = profit * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
         let management_fee = (
@@ -842,17 +875,19 @@ module satay::test_base_strategy {
 
         let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {},
+            &TestStrategy {},
         );
 
         let profit = 50;
         coins::mint_coin<USDT>(coins_manager, signer::address_of(user), profit);
         let usdt = coin::withdraw<USDT>(user, profit);
+
+        let keeper_cap = vault::test_get_keeper_cap(satay, vault_cap, TestStrategy {});
         base_strategy::deposit_strategy_coin(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &vault_cap_lock
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         let performance_fee = profit * PERFORMANCE_FEE / MAX_DEBT_RATIO_BPS;
         let management_fee = (
@@ -907,32 +942,34 @@ module satay::test_base_strategy {
 
         let (vault_cap, vault_cap_lock) = satay::test_lock_vault<TestStrategy>(
             0,
-            TestStrategy {},
+            &TestStrategy {},
         );
 
         let profit = 50;
         coins::mint_coin<USDT>(coins_manager, signer::address_of(user), profit);
         let usdt = coin::withdraw<USDT>(user, profit);
+
+        let keeper_cap = vault::test_get_keeper_cap(satay, vault_cap, TestStrategy {});
         base_strategy::deposit_strategy_coin(
-            &vault_cap,
+            &keeper_cap,
             usdt,
-            &vault_cap_lock
         );
+        vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
         satay::test_unlock_vault(vault_cap, vault_cap_lock);
 
-        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+        let (keeper_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {},
         );
 
-        let strategy_balance = base_strategy::balance<USDT>(&vault_cap);
+        let strategy_balance = base_strategy::harvest_balance<TestStrategy, USDT>(&keeper_cap);
         let (
             to_apply,
             harvest_lock
         ) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_balance,
             vault_cap_lock
         );
@@ -943,7 +980,7 @@ module satay::test_base_strategy {
         let strategy_coins = apply_position(coins_manager, coins_manager, to_apply);
 
         base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
-            vault_cap,
+            keeper_cap,
             harvest_lock,
             coin::zero(),
             coin::zero(),
@@ -980,20 +1017,20 @@ module satay::test_base_strategy {
             TestStrategy {}
         );
 
-        let (vault_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
+        let (keeper_cap, vault_cap_lock) = base_strategy::open_vault_for_harvest<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {},
         );
 
-        let debt_out_standing = vault::debt_out_standing<TestStrategy, AptosCoin>(&vault_cap);
+        let debt_out_standing = vault::keeper_debt_out_standing<TestStrategy, AptosCoin>(&keeper_cap);
 
-        let strategy_balance = base_strategy::balance<USDT>(&vault_cap);
+        let strategy_balance = base_strategy::harvest_balance<TestStrategy, USDT>(&keeper_cap);
         let (
             to_apply,
             harvest_lock
         ) = base_strategy::process_harvest<TestStrategy, AptosCoin, USDT>(
-            &vault_cap,
+            &keeper_cap,
             strategy_balance,
             vault_cap_lock
         );
@@ -1004,7 +1041,7 @@ module satay::test_base_strategy {
         let strategy_coins = apply_position(coins_manager, coins_manager, to_apply);
 
         base_strategy::close_vault_for_harvest<TestStrategy, AptosCoin, USDT>(
-            vault_cap,
+            keeper_cap,
             harvest_lock,
             coin::zero(),
             coin::zero(),
@@ -1140,7 +1177,7 @@ module satay::test_base_strategy {
         let usdt = base_strategy::withdraw_strategy_coin_for_liquidation<TestStrategy, USDT, AptosCoin>(
             &user_cap,
             base_strategy::get_user_withdraw_amount_needed(&user_withdraw_lock),
-            base_strategy::get_user_withdraw_vault_cap_lock(&user_withdraw_lock)
+            &user_withdraw_lock
         );
 
 
@@ -1201,7 +1238,7 @@ module satay::test_base_strategy {
         let usdt = base_strategy::withdraw_strategy_coin_for_liquidation<TestStrategy, USDT, AptosCoin>(
             &user_cap,
             base_strategy::get_user_withdraw_amount_needed(&user_withdraw_lock) - loss,
-            base_strategy::get_user_withdraw_vault_cap_lock(&user_withdraw_lock)
+            &user_withdraw_lock
         );
         let aptos_coins = liquidate_position(aptos_framework, user, usdt);
 
@@ -1291,141 +1328,4 @@ module satay::test_base_strategy {
             coin::zero<AptosCoin>()
         )
     }
-
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_prepare_return_profit(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
-
-        let (vault_cap, stop_handle) = satay::test_lock_vault(
-            0,
-            TestStrategy {}
-        );
-
-        let strategy_balance = 500;
-        let (profit, loss, debt_payment) = base_strategy::test_prepare_return<TestStrategy, AptosCoin>(
-            &vault_cap,
-            strategy_balance,
-        );
-
-        assert!(profit == strategy_balance, ERR_PREPARE_RETURN);
-        assert!(loss == 0, ERR_PREPARE_RETURN);
-        assert!(debt_payment == 0, ERR_PREPARE_RETURN);
-
-        satay::test_unlock_vault(vault_cap, stop_handle);
-    }
-
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_prepare_return_loss(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-        let loss_amount = 50;
-
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
-
-        let (vault_cap, stop_handle) = satay::test_lock_vault(
-            0,
-            TestStrategy {}
-        );
-
-        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
-        vault::test_update_total_debt<TestStrategy>(
-            &vault_cap,
-            credit,
-            0,
-            &TestStrategy {}
-        );
-
-        let strategy_balance = credit - loss_amount;
-        let (profit, loss, debt_payment) = base_strategy::test_prepare_return<TestStrategy, AptosCoin>(
-            &vault_cap,
-            strategy_balance,
-        );
-        assert!(profit == 0, ERR_PREPARE_RETURN);
-        assert!(loss == loss_amount, ERR_PREPARE_RETURN);
-        assert!(debt_payment == 0, ERR_PREPARE_RETURN);
-
-        satay::test_unlock_vault(vault_cap, stop_handle);
-    }
-
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_prepare_return_debt_payment(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
-
-        let (vault_cap, stop_handle) = satay::test_lock_vault(
-            0,
-            TestStrategy {}
-        );
-
-        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
-
-        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
-            &vault_cap,
-            credit,
-            &TestStrategy {}
-        );
-        coin::deposit(@aptos_framework, aptos);
-
-        vault::test_update_strategy_debt_ratio<TestStrategy>(
-            satay,
-            &vault_cap,
-            0,
-            &TestStrategy {}
-        );
-
-        let strategy_balance = credit;
-        let (profit, loss, debt_payment) = base_strategy::test_prepare_return<TestStrategy, AptosCoin>(
-            &vault_cap,
-            strategy_balance,
-        );
-        assert!(profit == 0, ERR_PREPARE_RETURN);
-        assert!(loss == 0, ERR_PREPARE_RETURN);
-        assert!(debt_payment == credit, ERR_PREPARE_RETURN);
-
-        satay::test_unlock_vault(vault_cap, stop_handle);
-    }
-
 }

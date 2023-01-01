@@ -27,9 +27,8 @@ module satay::satay {
     }
 
     // returned by lock_vault to ensure a subsequent call to unlock_vault
-    struct VaultCapLock<StrategyType: drop> {
+    struct VaultCapLock<phantom StrategyType: drop> {
         vault_id: u64,
-        strategy_type: StrategyType
     }
 
     // create manager account and store in sender's account
@@ -218,7 +217,7 @@ module satay::satay {
     // StrategyType must be approved
     public(friend) fun lock_vault<StrategyType: drop>(
         vault_id: u64,
-        witness: StrategyType
+        _witness: &StrategyType
     ): (VaultCapability, VaultCapLock<StrategyType>) acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
@@ -234,7 +233,6 @@ module satay::satay {
         let vault_cap = option::extract(&mut vault_info.vault_cap);
         let stop_handle = VaultCapLock {
             vault_id,
-            strategy_type: witness,
         };
         (vault_cap, stop_handle)
     }
@@ -249,7 +247,6 @@ module satay::satay {
 
         let VaultCapLock<StrategyType> {
             vault_id,
-            strategy_type: _
         } = stop_handle;
 
         let account = borrow_global_mut<ManagerAccount>(@satay);
@@ -321,12 +318,6 @@ module satay::satay {
         vault::total_assets<CoinType>(vault_cap)
     }
 
-    public fun get_strategy_witness<StrategyType: drop>(
-        vault_cap_lock: &VaultCapLock<StrategyType>
-    ): &StrategyType {
-        &vault_cap_lock.strategy_type
-    }
-
     public fun get_vault_id<StrategyType: drop>(
         vault_cap_lock: &VaultCapLock<StrategyType>
     ): u64 {
@@ -387,11 +378,11 @@ module satay::satay {
     #[test_only]
     public fun test_lock_vault<StrategyType: drop>(
         vault_id: u64,
-        witness: StrategyType,
+        witness: &StrategyType,
     ): (VaultCapability, VaultCapLock<StrategyType>) acquires ManagerAccount {
         lock_vault<StrategyType>(
             vault_id,
-            witness,
+            witness
         )
     }
 
