@@ -90,7 +90,6 @@ module satay_simple_staking::test_simple_staking_strategy {
         satay::initialize(manager_acc);
         satay::new_vault<USDT>(
             manager_acc,
-            b"aptos_vault",
             MANAGEMENT_FEE,
             PERFOAMANCE_FEE
         );
