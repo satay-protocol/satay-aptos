@@ -4,50 +4,112 @@ module satay::test_dao_storage {
     use std::signer;
 
     use aptos_framework::coin;
+    use aptos_framework::account;
 
-    use test_coin_admin::test_coins::{USDT};
-    use test_helpers::test_account;
-    use test_coin_admin::test_coins;
-
+    use satay::satay;
     use satay::global_config;
-    use satay::global_config::set_dao_admin;
-    use satay::dao_storage::{register, has_storage, deposit, get_coin_value, withdraw};
+    use satay::dao_storage;
+    use satay::coins::{Self, USDT};
 
     const ENO_STORAGE: u64 = 401;
     const ERR_DEPOSIT: u64 = 402;
     const ERR_WITHDRAW: u64 = 403;
 
-    #[test(owner=@satay)]
-    fun test_register(owner: &signer) {
-        test_account::create_account(owner);
-        register<USDT>(owner);
-        assert!(has_storage<USDT>(owner) == true, ENO_STORAGE);
+    fun setup_tests(
+        satay: &signer,
+        vault: &signer,
+    ) {
+        satay::initialize(satay);
+        account::create_account_for_test(signer::address_of(satay));
+        account::create_account_for_test(signer::address_of(vault));
+        coins::register_coins(satay);
     }
 
-    #[test]
-    fun test_deposit() {
-        let owner = test_coins::create_admin_with_coins();
-        register<USDT>(&owner);
-
-        let usdt_coins = test_coins::mint<USDT>(&owner, 100);
-        deposit<USDT>(signer::address_of(&owner), usdt_coins);
-        assert!(get_coin_value<USDT>(&owner) == 100, ERR_DEPOSIT);
+    #[test(
+        satay=@satay,
+        vault=@0x64,
+    )]
+    fun test_register(
+        satay: &signer,
+        vault: &signer,
+    ) {
+        setup_tests(satay, vault);
+        dao_storage::register<USDT>(satay);
+        assert!(dao_storage::has_storage<USDT>(signer::address_of(satay)), ENO_STORAGE);
     }
 
-    #[test(dao_admin=@0x64, satay=@satay)]
-    fun test_withdraw(dao_admin: &signer, satay: &signer) {
-        global_config::initialize(satay);
-        let owner = test_coins::create_admin_with_coins();
-        register<USDT>(&owner);
+    #[test(
+        satay=@satay,
+        vault=@0x64,
+    )]
+    fun test_deposit(
+        satay: &signer,
+        vault: &signer,
+    ) {
+        setup_tests(satay, vault);
 
-        let usdt_coins = test_coins::mint<USDT>(&owner, 1000);
-        deposit<USDT>(signer::address_of(&owner), usdt_coins);
+        dao_storage::register<USDT>(vault);
+        let vault_address = signer::address_of(vault);
 
-        set_dao_admin(satay, signer::address_of(dao_admin));
+        let amount = 100;
+        let usdt_coins =  coins::mint<USDT>(satay, amount);
+        dao_storage::deposit<USDT>(vault_address, usdt_coins);
+        assert!(dao_storage::balance<USDT>(vault_address) == amount, ERR_DEPOSIT);
+    }
 
-        let withdrawn_coin = withdraw<USDT>(dao_admin, signer::address_of(&owner), 200);
-        assert!(coin::value(&withdrawn_coin) == 200, ERR_WITHDRAW);
-        test_coins::burn(&owner, withdrawn_coin);
-        assert!(get_coin_value<USDT>(&owner) == 800, ERR_WITHDRAW);
+    #[test(
+        satay=@satay,
+        vault=@0x63,
+        dao_admin=@0x64
+    )]
+    fun test_withdraw(
+        satay: &signer,
+        vault: &signer,
+        dao_admin: &signer
+    ) {
+        setup_tests(satay, vault);
+
+        dao_storage::register<USDT>(vault);
+
+        let vault_address = signer::address_of(vault);
+        let amount = 100;
+        let usdt_coins = coins::mint<USDT>(satay, amount);
+        dao_storage::deposit<USDT>(vault_address, usdt_coins);
+
+        account::create_account_for_test(signer::address_of(dao_admin));
+        global_config::set_dao_admin(satay, signer::address_of(dao_admin));
+        global_config::accept_dao_admin(dao_admin);
+
+        coin::register<USDT>(dao_admin);
+        let witdraw_amount = 40;
+        dao_storage::withdraw<USDT>(dao_admin, vault_address, witdraw_amount);
+        assert!(coin::balance<USDT>(signer::address_of(dao_admin)) == witdraw_amount, ERR_WITHDRAW);
+        assert!(dao_storage::balance<USDT>(vault_address) == amount - witdraw_amount, ERR_WITHDRAW);
+    }
+
+    #[test(
+        satay=@satay,
+        vault=@0x63,
+        dao_admin=@0x64
+    )]
+    #[expected_failure]
+    fun test_withdraw_non_dao_admin(
+        satay: &signer,
+        vault: &signer,
+        dao_admin: &signer
+    ) {
+        setup_tests(satay, vault);
+
+        dao_storage::register<USDT>(vault);
+
+        let vault_address = signer::address_of(vault);
+        let amount = 100;
+        let usdt_coins = coins::mint<USDT>(satay, amount);
+        dao_storage::deposit<USDT>(vault_address, usdt_coins);
+
+        account::create_account_for_test(signer::address_of(dao_admin));
+        coin::register<USDT>(dao_admin);
+        let witdraw_amount = 40;
+        dao_storage::withdraw<USDT>(dao_admin, vault_address, witdraw_amount);
     }
 }

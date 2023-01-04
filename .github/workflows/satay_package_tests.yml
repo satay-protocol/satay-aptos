@@ -1,17 +1,15 @@
-name: Tests
+name: Satay Package Tests
 on:
   pull_request:
   push:
     branches:
-      - main
-      - master
-      - releases-v*
+      - '**'
     tags:
       - v*
 
 jobs:
   tests:
-    name: Test
+    name: Test Satay Package
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,7 +22,7 @@ jobs:
       - name: Get Aptos
         uses: pontem-network/get-aptos@main
         with:
-          version: aptos-cli-v0.3.9
+            token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
         run: aptos move compile
