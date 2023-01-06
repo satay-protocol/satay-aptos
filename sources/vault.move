@@ -44,7 +44,6 @@ module satay::vault {
 
     struct Vault has key {
         base_coin_type: TypeInfo,
-        base_coin_decimals: u8,
         management_fee: u64,
         performance_fee: u64,
         debt_ratio: u64,
@@ -249,7 +248,6 @@ module satay::vault {
         let base_coin_decimals = coin::decimals<BaseCoin>();
         let vault = Vault {
             base_coin_type,
-            base_coin_decimals,
             management_fee,
             performance_fee,
             deposits_frozen: false,
@@ -647,18 +645,18 @@ module satay::vault {
 
     // vault fields
 
+    // gets vault address from vault_cap
+    public fun get_vault_addr(
+        vault_cap: &VaultCapability
+    ): address {
+        vault_cap.vault_addr
+    }
+
     public fun get_base_coin_type(
         vault_cap: &VaultCapability
     ): TypeInfo acquires Vault {
         let vault = borrow_global<Vault>(vault_cap.vault_addr);
         vault.base_coin_type
-    }
-
-    public fun get_base_coin_decimals(
-        vault_cap: &VaultCapability
-    ): u8 acquires Vault {
-        let vault = borrow_global<Vault>(vault_cap.vault_addr);
-        vault.base_coin_decimals
     }
 
     public fun get_fees(
@@ -743,8 +741,8 @@ module satay::vault {
     public fun credit_available<StrategyType: drop, BaseCoin>(
         vault_cap: &VaultCapability
     ): u64 acquires Vault, VaultStrategy, CoinStore {
+        assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
         let vault = borrow_global<Vault>(vault_cap.vault_addr);
-        assert!(vault.base_coin_type == type_info::type_of<BaseCoin>(), ERR_COIN);
 
         let vault_debt_ratio = vault.debt_ratio;
         let vault_total_debt = vault.total_debt;
@@ -1408,13 +1406,5 @@ module satay::vault {
         keeper_cap: &KeeperCapability<StrategyType>,
     ): u64 acquires Vault, VaultStrategy, CoinStore {
         debt_out_standing<StrategyType, BaseCoin>(&keeper_cap.vault_cap)
-    }
-
-    // gets vault address from vault_cap
-    #[test_only]
-    public fun get_vault_addr(
-        vault_cap: &VaultCapability
-    ): address {
-        vault_cap.vault_addr
     }
 }
