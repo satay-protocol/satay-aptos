@@ -1,8 +1,10 @@
 module satay::satay {
     use std::option::{Self, Option};
 
-    use aptos_framework::coin;
+    use aptos_std::type_info::TypeInfo;
     use aptos_std::table::{Self, Table};
+
+    use aptos_framework::coin;
 
     use satay::global_config;
     use satay::vault::{Self, VaultCapability, VaultCoin};
@@ -289,11 +291,88 @@ module satay::satay {
 
     // getter functions
 
+    // ManagerAccount fields
+
     public fun get_next_vault_id() : u64 acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
         account.next_vault_id
     }
+
+    // vault cap lock fields
+
+    public fun get_vault_id<StrategyType: drop>(
+        vault_cap_lock: &VaultCapLock<StrategyType>
+    ): u64 {
+        vault_cap_lock.vault_id
+    }
+
+    // vault fields
+
+    // get vault address for vault_id
+    public fun get_vault_address_by_id(
+        vault_id: u64
+    ): address acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::get_vault_addr(vault_cap)
+    }
+
+    // get base coin for vault_id
+    public fun get_base_coin_by_id(
+        vault_id: u64
+    ): TypeInfo acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::get_base_coin_type(vault_cap)
+    }
+
+    // get fees for vault_id
+    public fun get_vault_fees(vault_id: u64): (u64, u64) acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        vault::get_fees(option::borrow(&vault_info.vault_cap))
+    }
+
+    // get deposits_frozen for vault_id
+    public fun is_vault_frozen(vault_id: u64): bool acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        vault::is_vault_frozen(option::borrow(&vault_info.vault_cap))
+    }
+
+    // get debt ratio for vault_id
+    public fun get_vault_debt_ratio(vault_id: u64): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        vault::get_debt_ratio(option::borrow(&vault_info.vault_cap))
+    }
+
+    // get total debt for vault_id
+    public fun get_total_debt(vault_id: u64): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        vault::get_total_debt(option::borrow(&vault_info.vault_cap))
+    }
+
+    // get total assets for vault_id
+    public fun get_total_assets<BaseCoin>(vault_id: u64): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::total_assets<BaseCoin>(vault_cap)
+    }
+
+    // strategy fields
 
     // checks if vault_id for manager has StrategyType approved
     public fun has_strategy<StrategyType: drop>(
@@ -305,39 +384,121 @@ module satay::satay {
         vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
     }
 
-    // get vault address for vault_id
-    #[test_only]
-    public fun get_vault_address_by_id(
-        vault_id: u64
-    ): address acquires ManagerAccount {
+    // gets total debt for StrategyType for vault_id
+    public fun get_strategy_total_debt<StrategyType: drop>(
+        vault_id: u64,
+    ) : u64 acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
         let vault_info = table::borrow(&account.vaults, vault_id);
         let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::get_vault_addr(vault_cap)
+        vault::total_debt<StrategyType>(vault_cap)
     }
 
-    // get total assets for (manager_addr, vault_id)
-    public fun get_vault_total_asset<CoinType>(vault_id: u64) : u64 acquires ManagerAccount {
+    // gets debt ratio for StrategyType for vault_id
+    public fun get_strategy_debt_ratio<StrategyType: drop>(
+        vault_id: u64,
+    ) : u64 acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
         let vault_info = table::borrow(&account.vaults, vault_id);
         let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::total_assets<CoinType>(vault_cap)
+        vault::debt_ratio<StrategyType>(vault_cap)
     }
 
-    public fun get_vault_id<StrategyType: drop>(
-        vault_cap_lock: &VaultCapLock<StrategyType>
-    ): u64 {
-        vault_cap_lock.vault_id
-    }
-
-    public fun is_vault_frozen(vault_id: u64): bool acquires ManagerAccount {
+    // gets credit availale for StrategyType for vault_id
+    public fun get_credit_available<StrategyType: drop, BaseCoin>(
+        vault_id: u64,
+    ): u64 acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global<ManagerAccount>(@satay);
         let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::is_vault_frozen(option::borrow(&vault_info.vault_cap))
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::credit_available<StrategyType, BaseCoin>(vault_cap)
     }
+
+    // gets outstanding debt for StrategyType for vault_id
+    public fun get_debt_out_standing<StrategyType: drop, BaseCoin>(
+        vault_id: u64,
+    ): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap)
+    }
+
+    // gets last report for StrategyType for vault_id
+    public fun get_last_report<StrategyType: drop>(
+        vault_id: u64,
+    ): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::last_report<StrategyType>(vault_cap)
+    }
+
+    // gets the strategy coin type for StrategyType for vault_id
+    public fun get_strategy_coin_type<StrategyType: drop>(
+        vault_id: u64,
+    ): TypeInfo acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::get_strategy_coin_type<StrategyType>(vault_cap)
+    }
+
+    // get total gain for StrategyType for vault_id
+    public fun get_total_gain<StrategyType: drop, BaseCoin>(
+        vault_id: u64,
+    ): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::total_gain<StrategyType>(vault_cap)
+    }
+
+    // get total loss for StrategyType for vault_id
+    public fun get_total_loss<StrategyType: drop, BaseCoin>(
+        vault_id: u64,
+    ): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::total_loss<StrategyType>(vault_cap)
+    }
+
+    // user calculations
+
+    // get vault coin amount for base coin amount for vault_id
+    public fun get_vault_coin_amount<BaseCoin>(
+        vault_id: u64,
+        base_coin_amount: u64,
+    ): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::calculate_vault_coin_amount_from_base_coin_amount<BaseCoin>(vault_cap, base_coin_amount)
+    }
+
+    // get base coin amount for vault coin amount for vault_id
+    public fun get_base_coin_amount<BaseCoin>(
+        vault_id: u64,
+        vault_coin_amount: u64,
+    ): u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global<ManagerAccount>(@satay);
+        let vault_info = table::borrow(&account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(vault_cap, vault_coin_amount)
+    }
+
+    // assert statements
 
     public fun assert_base_coin_correct_for_vault<BaseCoin>(
         vault_id: u64,

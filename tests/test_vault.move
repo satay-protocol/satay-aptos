@@ -133,7 +133,7 @@ module satay::test_vault {
         let vault_cap = create_vault(vault_manager);
 
         assert!(vault::get_base_coin_type(&vault_cap) == type_info::type_of<AptosCoin>(), ERR_CREATE_VAULT);
-        assert!(vault::get_base_coin_decimals(&vault_cap) == coin::decimals<AptosCoin>(), ERR_CREATE_VAULT);
+        assert!(coin::decimals<VaultCoin<AptosCoin>>() == coin::decimals<AptosCoin>(), ERR_CREATE_VAULT);
         let (management_fee, performance_fee) = vault::get_fees(&vault_cap);
         assert!(management_fee == MANAGEMENT_FEE, ERR_CREATE_VAULT);
         assert!(performance_fee == PERFORMANCE_FEE, ERR_CREATE_VAULT);

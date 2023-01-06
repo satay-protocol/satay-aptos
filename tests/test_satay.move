@@ -166,7 +166,7 @@ module satay::test_satay {
         );
         create_vault(satay);
         assert!(satay::get_next_vault_id() == 1, ERR_NEW_VAULT);
-        assert!(satay::get_vault_total_asset<AptosCoin>(0) == 0, ERR_NEW_VAULT);
+        assert!(satay::get_total_assets<AptosCoin>(0) == 0, ERR_NEW_VAULT);
     }
 
     #[test(
