@@ -1,10 +1,11 @@
 module satay::satay {
     use std::option::{Self, Option};
+    use std::signer;
 
     use aptos_std::type_info::TypeInfo;
     use aptos_std::table::{Self, Table};
 
-    use aptos_framework::coin;
+    use aptos_framework::coin::{Self, Coin};
 
     use satay::global_config;
     use satay::vault::{Self, VaultCapability, VaultCoin};
@@ -189,6 +190,22 @@ module satay::satay {
         vault_id: u64,
         amount: u64
     ) acquires ManagerAccount {
+        let base_coins = coin::withdraw<BaseCoin>(user, amount);
+
+        let vault_coins = deposit_as_user(user, vault_id, base_coins);
+
+        let user_addr = signer::address_of(user);
+        if(!vault::is_vault_coin_registered<BaseCoin>(user_addr)){
+            coin::register<VaultCoin<BaseCoin>>(user);
+        };
+        coin::deposit(user_addr, vault_coins);
+    }
+
+    public fun deposit_as_user<BaseCoin>(
+        user: &signer,
+        vault_id: u64,
+        base_coins: Coin<BaseCoin>
+    ): Coin<VaultCoin<BaseCoin>> acquires ManagerAccount {
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
@@ -198,20 +215,17 @@ module satay::satay {
             user,
             vault_cap,
         );
-        let base_coins = coin::withdraw<BaseCoin>(user, amount);
+
         let vault_coins = vault::deposit_as_user(&user_cap, base_coins);
 
         let (
             vault_cap,
-            user_addr
+            _
         ) = vault::destroy_user_capability(user_cap);
 
-        if(!vault::is_vault_coin_registered<BaseCoin>(user_addr)){
-            coin::register<VaultCoin<BaseCoin>>(user);
-        };
-        coin::deposit(user_addr, vault_coins);
-
         option::fill(&mut vault_info.vault_cap, vault_cap);
+
+        vault_coins
     }
 
     // user withdraws amount of BaseCoin from vault_id of manager_addr
@@ -220,7 +234,22 @@ module satay::satay {
         vault_id: u64,
         amount: u64
     ) acquires ManagerAccount {
-        assert_manager_initialized();
+        let vault_coins = coin::withdraw<VaultCoin<BaseCoin>>(user, amount);
+
+        let base_coins = withdraw_as_user(user, vault_id, vault_coins);
+
+        let user_addr = signer::address_of(user);
+        if(!coin::is_account_registered<BaseCoin>(user_addr)){
+            coin::register<BaseCoin>(user);
+        };
+        coin::deposit(user_addr, base_coins);
+    }
+
+    public fun withdraw_as_user<BaseCoin>(
+        user: &signer,
+        vault_id: u64,
+        vault_coins: Coin<VaultCoin<BaseCoin>>
+    ): Coin<BaseCoin> acquires ManagerAccount {
         let account = borrow_global_mut<ManagerAccount>(@satay);
         let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
         let vault_cap = option::extract(&mut vault_info.vault_cap);
@@ -229,17 +258,16 @@ module satay::satay {
             user,
             vault_cap,
         );
-        let vault_coins = coin::withdraw<VaultCoin<BaseCoin>>(user, amount);
+
         let base_coins = vault::withdraw_as_user<BaseCoin>(&user_cap, vault_coins);
 
         let (
             vault_cap,
-            user_addr
+            _
         ) = vault::destroy_user_capability(user_cap);
-
-        coin::deposit(user_addr, base_coins);
-
         option::fill(&mut vault_info.vault_cap, vault_cap);
+
+        base_coins
     }
 
     // strategy functions
