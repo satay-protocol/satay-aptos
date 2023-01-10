@@ -10,11 +10,11 @@ module satay::vault {
     use aptos_framework::timestamp;
     use aptos_framework::event::{Self, EventHandle};
 
+    use satay_vault_coin::vault_coin::{VaultCoin};
     use satay::dao_storage;
     use satay::math;
     use satay::vault_config;
     use satay::strategy_config;
-    use satay::global_config;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -54,8 +54,6 @@ module satay::vault {
         update_fees_events: EventHandle<UpdateFeesEvent>,
         freeze_events: EventHandle<FreezeEvent>,
     }
-
-    struct VaultCoin<phantom BaseCoin> has key {}
 
     struct VaultCoinCaps<phantom BaseCoin> has key {
         mint_cap: MintCapability<VaultCoin<BaseCoin>>,
@@ -227,12 +225,11 @@ module satay::vault {
 
     // create new vault with BaseCoin as its base coin type
     public(friend) fun new<BaseCoin>(
-        governance: &signer,
+        vault_coin_account: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
-        global_config::assert_governance(governance);
         assert_fee_amounts(management_fee, performance_fee);
 
         // create vault coin name
@@ -241,7 +238,7 @@ module satay::vault {
         let seed = *string::bytes(&vault_coin_name);
 
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(vault_coin_account, seed);
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -273,7 +270,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            governance,
+            vault_coin_account,
             vault_coin_name,
             vault_coin_symbol,
             base_coin_decimals,
@@ -1138,13 +1135,13 @@ module satay::vault {
 
     #[test_only]
     public fun new_test<BaseCoin>(
-        governance: &signer, 
+        vault_coin_account: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
     ): VaultCapability {
         new<BaseCoin>(
-            governance,
+            vault_coin_account,
             vault_id,
             management_fee,
             performance_fee

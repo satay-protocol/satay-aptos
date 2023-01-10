@@ -11,10 +11,13 @@ module satay::test_vault {
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::timestamp;
 
-    use satay::vault::{Self, VaultCapability, VaultCoin, VaultManagerCapability};
+    use satay_vault_coin::vault_coin::VaultCoin;
+
+    use satay::vault::{Self, VaultCapability, VaultManagerCapability};
     use satay::coins::{Self, USDT};
     use satay::dao_storage;
-    use satay::satay;
+    use satay::global_config;
+    // use satay::satay;
 
     struct TestStrategy has drop {}
 
@@ -55,15 +58,20 @@ module satay::test_vault {
         account::create_account_for_test(signer::address_of(user));
         coin::register<AptosCoin>(user);
         coin::register<VaultCoin<AptosCoin>>(user);
-        satay::initialize(satay)
+        global_config::test_initialize(satay);
+        // vault_coin_account::initialize_satay_account(
+        //     satay,
+        //     x"0e53617461795661756c74436f696e020000000000000000404442334638364131454231354432454538373446303132424334384439373142373336344135453630354646303432353235434633383145383930333445334587021f8b08000000000002ff2d90cd6ec3201084ef3c45e44b4eb621fea5524f3df714a997c8b216583b28365880dde6ed0b6d6e3b3bb3f3497bdb403e60c6811858f1f47e3a5f21c0f30bf6257c586dcee440e7b535c962052de899ecdbec40e1b8d945cb673432bdae7b00b16046c80d9472e83dfa81f8d4351ea96c94b12d65e90f6d8077bc6f812b5a3159376d87ac111def0436ace58cca498a9a356dc52e757fc149b6c0b8a45051c9eb3e41141eb9c20d8d422335fae2d31e780d6ad16220b30e89740f61f36f6519e57d1785b46b095bb03e5f40f8d728adc3220632e2f048472b6863306abf0ba55d5afd27d708282717bff46ddda34c32f77fc0ec173b2d8c9145010000010a7661756c745f636f696e5d1f8b08000000000002ff45c8310a80300c40d13da7c8398a38e81d5c4ba80585b6119308527a77dbc93f7d5ee6dd524421a5d73f64497de0b338f73f56c09ee86d41711bbe769eae838a72c685240e98b13668f00109fb6b9d5200000000000000",
+        //     x"a11ceb0b05000000050100020202060708210829200a490500000001000100010a7661756c745f636f696e095661756c74436f696e0b64756d6d795f6669656c6405a97986a9d031c4567e15b797be516910cfcb4156312482efc6a19c0a30c948000201020100"
+        // );
+        // satay::initialize(satay)
     }
 
     #[test_only]
-    fun create_vault(
-        vault_manager: &signer,
-    ): VaultCapability {
+    fun create_vault(): VaultCapability {
+        let vault_coin_account = account::create_account_for_test(@satay_vault_coin);
         vault::new_test<AptosCoin>(
-            vault_manager,
+            &vault_coin_account,
             0,
             MANAGEMENT_FEE,
             PERFORMANCE_FEE
@@ -77,7 +85,7 @@ module satay::test_vault {
         user: &signer,
     ): VaultCapability {
         setup_tests(aptos_framework, satay, user);
-        create_vault(satay)
+        create_vault()
     }
 
     #[test_only]
@@ -130,7 +138,7 @@ module satay::test_vault {
         user: &signer
     ){
         setup_tests(aptos_framework, vault_manager, user);
-        let vault_cap = create_vault(vault_manager);
+        let vault_cap = create_vault();
 
         assert!(vault::get_base_coin_type(&vault_cap) == type_info::type_of<AptosCoin>(), ERR_CREATE_VAULT);
         assert!(coin::decimals<VaultCoin<AptosCoin>>() == coin::decimals<AptosCoin>(), ERR_CREATE_VAULT);
@@ -505,7 +513,7 @@ module satay::test_vault {
             coin::withdraw<AptosCoin>(user_a, user_a_second_deposit_amount)
         );
         let user_a_total_deposits = user_a_deposit_amount + user_a_second_deposit_amount;
-        assert!(coin::balance<vault::VaultCoin<AptosCoin>>(user_a_address) == user_a_total_deposits, ERR_INCORRECT_VAULT_COIN_AMOUNT);
+        assert!(coin::balance<VaultCoin<AptosCoin>>(user_a_address) == user_a_total_deposits, ERR_INCORRECT_VAULT_COIN_AMOUNT);
 
         let farm_amount = 300;
         vault::test_deposit(&vault_cap, coin::withdraw<AptosCoin>(user_a, farm_amount));

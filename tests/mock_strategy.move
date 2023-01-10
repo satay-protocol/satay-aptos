@@ -3,8 +3,10 @@ module satay::mock_strategy {
 
     use aptos_framework::aptos_coin::AptosCoin;
 
+    use satay_vault_coin::vault_coin::VaultCoin;
+
     use satay::base_strategy;
-    use satay::vault::{VaultCoin, KeeperCapability};
+    use satay::vault::{KeeperCapability};
     use satay::aptos_wrapper_product::{Self, WrappedAptos};
     use aptos_framework::coin;
 
