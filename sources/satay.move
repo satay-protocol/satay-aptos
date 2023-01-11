@@ -6,12 +6,10 @@ module satay::satay {
     use aptos_std::table::{Self, Table};
 
     use aptos_framework::coin::{Self, Coin};
-    use aptos_framework::account::{Self, SignerCapability};
 
     use satay::global_config;
     use satay::vault::{Self, VaultCapability};
     use satay_vault_coin::vault_coin::VaultCoin;
-    use satay::vault_coin_account;
 
     friend satay::base_strategy;
 
@@ -25,7 +23,6 @@ module satay::satay {
     struct ManagerAccount has key {
         next_vault_id: u64,
         vaults: Table<u64, VaultInfo>,
-        vault_coin_account_signer_cap: SignerCapability
     }
 
     struct VaultInfo has store {
@@ -44,13 +41,12 @@ module satay::satay {
         satay: &signer
     ) {
         assert!(signer::address_of(satay) == @satay, ERR_NOT_ENOUGH_PRIVILEGES);
-        let signer_cap = vault_coin_account::retrieve_signer_cap(satay);
         move_to(satay, ManagerAccount {
             vaults: table::new(),
             next_vault_id: 0,
-            vault_coin_account_signer_cap: signer_cap
         });
         global_config::initialize(satay);
+        vault::initialize(satay);
     }
 
     // governance functions
@@ -66,20 +62,18 @@ module satay::satay {
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
 
-        let vault_coin_signer_cap = &account.vault_coin_account_signer_cap;
-        let vault_coin_account_signer = account::create_signer_with_capability(vault_coin_signer_cap);
-
         // get vault id and update next id
         let vault_id = account.next_vault_id;
         account.next_vault_id = account.next_vault_id + 1;
 
         // create vault and add to manager vaults table
         let vault_cap = vault::new<BaseCoin>(
-            &vault_coin_account_signer,
+            governance,
             vault_id,
             management_fee,
             performance_fee
         );
+
         table::add(
             &mut account.vaults,
             vault_id,

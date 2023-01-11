@@ -8,6 +8,7 @@ module satay::test_global_config {
     use satay::vault_coin_account;
     use satay::satay;
     use satay::global_config;
+    use aptos_framework::aptos_coin::AptosCoin;
 
     fun initialize(
         aptos_framework: &signer,
@@ -142,4 +143,25 @@ module satay::test_global_config {
         initialize(aptos_framework, satay);
         global_config::accept_governance(non_governance);
     }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        satay=@satay,
+        new_governance=@0x1
+    )]
+    fun test_new_vault_after_governance_change(
+        aptos_framework: &signer,
+        satay: &signer,
+        new_governance: &signer,
+    ) {
+        initialize(aptos_framework, satay);
+        let new_governance_address = signer::address_of(new_governance);
+        global_config::set_governance(satay, new_governance_address);
+        global_config::accept_governance(new_governance);
+
+        satay::new_vault<AptosCoin>(new_governance, 0, 0);
+
+    }
+
+
 }

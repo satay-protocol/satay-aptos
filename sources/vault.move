@@ -15,6 +15,8 @@ module satay::vault {
     use satay::math;
     use satay::vault_config;
     use satay::strategy_config;
+    use satay::global_config;
+    use satay::vault_coin_account;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -35,6 +37,10 @@ module satay::vault {
     const ERR_VAULT_FROZEN: u64 = 109;
     const ERR_VAULT_NOT_FROZEN: u64 = 110;
     const ERR_LOSS: u64 = 111;
+
+    struct VaultCoinCap has key {
+        vault_coin_account_cap: SignerCapability
+    }
 
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>,
@@ -160,7 +166,14 @@ module satay::vault {
         vault_coin_amount: u64
     }
 
-    // capability functions
+    public(friend) fun initialize(
+        satay_admin: &signer
+    ) {
+        let vault_coin_account_cap = vault_coin_account::retrieve_signer_cap(satay_admin);
+        move_to(satay_admin, VaultCoinCap {
+            vault_coin_account_cap
+        });
+    }
 
     public(friend) fun get_vault_manager_capability(
         vault_manager: &signer,
@@ -225,12 +238,18 @@ module satay::vault {
 
     // create new vault with BaseCoin as its base coin type
     public(friend) fun new<BaseCoin>(
-        vault_coin_account: &signer,
+        governance: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
-    ): VaultCapability {
+    ): VaultCapability acquires VaultCoinCap {
+        global_config::assert_governance(governance);
         assert_fee_amounts(management_fee, performance_fee);
+
+        let vault_coin_cap = borrow_global<VaultCoinCap>(@satay);
+        let vault_coin_account = account::create_signer_with_capability(
+            &vault_coin_cap.vault_coin_account_cap
+        );
 
         // create vault coin name
         let vault_coin_name = coin::name<BaseCoin>();
@@ -238,7 +257,10 @@ module satay::vault {
         let seed = *string::bytes(&vault_coin_name);
 
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(vault_coin_account, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(
+            &vault_coin_account,
+            seed
+        );
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -257,10 +279,6 @@ module satay::vault {
         };
         move_to(&vault_acc, vault);
 
-        // create vault coin name
-        let vault_coin_name = coin::name<BaseCoin>();
-        string::append_utf8(&mut vault_coin_name, b" Vault");
-
         // create vault coin symbol
         let vault_coin_symbol = string::utf8(b"s");
         string::append(&mut vault_coin_symbol, coin::symbol<BaseCoin>());
@@ -270,7 +288,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            vault_coin_account,
+            &vault_coin_account,
             vault_coin_name,
             vault_coin_symbol,
             base_coin_decimals,
@@ -1135,13 +1153,13 @@ module satay::vault {
 
     #[test_only]
     public fun new_test<BaseCoin>(
-        vault_coin_account: &signer,
+        governance: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
-    ): VaultCapability {
+    ): VaultCapability acquires VaultCoinCap {
         new<BaseCoin>(
-            vault_coin_account,
+            governance,
             vault_id,
             management_fee,
             performance_fee
