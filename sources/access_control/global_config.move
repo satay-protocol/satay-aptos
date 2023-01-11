@@ -185,9 +185,4 @@ module satay::global_config {
             new_governance_address
         });
     }
-
-    #[test_only]
-    public fun test_initialize(satay_admin: &signer) acquires GlobalConfig {
-        initialize(satay_admin);
-    }
 }
