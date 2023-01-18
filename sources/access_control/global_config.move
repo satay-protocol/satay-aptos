@@ -8,29 +8,30 @@ module satay::global_config {
 
     // Error codes
 
-    /// When config doesn't exists
+    /// when config doesn't exist
     const ERR_CONFIG_DOES_NOT_EXIST: u64 = 400;
 
-    /// Unreachable, is a bug if thrown
+    /// when non-satay account calls initialize
     const ERR_NOT_SATAY: u64 = 401;
 
     /// When user is not admin
-    const ERR_NOT_ADMIN: u64 = 402;
+    const ERR_NOT_DAO_ADMIN: u64 = 402;
 
     /// When user is not governance
     const ERR_NOT_GOVERNANCE: u64 = 403;
 
-    /// When user is not manager
-    const ERR_NOT_MANAGER: u64 = 404;
+    /// when unathorized call to accept_governance
+    const ERR_NOT_NEW_GOVERNANCE: u64 = 404;
 
-    /// When user is not keeper
-    const ERR_NOT_KEEPER: u64 = 405;
+    /// when unathorized call to accept_dao_admin
+    const ERR_NOT_NEW_DAO_ADMIN: u64 = 405;
 
+    /// holds signer cap for resource account that holds GlobalConfig
     struct GlobalConfigResourceAccount has key {
         signer_cap: SignerCapability
     }
 
-    /// The global configuration
+    /// the global configuation resource
     struct GlobalConfig has key {
         dao_admin_address: address,
         governance_address: address,
@@ -42,15 +43,18 @@ module satay::global_config {
 
     // events
 
+    /// emitted when an acocunt accepts the dao_admin role
     struct DaoAdminChangeEvent has drop, store {
         new_dao_admin_address: address,
     }
 
+    /// emitted when an account accpets the governance role
     struct GovernanceChangeEvent has drop, store {
         new_governance_address: address,
     }
 
-    /// Initialize admin contracts when initializing the satay
+    /// Initialize global config resource, called by satay::initialize
+    /// @param satay_admin - must be the satay deployer account
     public(friend) fun initialize(satay_admin: &signer) acquires GlobalConfig {
         assert!(signer::address_of(satay_admin) == @satay, ERR_NOT_SATAY);
 
@@ -82,6 +86,7 @@ module satay::global_config {
 
     // getter functions
 
+    /// returns the address of the account that holds the GlobalConfig resource
     public fun get_global_config_account_address(): address acquires GlobalConfigResourceAccount {
         assert!(exists<GlobalConfigResourceAccount>(@satay), ERR_CONFIG_DOES_NOT_EXIST);
 
@@ -95,35 +100,39 @@ module satay::global_config {
         global_config_account_address
     }
 
-    /// Get DAO admin address
+    /// returns the address of the DAO admin account
     public fun get_dao_admin(): address acquires GlobalConfig, GlobalConfigResourceAccount {
         let global_config_account_address = get_global_config_account_address();
         let config = borrow_global<GlobalConfig>(global_config_account_address);
         config.dao_admin_address
     }
 
-    /// Get Governance address
+    /// returns the address of the governance account
     public fun get_governance_address(): address acquires GlobalConfig, GlobalConfigResourceAccount {
         let global_config_account_address = get_global_config_account_address();
         let config = borrow_global<GlobalConfig>(global_config_account_address);
         config.governance_address
     }
 
-    /// is DAO admin
-    public fun assert_dao_admin(
-        dao_admin: &signer
-    ) acquires GlobalConfig, GlobalConfigResourceAccount {
-        assert!(get_dao_admin() == signer::address_of(dao_admin), ERR_NOT_ADMIN);
+    // assert statements
+
+    /// asserts that signer has the DAO admin role
+    /// @param dao_admin - must be the DAO admin in GlobalConfig
+    public fun assert_dao_admin(dao_admin: &signer) acquires GlobalConfig, GlobalConfigResourceAccount {
+        assert!(get_dao_admin() == signer::address_of(dao_admin), ERR_NOT_DAO_ADMIN);
     }
 
-    /// is Governance
+    /// asserts that signer has the governance role
+    /// @param governance - must be the governance in GlobalConfig
     public fun assert_governance(
         governance: &signer
     ) acquires GlobalConfig, GlobalConfigResourceAccount {
         assert!(get_governance_address() == signer::address_of(governance), ERR_NOT_GOVERNANCE);
     }
 
-    /// set new DAO admin address
+    /// set new_dao_admin_address on GlobalConfig
+    /// @param dao_admin - must currently have the DAO admin role on GlobalConfig
+    /// @param new_addr - new DAO admin address, account must accept role
     public entry fun set_dao_admin(
         dao_admin: &signer,
         new_addr: address
@@ -134,7 +143,8 @@ module satay::global_config {
         config.new_dao_admin_address = new_addr;
     }
 
-    /// accept new DAO admin address
+    /// accept the dao admin role
+    /// @param new_dao_admin - address of account must equal new_dao_admin_address
     public entry fun accept_dao_admin(
         new_dao_admin: &signer
     ) acquires GlobalConfigResourceAccount, GlobalConfig {
@@ -143,7 +153,7 @@ module satay::global_config {
         let new_dao_admin_address = signer::address_of(new_dao_admin);
         let config = borrow_global_mut<GlobalConfig>(global_config_account_address);
 
-        assert!(config.new_dao_admin_address == new_dao_admin_address, ERR_NOT_ADMIN);
+        assert!(config.new_dao_admin_address == new_dao_admin_address, ERR_NOT_NEW_DAO_ADMIN);
 
         config.dao_admin_address = new_dao_admin_address;
         config.new_dao_admin_address = @0x0;
@@ -153,7 +163,9 @@ module satay::global_config {
         });
     }
 
-    /// set new Governance address
+    /// set new_governance_address on GlobalConfig
+    /// @param dao_admin - must currently have the governance role on GlobalConfig
+    /// @param new_addr - new governance address, account must accept role
     public entry fun set_governance(
         governance: &signer,
         new_addr: address
@@ -167,7 +179,8 @@ module satay::global_config {
         config.new_governance_address = new_addr;
     }
 
-    /// accept new Governance address
+    /// accept the governance role for new_governance_address
+    /// @param new_governance - must be new_governance_address set by current governance
     public entry fun accept_governance(
         new_governance: &signer
     ) acquires GlobalConfigResourceAccount, GlobalConfig {
@@ -176,7 +189,7 @@ module satay::global_config {
         let new_governance_address = signer::address_of(new_governance);
         let config = borrow_global_mut<GlobalConfig>(global_config_account_address);
 
-        assert!(config.new_governance_address == new_governance_address, ERR_NOT_ADMIN);
+        assert!(config.new_governance_address == new_governance_address, ERR_NOT_NEW_GOVERNANCE);
 
         config.governance_address = new_governance_address;
         config.new_governance_address = @0x0;

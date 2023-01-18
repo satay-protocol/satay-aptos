@@ -1,19 +1,29 @@
 module satay::base_strategy {
 
-    // use std::signer;
-
     use aptos_framework::coin::{Self, Coin};
 
     use satay::vault::{Self, VaultCapability, VaultCoin, UserCapability, KeeperCapability};
     use satay::satay::{Self, VaultCapLock};
 
-    const ERR_NOT_ENOUGH_FUND: u64 = 301;
+    // error codes
+
+    /// when a vault has enough balance to cover a user withdraw
     const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
-    const ERR_LOSS: u64 = 303;
+
+    /// when a keeper calls tend but the strategy has debt outstanding
     const ERR_DEBT_OUT_STANDING: u64 = 304;
+
+    /// when an incorrect amount of profit or debt_payment are returned after harvest
     const ERR_HARVEST: u64 = 305;
+
+    /// when the strategy does not return enough BaseCoin for a user withdraw
     const ERR_INSUFFICIENT_USER_RETURN: u64 = 306;
 
+    /// created and destroyed during user withdraw
+    /// @field vault_cap_lock - holds the vault_id, must be transferred through satay::unlock_vault
+    /// @field amount_needed - the amount of BaseCoin needed for liquidation
+    /// @field vault_coins - ValutCoin<BaseCoin> to liqduiate after returning amount_needed BaseCoin to vault
+    /// @field witness - instance of StrategyType for validating function calls
     struct UserWithdrawLock<StrategyType: drop, phantom BaseCoin> {
         vault_cap_lock: VaultCapLock<StrategyType>,
         amount_needed: u64,
@@ -21,34 +31,44 @@ module satay::base_strategy {
         witness: StrategyType
     }
 
+    /// created and destroyed during harvest
+    /// @field vault_cap_lock - holds the vault_id, must be transferred through satay::unlock_vault
+    /// @field profit - the amount of BaseCoin profit since last harvest
+    /// @field debt_payment - the amount of BaseCoin to return to cover outstanding debt
     struct HarvestLock<phantom StrategyType: drop> {
         vault_cap_lock: VaultCapLock<StrategyType>,
         profit: u64,
         debt_payment: u64,
     }
 
+    /// created and destroyed during tend
+    /// @field vault_cap_lock - holds the vault_id, must be transferred through satay::unlock_vault
     struct TendLock<phantom StrategyType: drop> {
         vault_cap_lock: VaultCapLock<StrategyType>,
     }
 
-    // initialize vault_id to accept strategy
+    /// calls approve_strategy for StrategyType on vault_id
+    /// @param vault_manager - must have vault_manager role on vault_config
+    /// @param vault_id - the id for the vault in satay::ManagerAccount
+    /// @param debt_ratio - the percentage of vault funds to allocate to StrategyType
+    /// @param witness - an instance of StrategyType to prove the source of the call
     public fun initialize<StrategyType: drop, StrategyCoin>(
-        governance: &signer,
+        vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType
     ) {
-
-        // approve strategy on vault
         satay::approve_strategy<StrategyType, StrategyCoin>(
-            governance,
+            vault_manager,
             vault_id,
             debt_ratio,
             &witness
         );
     }
 
-    // strategy coin deposit and withdraw
+    /// deposits StrategyCoin into a vault, called during harvest and tend
+    /// @param keeper_cap - holds the VaultCapability and witness for vault operations
+    /// @param strategy_coins - the coins to deposit
     public fun deposit_strategy_coin<StrategyType: drop, StrategyCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         strategy_coins: Coin<StrategyCoin>,
@@ -59,6 +79,9 @@ module satay::base_strategy {
         );
     }
 
+    /// withdraws StrategyCoin from a vault, called during harvest and user withrdaw
+    /// @param keeper_cap - holds the VaultCapability and witness for vault operations
+    /// @param amount - the amount of StrategyCoin to withdraw from the vault
     public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         amount: u64,
@@ -69,6 +92,7 @@ module satay::base_strategy {
         )
     }
 
+    ///
     public fun withdraw_strategy_coin_for_liquidation<StrategyType: drop, StrategyCoin, BaseCoin>(
         user_cap: &UserCapability,
         amount: u64,

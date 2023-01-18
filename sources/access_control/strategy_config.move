@@ -8,20 +8,32 @@ module satay::strategy_config {
 
     friend satay::vault;
 
+    // error codes
+
+    /// strategy config does not exist
     const ERR_CONFIG_DOES_NOT_EXIST: u64 = 1;
+
+    /// account calling accept_keeper is not the new keeper
     const ERR_NOT_NEW_KEEPER: u64 = 2;
+
+    /// signer is not the keeper
     const ERR_NOT_KEEPER: u64 = 3;
 
+    /// holds the keeper information for each StrategyType, stored in vault account
     struct StrategyConfig<phantom StrategyType> has key {
         keeper_address: address,
         new_keeper_address: address,
         keeper_change_events: EventHandle<KeeperChangeEvent>,
     }
 
+    /// emitted when a new keeper accepts the role
     struct KeeperChangeEvent has drop, store {
         new_keeper_address: address,
     }
 
+    /// initializes a StrategyConfig resource in the vault_account, called by vault::approve_strategy
+    /// @param vault_account - the resource account for the vault
+    /// @param _witness - proves the origin of the call
     public(friend) fun initialize<StrategyType: drop>(
         vault_account: &signer,
         _witness: &StrategyType,
@@ -33,6 +45,10 @@ module satay::strategy_config {
         });
     }
 
+    /// set new_keeper_address on the StrategyConfig resource
+    /// @param vault_manager - must have the vault_manager role for vault_address
+    /// @param vault_address - the address of the vault that owns StrategyConfig<StrategyType>
+    /// @param new_keeper_address - the address to offer keeper capability to
     public entry fun set_keeper<StrategyType: drop>(
         vault_manager: &signer,
         vault_address: address,
@@ -44,6 +60,9 @@ module satay::strategy_config {
         strategy_config.new_keeper_address = new_keeper_address;
     }
 
+    /// accept the keeper role for new_keeper_address
+    /// @param new_keeper - address of account must equal new_keeper_address
+    /// @param vault_address - the address of the vault holding StrategyCofig<StrategyType>
     public entry fun accept_keeper<StrategyType: drop>(
         new_keeper: &signer,
         vault_address: address,
@@ -58,6 +77,8 @@ module satay::strategy_config {
         vault_config.new_keeper_address = @0x0;
     }
 
+    /// returns the keeper address for StrategyType on vault_address
+    /// @param vault_address - the address of the vault holding StrategyConfig<StrategyType>
     public fun get_keeper_address<StrategyType: drop>(
         vault_address: address,
     ): address acquires StrategyConfig {
@@ -66,6 +87,9 @@ module satay::strategy_config {
         config.keeper_address
     }
 
+    /// asserts that the signer has the keeper role for strategy type on vault_address
+    /// @param keeper - must have the keeper role
+    /// @param vault_address - the address of the vault holding StrategyConfig<StrategyType>
     public fun assert_keeper<StrategyType: drop>(
         keeper: &signer,
         vault_address: address,
@@ -75,6 +99,8 @@ module satay::strategy_config {
         assert!(signer::address_of(keeper) == config.keeper_address, ERR_NOT_KEEPER);
     }
 
+    /// asserts that StrategyConfig<StrategyType> exists on vault_address
+    /// @param vault_address - the address of the vault holding StrategyConfig<StrategyType>
     fun assert_strategy_config_exists<StrategyType: drop>(
         vault_address: address
     ) {
