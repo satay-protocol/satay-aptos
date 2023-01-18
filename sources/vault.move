@@ -17,6 +17,7 @@ module satay::vault {
     use satay::strategy_config;
     use satay::global_config;
     use satay::vault_coin_account;
+    use std::bcs::to_bytes;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -254,12 +255,13 @@ module satay::vault {
         // create vault coin name
         let vault_coin_name = coin::name<BaseCoin>();
         string::append_utf8(&mut vault_coin_name, b" Vault");
-        let seed = *string::bytes(&vault_coin_name);
+        let seed = copy vault_coin_name;
+        string::append_utf8(&mut seed, to_bytes(&vault_id));
 
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(
             &vault_coin_account,
-            seed
+            *string::bytes(&seed),
         );
 
         // create a new vault and move it to the vault account
