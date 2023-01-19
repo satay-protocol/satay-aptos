@@ -8,14 +8,16 @@ module satay::satay {
     use aptos_framework::coin::{Self, Coin};
 
     use satay::global_config;
-    use satay::vault::{Self, VaultCapability, VaultCoin};
+    use satay::vault::{Self, VaultCapability};
+    use satay_vault_coin::vault_coin::VaultCoin;
 
     friend satay::base_strategy;
 
-    const ERR_MANAGER: u64 = 1;
-    const ERR_STRATEGY: u64 = 2;
-    const ERR_COIN: u64 = 3;
-    const ERR_VAULT_CAP: u64 = 4;
+    const ERR_NOT_ENOUGH_PRIVILEGES: u64 = 1;
+    const ERR_MANAGER: u64 = 2;
+    const ERR_STRATEGY: u64 = 3;
+    const ERR_COIN: u64 = 4;
+    const ERR_VAULT_CAP: u64 = 5;
     const ERR_VAULT_NO_STRATEGY: u64 = 6;
 
     struct ManagerAccount has key {
@@ -38,9 +40,13 @@ module satay::satay {
     public entry fun initialize(
         satay: &signer
     ) {
-        // asserts that signer::address_of(satay) == @satay
+        assert!(signer::address_of(satay) == @satay, ERR_NOT_ENOUGH_PRIVILEGES);
+        move_to(satay, ManagerAccount {
+            vaults: table::new(),
+            next_vault_id: 0,
+        });
         global_config::initialize(satay);
-        move_to(satay, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
+        vault::initialize(satay);
     }
 
     // governance functions
@@ -51,6 +57,7 @@ module satay::satay {
         management_fee: u64,
         performance_fee: u64
     ) acquires ManagerAccount {
+        global_config::assert_governance(governance);
 
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
@@ -60,7 +67,13 @@ module satay::satay {
         account.next_vault_id = account.next_vault_id + 1;
 
         // create vault and add to manager vaults table
-        let vault_cap = vault::new<BaseCoin>(governance, vault_id, management_fee, performance_fee);
+        let vault_cap = vault::new<BaseCoin>(
+            governance,
+            vault_id,
+            management_fee,
+            performance_fee
+        );
+
         table::add(
             &mut account.vaults,
             vault_id,

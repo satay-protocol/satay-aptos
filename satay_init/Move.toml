@@ -1,17 +1,12 @@
 [package]
-name = 'satay'
+name = 'SatayInit'
 version = '1.0.0'
+upgrade_policy = "immutable"
 
 [addresses]
 satay = "0xa063aa74aeb7aac297161df445de42d99e2e9ac0d560af9500b2db29f2b8c4d6"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "main"
+rev = "mainnet"
 subdir = "aptos-move/framework/aptos-framework"
-
-[dependencies.SatayInit]
-local = 'satay_init'
-
-[dependencies.SatayVaultCoin]
-local = 'satay_vault_coin'
