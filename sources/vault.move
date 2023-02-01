@@ -60,6 +60,12 @@ module satay::vault {
     /// when a strategy reports a loss greater than its total debt
     const ERR_LOSS: u64 = 108;
 
+    /// when a vault has enough balance to cover a user withdraw
+    const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 109;
+
+    /// when the strategy does not return enough BaseCoin for a user withdraw
+    const ERR_INSUFFICIENT_USER_RETURN: u64 = 110;
+
     /// holds Coin<CoinType> for a vault account
     /// @field coin - the stored coins
     /// @field deposit_events - event handle for deposit events
@@ -164,6 +170,16 @@ module satay::vault {
     struct UserCapability {
         vault_cap: VaultCapability,
         user_addr: address,
+    }
+
+    // user liquidation struct
+
+    /// holds the VaultCoins and amount needed for a user strategy liquidation
+    /// @field vault_coins - the VaultCoins of the user
+    /// @field amount_needed - the amount of BaseCoin needed to fill VaultCoin liquidation
+    struct UserLiquidationLock<phantom BaseCoin> {
+        vault_coins: Coin<VaultCoin<BaseCoin>>,
+        amount_needed: u64,
     }
 
     // events
@@ -482,6 +498,32 @@ module satay::vault {
         withdraw(vault_cap, base_coin_amount)
     }
 
+    /// get the amount of BaseCoin needed for liquidation of VaultCoin<BaseCoin>
+    /// @param vault_cap - the VaultCapability of the vault
+    /// @param vault_coins - a reference to the Coin<VaultCoin<BaseCoin>> to liquidate
+    public(friend) fun get_liquidation_lock<StrategyType: drop, BaseCoin>(
+        vault_cap: &VaultCapability,
+        vault_coins: Coin<VaultCoin<BaseCoin>>
+    ): UserLiquidationLock<BaseCoin>
+    acquires CoinStore, Vault, VaultStrategy {
+        // check if vault has enough balance
+        let vault_coin_amount = coin::value(&vault_coins);
+        let vault_balance = balance<BaseCoin>(vault_cap);
+        let value = calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
+            vault_cap,
+            vault_coin_amount
+        );
+        assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
+
+        let amount_needed = value - vault_balance;
+        let total_debt = total_debt<StrategyType>(vault_cap);
+        assert!(total_debt >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
+        UserLiquidationLock<BaseCoin> {
+            vault_coins,
+            amount_needed,
+        }
+    }
+
     /// withdraws StrategyCoin for user liquidation
     /// @param user_cap - a UserCapability
     /// @param strategy_coin_amount - the amount of StrategyCoin to withdraw
@@ -509,10 +551,36 @@ module satay::vault {
 
     /// deposits BaseCoin debt from StrategyType to vault and liquidates VaultCoin<BaseCoin> for user
     /// @param user_cap - a UserCapability
+    /// @param base_coins - the Coin<BaseCoin> debt to deposit
+    /// @param user_liq_lock - the UserLiquidationLock<BaseCoin> to liquidate
+    /// @param witness - a reference to a StrategyType instance
+    public(friend) fun checked_user_liquidation<StrategyType: drop, BaseCoin>(
+        user_cap: &UserCapability,
+        base_coins: Coin<BaseCoin>,
+        user_liq_lock: UserLiquidationLock<BaseCoin>,
+        witness: &StrategyType
+    )
+    acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
+        let UserLiquidationLock<BaseCoin> {
+            amount_needed,
+            vault_coins,
+        } = user_liq_lock;
+        assert!(coin::value(&base_coins) >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
+
+        user_liquidation(
+            user_cap,
+            base_coins,
+            vault_coins,
+            witness
+        );
+    }
+
+    /// deposits BaseCoin debt from StrategyType to vault and liquidates VaultCoin<BaseCoin> for user
+    /// @param user_cap - a UserCapability
     /// @param debt_payment - the Coin<BaseCoin> debt to deposit
     /// @param vault_coins - the Coin<VaultCoin<BaseCoin>> to liquidate
     /// @param witness - a reference to a StrategyType instance
-    public(friend) fun user_liquidation<StrategyType: drop, BaseCoin>(
+    fun user_liquidation<StrategyType: drop, BaseCoin>(
         user_cap: &UserCapability,
         debt_payment: Coin<BaseCoin>,
         vault_coins: Coin<VaultCoin<BaseCoin>>,
@@ -524,6 +592,8 @@ module satay::vault {
         let base_coins = withdraw_as_user(user_cap, vault_coins);
         coin::deposit<BaseCoin>(user_cap.user_addr, base_coins);
     }
+
+
 
     // vault manager functions
 
@@ -1076,6 +1146,12 @@ module satay::vault {
     /// @param user_address - the address of the user
     public fun vault_coin_balance<CoinType>(user_address: address): u64 {
         coin::balance<VaultCoin<CoinType>>(user_address)
+    }
+
+    /// returns the amount needed from a user liquidation lock
+    /// @param user_liq_lock - the UserLiquidationLock
+    public fun get_amount_needed<BaseCoin>(user_liq_lock: &UserLiquidationLock<BaseCoin>): u64 {
+        user_liq_lock.amount_needed
     }
 
     // helpers

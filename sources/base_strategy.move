@@ -5,13 +5,10 @@ module satay::base_strategy {
 
     use satay_vault_coin::vault_coin::VaultCoin;
 
-    use satay::vault::{Self, VaultCapability, UserCapability, KeeperCapability};
+    use satay::vault::{Self, VaultCapability, UserCapability, KeeperCapability, UserLiquidationLock};
     use satay::satay::{Self, VaultCapLock};
 
     // error codes
-
-    /// when a vault has enough balance to cover a user withdraw
-    const ERR_ENOUGH_BALANCE_ON_VAULT: u64 = 302;
 
     /// when a keeper calls tend but the strategy has debt outstanding
     const ERR_DEBT_OUT_STANDING: u64 = 304;
@@ -19,8 +16,7 @@ module satay::base_strategy {
     /// when an incorrect amount of profit or debt_payment are returned after harvest
     const ERR_HARVEST: u64 = 305;
 
-    /// when the strategy does not return enough BaseCoin for a user withdraw
-    const ERR_INSUFFICIENT_USER_RETURN: u64 = 306;
+
 
     // operation locks
 
@@ -31,8 +27,7 @@ module satay::base_strategy {
     /// @field witness - instance of StrategyType for validating function calls
     struct UserWithdrawLock<StrategyType: drop, phantom BaseCoin> {
         vault_cap_lock: VaultCapLock<StrategyType>,
-        amount_needed: u64,
-        vault_coins: Coin<VaultCoin<BaseCoin>>,
+        user_liq_lock: UserLiquidationLock<BaseCoin>,
         witness: StrategyType
     }
 
@@ -310,18 +305,10 @@ module satay::base_strategy {
             &witness
         );
 
-        // check if vault has enough balance
-        let vault_coin_amount = coin::value(&vault_coins);
-        let vault_balance = vault::balance<BaseCoin>(&vault_cap);
-        let value = vault::calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
+        let user_liq_lock = vault::get_liquidation_lock<StrategyType, BaseCoin>(
             &vault_cap,
-            vault_coin_amount
+            vault_coins
         );
-        assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
-
-        let amount_needed = value - vault_balance;
-        let total_debt = vault::total_debt<StrategyType>(&vault_cap);
-        assert!(total_debt >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
 
         let user_cap = vault::get_user_capability(
             user,
@@ -330,8 +317,7 @@ module satay::base_strategy {
 
         (user_cap, UserWithdrawLock<StrategyType, BaseCoin> {
             vault_cap_lock,
-            amount_needed,
-            vault_coins,
+            user_liq_lock,
             witness
         })
     }
@@ -339,25 +325,22 @@ module satay::base_strategy {
     /// closes a vault for user withdraw
     /// @param user_cap - holds the VaultCapability and user_address
     /// @param user_withdraw_lock - holds the vault_cap_lock, amount_needed, vault_coins, and witness
-    /// @param coins - the Coin<BaseCoin> to return to the vault
+    /// @param base_coins - the Coin<BaseCoin> to return to the vault
     public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
         user_cap: UserCapability,
         user_withdraw_lock: UserWithdrawLock<StrategyType, BaseCoin>,
-        coins: Coin<BaseCoin>,
+        base_coins: Coin<BaseCoin>,
     ) {
         let UserWithdrawLock<StrategyType, BaseCoin> {
             vault_cap_lock,
-            amount_needed,
-            vault_coins,
+            user_liq_lock,
             witness
         } = user_withdraw_lock;
 
-        assert!(coin::value(&coins) >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
-
-        vault::user_liquidation(
+        vault::checked_user_liquidation(
             &user_cap,
-            coins,
-            vault_coins,
+            base_coins,
+            user_liq_lock,
             &witness
         );
 
@@ -376,7 +359,7 @@ module satay::base_strategy {
 
     /// returns the balance of StrategyCoin in the vault during harvest
     /// @param keeper_cap - the KeeperCapability for the vault
-    public fun harvest_balance<StrategyType: drop, StrategyCoin>(keeper_cap: &KeeperCapability<StrategyType>) : u64 {
+    public fun harvest_balance<StrategyType: drop, StrategyCoin>(keeper_cap: &KeeperCapability<StrategyType>): u64 {
         vault::harvest_balance<StrategyType, StrategyCoin>(keeper_cap)
     }
 
@@ -405,7 +388,7 @@ module satay::base_strategy {
     public fun get_user_withdraw_amount_needed<StrategyType: drop, BaseCoin>(
         user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>
     ): u64 {
-        user_withdraw_lock.amount_needed
+        vault::get_amount_needed(&user_withdraw_lock.user_liq_lock)
     }
 
     // helpers
