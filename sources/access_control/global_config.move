@@ -1,3 +1,4 @@
+/// establishes access control for the global roles Governance and DAO Admin
 module satay::global_config {
     use std::signer;
 

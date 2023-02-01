@@ -46,13 +46,11 @@ module satay::dao_storage {
         });
     }
 
-    /// deposit CoinType into a DAO storage under vault_addr
+    /// deposit CoinType into CoinStore<CoinType> under vault_addr
     /// @param vault_addr - the address of the vault, must have CoinStore<CoinType> registered
     /// @param coins - the coins to deposit into a CoinStore
-    public fun deposit<CoinType>(
-        vault_addr: address,
-        coins: Coin<CoinType>
-    ) acquires CoinStore {
+    public fun deposit<CoinType>(vault_addr: address, coins: Coin<CoinType>)
+    acquires CoinStore {
         // assert that Storage for CoinType exists for vault_address
         assert_has_storage<CoinType>(vault_addr);
 
@@ -66,14 +64,11 @@ module satay::dao_storage {
     }
 
     /// withdraw CoinType from DAO storage for vault_addr
-    /// @param - dao_admin - signer must have dao_admin role on global_config
+    /// @param dao_admin - the transaction signer; must have the dao_admin role on global_config
     /// @param vault_addr - the address of the vault, must have CoinStore<CoinType> registered
-    /// @param - amount - the amount of CoinType to withdraw from DAO storage
-    public entry fun withdraw<CoinType>(
-        dao_admin: &signer,
-        vault_addr: address,
-        amount: u64
-    ) acquires CoinStore {
+    /// @param amount - the amount of CoinType to withdraw from DAO storage
+    public entry fun withdraw<CoinType>(dao_admin: &signer, vault_addr: address, amount: u64)
+    acquires CoinStore {
         // assert that signer is the DAO admin
         global_config::assert_dao_admin(dao_admin);
         let dao_admin_addr = signer::address_of(dao_admin);
@@ -91,7 +86,8 @@ module satay::dao_storage {
 
     /// returns the balance of CoinType for a given vault_addr
     /// @param vault_addr - the address of the vault
-    public fun balance<CoinType>(vault_addr: address): u64 acquires CoinStore {
+    public fun balance<CoinType>(vault_addr: address): u64
+    acquires CoinStore {
         // assert that Storage for CoinType exists for vault_address
         assert_has_storage<CoinType>(vault_addr);
         let storage = borrow_global<CoinStore<CoinType>>(vault_addr);

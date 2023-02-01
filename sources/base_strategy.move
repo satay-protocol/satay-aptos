@@ -19,6 +19,8 @@ module satay::base_strategy {
     /// when the strategy does not return enough BaseCoin for a user withdraw
     const ERR_INSUFFICIENT_USER_RETURN: u64 = 306;
 
+    // operation locks
+
     /// created and destroyed during user withdraw
     /// @field vault_cap_lock - holds the vault_id, must be transferred through satay::unlock_vault
     /// @field amount_needed - the amount of BaseCoin needed for liquidation

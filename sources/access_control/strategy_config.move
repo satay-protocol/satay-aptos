@@ -1,3 +1,4 @@
+/// establishes access control for the strategy keeper role of strategies approved on a vault
 module satay::strategy_config {
     use std::signer;
 

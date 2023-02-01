@@ -57,6 +57,7 @@ module satay::math {
     }
 
     /// asserts that a u128 can downcast to a u64
+    /// @notice - will fail if x > MAX_U64
     fun assert_can_cast_to_u64(x: u128) {
         assert!(x <= (MAX_U64 as u128), OVERFLOW);
     }

@@ -1,3 +1,4 @@
+/// establishes access control for the vault manager role of vaults
 module satay::vault_config {
 
     use std::signer;
