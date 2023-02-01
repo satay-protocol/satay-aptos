@@ -1,4 +1,5 @@
-/// user and strategy entry point to vault operations; holds VaultCapability resources in a table
+/// user and strategy entry point to vault operations
+/// holds all VaultCapability resources in a table
 module satay::satay {
 
     use std::option::{Self, Option};

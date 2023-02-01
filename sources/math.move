@@ -1,13 +1,12 @@
 /// Implementation of math functions needed for Multi Swap.
 module satay::math {
 
-
     // constants
 
     /// maximum u64 value
     const MAX_U64: u64 = 18446744073709551615;
 
-    // Errors codes.
+    // error codes
 
     /// when trying to divide by zero.
     const ERR_DIVIDE_BY_ZERO: u64 = 2000;

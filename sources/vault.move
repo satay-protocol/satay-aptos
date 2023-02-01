@@ -1,3 +1,4 @@
+/// core logic for vault creation and operations
 module satay::vault {
     use std::signer;
     use std::string;
