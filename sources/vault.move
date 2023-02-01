@@ -10,11 +10,14 @@ module satay::vault {
     use aptos_framework::timestamp;
     use aptos_framework::event::{Self, EventHandle};
 
+    use satay_vault_coin::vault_coin::{VaultCoin};
     use satay::dao_storage;
     use satay::math;
     use satay::vault_config;
     use satay::strategy_config;
     use satay::global_config;
+    use satay::vault_coin_account;
+    use std::bcs::to_bytes;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -60,6 +63,10 @@ module satay::vault {
     /// @field coin - the stored coins
     /// @field deposit_events - event handle for deposit events
     /// @field withdraw_events - event handle for withdraw events
+    struct VaultCoinCap has key {
+        vault_coin_account_cap: SignerCapability
+    }
+
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>,
         deposit_events: EventHandle<DepositEvent>,
@@ -89,8 +96,6 @@ module satay::vault {
         update_fees_events: EventHandle<UpdateFeesEvent>,
         freeze_events: EventHandle<FreezeEvent>,
     }
-
-    struct VaultCoin<phantom BaseCoin> has key {}
 
     struct VaultCoinCaps<phantom BaseCoin> has key {
         mint_cap: MintCapability<VaultCoin<BaseCoin>>,
@@ -251,7 +256,14 @@ module satay::vault {
         vault_coin_amount: u64
     }
 
-    // capability functions
+    public(friend) fun initialize(
+        satay_admin: &signer
+    ) {
+        let vault_coin_account_cap = vault_coin_account::retrieve_signer_cap(satay_admin);
+        move_to(satay_admin, VaultCoinCap {
+            vault_coin_account_cap
+        });
+    }
 
     /// creates a VaultManagerCapability
     /// @param vault_manager - the transaction signer; must be the vault manager of the vault at vault_cap.vault_addr
@@ -333,17 +345,26 @@ module satay::vault {
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
-    ): VaultCapability {
+    ): VaultCapability acquires VaultCoinCap {
         global_config::assert_governance(governance);
         assert_fee_amounts(management_fee, performance_fee);
+
+        let vault_coin_cap = borrow_global<VaultCoinCap>(@satay);
+        let vault_coin_account = account::create_signer_with_capability(
+            &vault_coin_cap.vault_coin_account_cap
+        );
 
         // create vault coin name
         let vault_coin_name = coin::name<BaseCoin>();
         string::append_utf8(&mut vault_coin_name, b" Vault");
-        let seed = *string::bytes(&vault_coin_name);
+        let seed = copy vault_coin_name;
+        string::append_utf8(&mut seed, to_bytes(&vault_id));
 
         // create a resource account for the vault managed by the sender
-        let (vault_acc, storage_cap) = account::create_resource_account(governance, seed);
+        let (vault_acc, storage_cap) = account::create_resource_account(
+            &vault_coin_account,
+            *string::bytes(&seed),
+        );
 
         // create a new vault and move it to the vault account
         let base_coin_type = type_info::type_of<BaseCoin>();
@@ -362,10 +383,6 @@ module satay::vault {
         };
         move_to(&vault_acc, vault);
 
-        // create vault coin name
-        let vault_coin_name = coin::name<BaseCoin>();
-        string::append_utf8(&mut vault_coin_name, b" Vault");
-
         // create vault coin symbol
         let vault_coin_symbol = string::utf8(b"s");
         string::append(&mut vault_coin_symbol, coin::symbol<BaseCoin>());
@@ -375,7 +392,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            governance,
+            &vault_coin_account,
             vault_coin_name,
             vault_coin_symbol,
             base_coin_decimals,
@@ -1321,11 +1338,11 @@ module satay::vault {
 
     #[test_only]
     public fun new_test<BaseCoin>(
-        governance: &signer, 
+        governance: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
-    ): VaultCapability {
+    ): VaultCapability acquires VaultCoinCap {
         new<BaseCoin>(
             governance,
             vault_id,

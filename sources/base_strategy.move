@@ -3,7 +3,9 @@ module satay::base_strategy {
 
     use aptos_framework::coin::{Self, Coin};
 
-    use satay::vault::{Self, VaultCapability, VaultCoin, UserCapability, KeeperCapability};
+    use satay_vault_coin::vault_coin::VaultCoin;
+
+    use satay::vault::{Self, VaultCapability, UserCapability, KeeperCapability};
     use satay::satay::{Self, VaultCapLock};
 
     // error codes

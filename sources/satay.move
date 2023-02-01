@@ -10,7 +10,8 @@ module satay::satay {
     use aptos_framework::coin::{Self, Coin};
 
     use satay::global_config;
-    use satay::vault::{Self, VaultCapability, VaultCoin};
+    use satay::vault::{Self, VaultCapability};
+    use satay_vault_coin::vault_coin::VaultCoin;
 
     friend satay::base_strategy;
 
@@ -50,8 +51,13 @@ module satay::satay {
     /// create and store ManagerAccount in deployer account
     /// @param satay - the transaction signer; must be the deployer account
     public entry fun initialize(satay: &signer) {
+        assert!(signer::address_of(satay) == @satay, ERR_NOT_ENOUGH_PRIVILEGES);
+        move_to(satay, ManagerAccount {
+            vaults: table::new(),
+            next_vault_id: 0,
+        });
         global_config::initialize(satay);
-        move_to(satay, ManagerAccount { vaults: table::new(), next_vault_id: 0 });
+        vault::initialize(satay);
     }
 
     // governance functions
@@ -62,6 +68,8 @@ module satay::satay {
     /// @param performance_fee - the vault's performance fee in bips, charged on profits
     public entry fun new_vault<BaseCoin>(governance: &signer, management_fee: u64, performance_fee: u64)
     acquires ManagerAccount {
+        global_config::assert_governance(governance);
+
         assert_manager_initialized();
         let account = borrow_global_mut<ManagerAccount>(@satay);
 
@@ -70,7 +78,13 @@ module satay::satay {
         account.next_vault_id = account.next_vault_id + 1;
 
         // create vault and add to manager vaults table
-        let vault_cap = vault::new<BaseCoin>(governance, vault_id, management_fee, performance_fee);
+        let vault_cap = vault::new<BaseCoin>(
+            governance,
+            vault_id,
+            management_fee,
+            performance_fee
+        );
+
         table::add(
             &mut account.vaults,
             vault_id,
