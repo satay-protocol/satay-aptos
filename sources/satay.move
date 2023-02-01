@@ -17,12 +17,14 @@ module satay::satay {
 
     // error codes
 
+    /// when the transaction signer does not have enough privileges
+    const ERR_NOT_DEPLOYER: u64 = 1;
     /// when ManagerAccount is not initialized
-    const ERR_MANAGER: u64 = 1;
+    const ERR_MANAGER: u64 = 2;
     /// when StrategyType is not approved for a vault
-    const ERR_STRATEGY: u64 = 2;
+    const ERR_STRATEGY: u64 = 3;
     /// when the vault id of VaultCapability and VaultCapLock do not match
-    const ERR_VAULT_CAP: u64 = 3;
+    const ERR_VAULT_CAP: u64 = 4;
 
     // structs
 
@@ -51,7 +53,7 @@ module satay::satay {
     /// create and store ManagerAccount in deployer account
     /// @param satay - the transaction signer; must be the deployer account
     public entry fun initialize(satay: &signer) {
-        assert!(signer::address_of(satay) == @satay, ERR_NOT_ENOUGH_PRIVILEGES);
+        assert!(signer::address_of(satay) == @satay, ERR_NOT_DEPLOYER);
         move_to(satay, ManagerAccount {
             vaults: table::new(),
             next_vault_id: 0,
