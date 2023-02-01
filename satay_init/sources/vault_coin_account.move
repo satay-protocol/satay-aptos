@@ -6,14 +6,17 @@ module satay::vault_coin_account {
 
     use aptos_framework::account::{Self, SignerCapability};
 
-    /// When the protected functions are called by an invalid signer
+    /// when the protected functions are called by an invalid signer
     const ERR_NOT_ENOUGH_PERMISSIONS: u64 = 1;
 
-    /// Temporary storage for deployer resource account SignerCapability
+    /// temporary storage for deployer resource account SignerCapability
+    /// @field signer_cap - SignerCapability for VaultCoin resource account
     struct CapabilityStorage has key { signer_cap: SignerCapability }
 
     /// creates a resource account for Satay, deploys the SatayVaultCoin package, and stores the SignerCapability
-    /// access restricted to satay deployer account
+    /// @param satay - the transaction signer; must be the deployer account
+    /// @param vault_coin_metadata_serialized - serialized metadata for the VaultCoin package
+    /// @param vault_coin_code - compiled code for the VaultCoin package
     public entry fun initialize_satay_account(
         satay: &signer,
         vault_coin_metadata_serialized: vector<u8>,
@@ -36,10 +39,10 @@ module satay::vault_coin_account {
         move_to(satay, CapabilityStorage { signer_cap });
     }
 
-    /// Destroys temporary storage for resource account SignerCapability and returns SignerCapability
-    /// Called by satay::initialize
-    /// Must be called after initialize_satay_account
-    public fun retrieve_signer_cap(satay: &signer): SignerCapability acquires CapabilityStorage {
+    /// destroys temporary storage for resource account SignerCapability and returns SignerCapability; called by satay::initialize
+    /// @param satay - the transaction signer; must be the deployer account
+    public fun retrieve_signer_cap(satay: &signer): SignerCapability
+    acquires CapabilityStorage {
         assert!(signer::address_of(satay) == @satay, ERR_NOT_ENOUGH_PERMISSIONS);
         let CapabilityStorage {
             signer_cap
