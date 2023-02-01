@@ -19,31 +19,37 @@ module satay::satay {
 
     /// manager is not initialized
     const ERR_MANAGER: u64 = 1;
-
     /// strategy is not approved for vault
     const ERR_STRATEGY: u64 = 2;
-
     /// when the vault id of VaultCapability and VaultCapLock do not match
     const ERR_VAULT_CAP: u64 = 3;
 
+    // structs
+
     /// holds all VaultCapability resources in a mapping from vault_id to VaultInfo
+    /// @field next_vault_id - id of the next vault created by new_vault
+    /// @field vaults - mapping from vault_id to VaultInfo
     struct ManagerAccount has key {
         next_vault_id: u64,
         vaults: Table<u64, VaultInfo>,
     }
 
-    /// holds a VaultCapability resource in an option to allow lending to strategies
+    /// holds a VaultCapability resource in an option
+    /// @field vault_cap - Option holding VaultCapability; needed to allow lending to strategies
     struct VaultInfo has store {
         vault_cap: Option<VaultCapability>,
     }
 
-    /// returned by lock_vault to ensure a subsequent call to unlock_vault
+    /// returned by lock_vault to ensure a subsequent call to unlock_vault with corresponding vault_id
+    /// @field vault_id - the id of the vault in the ManagerAccount resource
     struct VaultCapLock<phantom StrategyType: drop> {
         vault_id: u64,
     }
 
+    // deployer functions
+
     /// create and store ManagerAccount
-    /// @param satay - singing account, must be deployer account
+    /// @param satay - the transaction signer; must be the deployer account
     public entry fun initialize(
         satay: &signer
     ) {
@@ -55,8 +61,8 @@ module satay::satay {
     // governance functions
 
     /// create new vault for BaseCoin
-    /// @param governance - signing account, must hold governance role in global_config
-    /// @param management_fee - the vault's fee in BPS, charged annually
+    /// @param governance - the transaction signer; must hold governance role in global_config
+    /// @param management_fee - the vault's management fee in BPS, charged annually
     /// @param performance_fee - the vault's performance fee in bips, charged on profits
     public entry fun new_vault<BaseCoin>(
         governance: &signer,
@@ -84,9 +90,9 @@ module satay::satay {
     // vault manager fucntions
 
     /// updates the management and performance fee for vault_id
-    /// @param vault_manager - must have vault_manager role on vault_config for vault_id
+    /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
     /// @param vault_id - the id of the vault in the ManagerAccount resource
-    /// @param management_fee - the vault's fee in BPS, charged annually
+    /// @param management_fee - the vault's management fee in BPS, charged annually
     /// @param performance_fee - the vault's performance fee in bips, charged on profits
     public entry fun update_vault_fee(
         vault_manager: &signer,
@@ -111,7 +117,7 @@ module satay::satay {
     }
 
     /// freezes user deposits to vault_id
-    /// @param vault_manager - must have vault_manager role on vault_config
+    /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
     /// @param vault_id - the id of the vault in the ManagerAccount resource
     public entry fun freeze_vault(
         vault_manager: &signer,
@@ -132,7 +138,7 @@ module satay::satay {
     }
 
     /// unfreezes user deposits to vault_id
-    /// @param vault_manager - must have vault_manager role on vault_config
+    /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
     /// @param vault_id - the id of the vault in the ManagerAccount resource
     public entry fun unfreeze_vault(
         vault_manager: &signer,
@@ -153,7 +159,7 @@ module satay::satay {
     }
 
     /// allows StrategyType to withdraw from vault_id and deposit StrategyCoin on harvest and tend
-    /// @param vault_manager - must have vault_manager role on vault_config
+    /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
     /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param debt_ratio - the percentage of vault's total assets available to StrategyType in BPS
     /// @param witness - reference to an instance of StrategyType used to prove the source of the call
@@ -180,7 +186,7 @@ module satay::satay {
     }
 
     /// update the debt_ratio for StrategyType
-    /// @param vault_manager - must have vault_manager role on vault_config
+    /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
     /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param debt_ratio - the percentage of vault's total assets available to StrategyType in BPS
     /// @param witness - reference to an instance of StrategyType used to prove the source of the call
@@ -215,9 +221,9 @@ module satay::satay {
     // user functions
 
     /// entry script to deposit BaseCoin from user into vault, returning VaultCoin<BaseCoin> to user
-    /// @param user - the depositor, must hold sufficient Coin<BaseCoin>
+    /// @param user - the transaction signer; must hold at least amount of Coin<BaseCoin>
     /// @param vault_id - the id of the vault in the ManagerAccount resource
-    /// @param amount - the amount of BaseCoin to deposit
+    /// @param amount - the amount of Coin<BaseCoin> to deposit
     public entry fun deposit<BaseCoin>(
         user: &signer,
         vault_id: u64,
@@ -234,8 +240,8 @@ module satay::satay {
         coin::deposit(user_addr, vault_coins);
     }
 
-    /// logic to deposit BaseCoin from user into vault
-    /// @param user - the depositor, must hold sufficient Coin<BaseCoin>
+    /// logic to deposit Coin<BaseCoin> from user into vault
+    /// @param user - the transaction signer; must hold sufficient Coin<BaseCoin>
     /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param base_coins - coins to deposit
     /// @return vault_coins - liquid wrapper for deposit
@@ -267,9 +273,9 @@ module satay::satay {
     }
 
     /// entry script to withdraw BaseCoin from vault to user, burns VaultCoin<BaseCoin>
-    /// @param user - the withrdawer, must hold sufficient Coin<VaultCoin<BaseCoin>>
+    /// @param user - the transaction signer; must hold sufficient Coin<VaultCoin<BaseCoin>>
     /// @param vault_id - the id of the vault in the ManagerAccount resource
-    /// @param amount - the amount of VaultCoin<BaseCoin> to burn
+    /// @param amount - the amount of Coin<VaultCoin<BaseCoin>> to burn
     public entry fun withdraw<BaseCoin>(
         user: &signer,
         vault_id: u64,

@@ -18,7 +18,7 @@ module satay::vault {
 
     friend satay::satay;
     friend satay::base_strategy;
-  
+
     const MAX_DEBT_RATIO_BPS: u64 = 10000; // 100%
     const MAX_MANAGEMENT_FEE: u64 = 5000; // 50%
     const MAX_PERFORMANCE_FEE: u64 = 5000; // 50%

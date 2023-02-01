@@ -54,7 +54,7 @@ module satay::global_config {
     }
 
     /// Initialize global config resource, called by satay::initialize
-    /// @param satay_admin - must be the satay deployer account
+    /// @param satay_admin - the transaction signer; must be the satay deployer account
     public(friend) fun initialize(satay_admin: &signer) acquires GlobalConfig {
         assert!(signer::address_of(satay_admin) == @satay, ERR_NOT_SATAY);
 

@@ -7,5 +7,5 @@ satay = "0xa063aa74aeb7aac297161df445de42d99e2e9ac0d560af9500b2db29f2b8c4d6"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "main"
+rev = "3527183f390975e5b9b3189041d7455c81395af6"
 subdir = "aptos-move/framework/aptos-framework"
