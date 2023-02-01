@@ -565,17 +565,6 @@ module satay::satay {
 
     // assert statements
 
-    /// asserts that the BaseCoin generic is the correct BaseCoin for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun assert_base_coin_correct_for_vault<BaseCoin>(vault_id: u64)
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
-    }
-
     /// asserts that the ManagerAccount is initialized
     fun assert_manager_initialized() {
         assert!(exists<ManagerAccount>(@satay), ERR_MANAGER);
