@@ -174,7 +174,7 @@ module satay::vault {
 
     // user liquidation struct
 
-    /// holds the VaultCoins and amount needed for a user strategy liquidation
+    /// holds Coin<VaultCoin<BaseCoin> and amount needed for a user strategy liquidation
     /// @field vault_coins - the VaultCoins of the user
     /// @field amount_needed - the amount of BaseCoin needed to fill VaultCoin liquidation
     struct UserLiquidationLock<phantom BaseCoin> {
