@@ -29,7 +29,7 @@ module satay::test_vault {
 
     const MANAGEMENT_FEE: u64 = 200;
     const PERFORMANCE_FEE: u64 = 2000;
-    const DEBT_RATIO: u64 = 1000;
+    const DEBT_RATIO: u64 = 6000;
     const USER_DEPOSIT: u64 = 1000;
 
     const ERR_CREATE_VAULT: u64 = 1;
@@ -47,6 +47,7 @@ module satay::test_vault {
     const ERR_DEPOSIT_PROFIT: u64 = 13;
     const ERR_FREEZE_VAULT: u64 = 14;
     const ERR_PREPARE_RETURN: u64 = 15;
+    const ERR_USER_LIQUIDATION: u64 = 16;
 
     #[test_only]
     fun setup_tests(
@@ -891,7 +892,7 @@ module satay::test_vault {
         let debt_payment_amount = 50;
         let debt_payment = coin::extract(&mut base_coin, debt_payment_amount);
         let keeper_cap = vault::test_get_keeper_cap(keeper, vault_cap, TestStrategy {});
-        vault::test_debt_payment<TestStrategy, AptosCoin>(&keeper_cap, debt_payment);
+        vault::test_keeper_debt_payment<TestStrategy, AptosCoin>(&keeper_cap, debt_payment);
         coin::deposit(signer::address_of(user), base_coin);
         vault_cap = vault::test_destroy_keeper_cap(keeper_cap);
 
@@ -1359,4 +1360,98 @@ module satay::test_vault {
 
         cleanup_tests(vault_cap);
     }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        user = @0x47
+    )]
+    fun test_user_liquidation(
+        aptos_framework: &signer,
+        satay: &signer,
+        user: &signer,
+    ){
+        let vault_cap = setup_tests_with_vault_and_strategy(
+            aptos_framework,
+            satay,
+            user,
+        );
+
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
+
+        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
+            &vault_cap,
+            credit,
+            &TestStrategy {}
+        );
+
+        let vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
+        let vault_coin_liquidate = vault_coin_balance * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        let vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, vault_coin_liquidate);
+        let amount_needed = vault_coin_liquidate - vault::balance<AptosCoin>(&vault_cap);
+
+        let debt_payment = coin::extract(&mut aptos, amount_needed);
+
+        let user_liq_lock = vault::test_get_liquidation_lock<TestStrategy, AptosCoin>(
+            &vault_cap,
+            vault_coins
+        );
+        assert!(vault::get_amount_needed(&user_liq_lock) == amount_needed, ERR_USER_LIQUIDATION);
+        let user_cap = vault::test_get_user_cap(user, vault_cap);
+        vault::test_user_liquidation(&user_cap, debt_payment, user_liq_lock, &TestStrategy {});
+        let (vault_cap, _) = vault::test_destroy_user_cap(user_cap);
+        assert!(coin::balance<AptosCoin>(signer::address_of(user)) == vault_coin_liquidate, ERR_USER_LIQUIDATION);
+        assert!(vault::total_debt<TestStrategy>(&vault_cap) == credit - amount_needed, ERR_USER_LIQUIDATION);
+
+        coin::deposit(signer::address_of(user), aptos);
+
+        cleanup_tests(vault_cap);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        user = @0x47
+    )]
+    #[expected_failure]
+    fun test_user_liquidation_insufficient(
+        aptos_framework: &signer,
+        satay: &signer,
+        user: &signer,
+    ){
+        let vault_cap = setup_tests_with_vault_and_strategy(
+            aptos_framework,
+            satay,
+            user,
+        );
+
+        vault_cap = user_deposit_base_coin(aptos_framework, user, vault_cap);
+
+        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
+        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
+            &vault_cap,
+            credit,
+            &TestStrategy {}
+        );
+
+        let vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
+        let vault_coin_liquidate = vault_coin_balance * DEBT_RATIO / MAX_DEBT_RATIO_BPS;
+        let vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, vault_coin_liquidate);
+        let amount_needed = vault_coin_liquidate - vault::balance<AptosCoin>(&vault_cap);
+
+        let insufficient_aptos = coin::extract(&mut aptos, amount_needed - 1);
+        coin::deposit(signer::address_of(user), aptos);
+
+        let user_liq_lock = vault::test_get_liquidation_lock<TestStrategy, AptosCoin>(
+            &vault_cap,
+            vault_coins
+        );
+        let user_cap = vault::test_get_user_cap(user, vault_cap);
+        vault::test_user_liquidation(&user_cap, insufficient_aptos, user_liq_lock, &TestStrategy {});
+        let (vault_cap, _) = vault::test_destroy_user_cap(user_cap);
+
+        cleanup_tests(vault_cap);
+    }
+
 }

@@ -554,7 +554,7 @@ module satay::vault {
     /// @param base_coins - the Coin<BaseCoin> debt to deposit
     /// @param user_liq_lock - the UserLiquidationLock<BaseCoin> to liquidate
     /// @param witness - a reference to a StrategyType instance
-    public(friend) fun checked_user_liquidation<StrategyType: drop, BaseCoin>(
+    public(friend) fun user_liquidation<StrategyType: drop, BaseCoin>(
         user_cap: &UserCapability,
         base_coins: Coin<BaseCoin>,
         user_liq_lock: UserLiquidationLock<BaseCoin>,
@@ -567,32 +567,11 @@ module satay::vault {
         } = user_liq_lock;
         assert!(coin::value(&base_coins) >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
 
-        user_liquidation(
-            user_cap,
-            base_coins,
-            vault_coins,
-            witness
-        );
-    }
+        debt_payment<StrategyType, BaseCoin>(&user_cap.vault_cap, base_coins, witness);
 
-    /// deposits BaseCoin debt from StrategyType to vault and liquidates VaultCoin<BaseCoin> for user
-    /// @param user_cap - a UserCapability
-    /// @param debt_payment - the Coin<BaseCoin> debt to deposit
-    /// @param vault_coins - the Coin<VaultCoin<BaseCoin>> to liquidate
-    /// @param witness - a reference to a StrategyType instance
-    fun user_liquidation<StrategyType: drop, BaseCoin>(
-        user_cap: &UserCapability,
-        debt_payment: Coin<BaseCoin>,
-        vault_coins: Coin<VaultCoin<BaseCoin>>,
-        witness: &StrategyType
-    )
-    acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
-        update_total_debt<StrategyType>(&user_cap.vault_cap, 0, coin::value(&debt_payment), witness);
-        deposit_base_coin(&user_cap.vault_cap, debt_payment, witness);
         let base_coins = withdraw_as_user(user_cap, vault_coins);
         coin::deposit<BaseCoin>(user_cap.user_addr, base_coins);
     }
-
 
 
     // vault manager functions
@@ -744,19 +723,12 @@ module satay::vault {
     /// makes a debt payment to the vault
     /// @param keeper_cap - a KeeperCapability
     /// @param base_coin - the Coin<BaseCoin> debt payment to make
-    public(friend) fun debt_payment<StrategyType: drop, BaseCoin>(
+    public(friend) fun keeper_debt_payment<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         base_coin: Coin<BaseCoin>,
     )
     acquires Vault, CoinStore, VaultStrategy {
-        let vault_cap = &keeper_cap.vault_cap;
-        update_total_debt<StrategyType>(
-            vault_cap,
-            0,
-            coin::value(&base_coin),
-            &keeper_cap.witness
-        );
-        deposit_base_coin(vault_cap, base_coin, &keeper_cap.witness);
+        debt_payment(&keeper_cap.vault_cap, base_coin, &keeper_cap.witness);
     }
 
     /// deposits a strategy coin into the vault
@@ -1249,6 +1221,25 @@ module satay::vault {
         })
     }
 
+    /// pays base_coin debt to the vault, updates total debt
+    /// @param vault_cap - the VaultCapability for the vault
+    /// @param base_coin - the Coin<BaseCoin> to deposit
+    /// @param witness - a reference to a StrategyType instance
+    fun debt_payment<StrategyType: drop, BaseCoin>(
+        vault_cap: &VaultCapability,
+        base_coin: Coin<BaseCoin>,
+        witness: &StrategyType
+    )
+    acquires Vault, VaultStrategy, CoinStore {
+        update_total_debt<StrategyType>(
+            vault_cap,
+            0,
+            coin::value(&base_coin),
+            witness
+        );
+        deposit_base_coin(vault_cap, base_coin, witness);
+    }
+
     /// assesses fees for a given profit, updates the StrategyType last_report timestamp and total gain for the vault
     /// @param profit - a reference to the Coin<BaseCoin> representing the profit
     /// @param vault_cap - the VaultCapability for the vault
@@ -1557,11 +1548,11 @@ module satay::vault {
     }
 
     #[test_only]
-    public fun test_debt_payment<StrategyType: drop, BaseCoin>(
+    public fun test_keeper_debt_payment<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         debt_payment_coins: Coin<BaseCoin>,
     ) acquires Vault, CoinStore, VaultStrategy {
-        debt_payment<StrategyType, BaseCoin>(keeper_cap, debt_payment_coins);
+        keeper_debt_payment<StrategyType, BaseCoin>(keeper_cap, debt_payment_coins);
     }
 
     #[test_only]
@@ -1683,5 +1674,42 @@ module satay::vault {
         keeper_cap: &KeeperCapability<StrategyType>,
     ): u64 acquires Vault, VaultStrategy, CoinStore {
         debt_out_standing<StrategyType, BaseCoin>(&keeper_cap.vault_cap)
+    }
+
+    #[test_only]
+    public fun test_get_user_cap(
+        user: &signer,
+        vault_cap: VaultCapability
+    ): UserCapability {
+        get_user_capability(user, vault_cap)
+    }
+
+    #[test_only]
+    public fun test_destroy_user_cap(
+        user_cap: UserCapability
+    ): (VaultCapability, address) {
+        destroy_user_capability(user_cap)
+    }
+
+    #[test_only]
+    public fun test_get_liquidation_lock<StrategyType: drop, BaseCoin>(
+        vault_cap: &VaultCapability,
+        vault_coins: Coin<VaultCoin<BaseCoin>>
+    ): UserLiquidationLock<BaseCoin>
+    acquires CoinStore, Vault, VaultStrategy {
+        get_liquidation_lock<StrategyType, BaseCoin>(
+            vault_cap,
+            vault_coins
+        )
+    }
+
+    #[test_only]
+    public fun test_user_liquidation<StrategyType: drop, BaseCoin>(
+        user_cap: &UserCapability,
+        debt_payment: Coin<BaseCoin>,
+        user_liq_lock: UserLiquidationLock<BaseCoin>,
+        witness: &StrategyType
+    ) acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
+        user_liquidation(user_cap, debt_payment, user_liq_lock, witness);
     }
 }

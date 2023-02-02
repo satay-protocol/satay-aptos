@@ -219,7 +219,7 @@ module satay::base_strategy {
             &keeper_cap,
             profit,
         );
-        vault::debt_payment<StrategyType, BaseCoin>(
+        vault::keeper_debt_payment<StrategyType, BaseCoin>(
             &keeper_cap,
             debt_payment,
         );
@@ -337,7 +337,7 @@ module satay::base_strategy {
             witness
         } = user_withdraw_lock;
 
-        vault::checked_user_liquidation(
+        vault::user_liquidation(
             &user_cap,
             base_coins,
             user_liq_lock,
