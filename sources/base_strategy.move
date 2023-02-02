@@ -351,24 +351,10 @@ module satay::base_strategy {
 
     // getters
 
-    /// returns the balance of CoinType in the vault
-    /// @param vault_cap - the VaultCapability for the vault
-    public fun balance<CoinType>(vault_cap: &VaultCapability): u64 {
-        vault::balance<CoinType>(vault_cap)
-    }
-
     /// returns the balance of StrategyCoin in the vault during harvest
     /// @param keeper_cap - the KeeperCapability for the vault
     public fun harvest_balance<StrategyType: drop, StrategyCoin>(keeper_cap: &KeeperCapability<StrategyType>): u64 {
         vault::harvest_balance<StrategyType, StrategyCoin>(keeper_cap)
-    }
-
-    /// returns a reference to the VaultCapLock for StrategyType during harvest
-    /// @param harvest_lock - the HarvestLock for StrategyType
-    public fun get_harvest_vault_cap_lock<StrategyType: drop>(
-        harvest_lock: &HarvestLock<StrategyType>
-    ): &VaultCapLock<StrategyType> {
-        &harvest_lock.vault_cap_lock
     }
 
     /// returns the amount of profit to return to the vault during harvest

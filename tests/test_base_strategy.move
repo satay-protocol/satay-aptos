@@ -683,7 +683,7 @@ module satay::test_base_strategy {
         harvest(aptos_framework, satay, coins_manager, user);
 
         let vault_cap = satay::open_vault(0);
-        let strategy_coins = base_strategy::balance<USDT>(
+        let strategy_coins = vault::balance<USDT>(
             &vault_cap,
         );
         satay::close_vault(0, vault_cap);
@@ -720,7 +720,7 @@ module satay::test_base_strategy {
             &TestStrategy {}
         );
 
-        let balance_before = base_strategy::balance<AptosCoin>(
+        let balance_before = vault::balance<AptosCoin>(
             &vault_cap,
         );
 
@@ -752,7 +752,7 @@ module satay::test_base_strategy {
 
         let vault_cap = satay::open_vault(0);
 
-        assert!(base_strategy::balance<AptosCoin>(&vault_cap) == balance_before + profit, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == balance_before + profit, ERR_HARVEST);
         assert!(vault::total_gain<TestStrategy>(&vault_cap) == profit, ERR_HARVEST);
         let vault_addr = vault::get_vault_addr(&vault_cap);
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
@@ -815,7 +815,7 @@ module satay::test_base_strategy {
         harvest(aptos_framework, satay, coins_manager, user);
 
         let vault_cap = satay::open_vault(0);
-        assert!(base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT - credit_available + profit, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT - credit_available + profit, ERR_HARVEST);
         let vault_addr = vault::get_vault_addr(&vault_cap);
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
 
@@ -853,7 +853,7 @@ module satay::test_base_strategy {
         harvest(aptos_framework, satay, coins_manager, user);
 
         let vault_cap = satay::open_vault(0);
-        assert!(base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
     }
 
@@ -920,7 +920,7 @@ module satay::test_base_strategy {
         harvest(aptos_framework, satay, coins_manager, user);
 
         let vault_cap = satay::open_vault(0);
-        assert!(base_strategy::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT + profit, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT + profit, ERR_HARVEST);
         let vault_addr = vault::get_vault_addr(&vault_cap);
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
@@ -1105,7 +1105,7 @@ module satay::test_base_strategy {
         tend(satay, coins_manager, user);
 
         let vault_cap = satay::open_vault(0);
-        assert!(base_strategy::balance<USDT>(&vault_cap) == TEND_AMOUNT, ERR_TEND);
+        assert!(vault::balance<USDT>(&vault_cap) == TEND_AMOUNT, ERR_TEND);
         satay::close_vault(0, vault_cap);
     }
 
@@ -1199,7 +1199,7 @@ module satay::test_base_strategy {
         );
 
         let vault_cap = satay::open_vault(0);
-        assert!(base_strategy::balance<USDT>(&vault_cap) == 0, ERR_USER_WITHDRAW);
+        assert!(vault::balance<USDT>(&vault_cap) == 0, ERR_USER_WITHDRAW);
 
         assert!(coin::balance<AptosCoin>(signer::address_of(user)) == base_coin_expected, ERR_USER_WITHDRAW);
         assert!(vault::total_loss<TestStrategy>(&vault_cap) == 0, ERR_USER_WITHDRAW);
