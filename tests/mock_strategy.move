@@ -38,12 +38,6 @@ module satay::mock_strategy {
             MockStrategy {}
         );
 
-        let wrapped_aptos = aptos_wrapper_product::reinvest_returns();
-        base_strategy::deposit_strategy_coin<MockStrategy, WrappedAptos>(
-            &keeper_cap,
-            wrapped_aptos,
-        );
-
         let strategy_aptos_balance = get_strategy_aptos_balance(&keeper_cap);
         let (
             to_apply,

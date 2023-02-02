@@ -1,22 +1,17 @@
 /// facilitates interaction between vaults and structured products
 module satay::base_strategy {
 
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::coin::{Coin};
 
     use satay_vault_coin::vault_coin::VaultCoin;
 
-    use satay::vault::{Self, VaultCapability, UserCapability, KeeperCapability, UserLiquidationLock};
+    use satay::vault::{Self, VaultCapability, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
     use satay::satay::{Self, VaultCapLock};
 
     // error codes
 
     /// when a keeper calls tend but the strategy has debt outstanding
     const ERR_DEBT_OUT_STANDING: u64 = 304;
-
-    /// when an incorrect amount of profit or debt_payment are returned after harvest
-    const ERR_HARVEST: u64 = 305;
-
-
 
     // operation locks
 
@@ -37,8 +32,7 @@ module satay::base_strategy {
     /// @field debt_payment - the amount of BaseCoin to return to cover outstanding debt
     struct HarvestLock<phantom StrategyType: drop> {
         vault_cap_lock: VaultCapLock<StrategyType>,
-        profit: u64,
-        debt_payment: u64,
+        harvest_info: HarvestInfo,
     }
 
     /// created and destroyed during tend
@@ -106,19 +100,6 @@ module satay::base_strategy {
 
     // deposit and withdraw
 
-    /// deposits StrategyCoin into a vault, called during harvest and tend
-    /// @param keeper_cap - holds the VaultCapability and witness for vault operations
-    /// @param strategy_coins - the coins to deposit
-    public fun deposit_strategy_coin<StrategyType: drop, StrategyCoin>(
-        keeper_cap: &KeeperCapability<StrategyType>,
-        strategy_coins: Coin<StrategyCoin>,
-    ) {
-        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
-            keeper_cap,
-            strategy_coins,
-        );
-    }
-
     /// withdraws StrategyCoin from a vault for harvest, called by keeper
     /// @param keeper_cap - holds the VaultCapability and witness for vault operations
     /// @param amount - the amount of StrategyCoin to withdraw from the vault
@@ -182,14 +163,12 @@ module satay::base_strategy {
     ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
         let (
             to_apply,
-            profit,
-            debt_payment
+            harvest_info
         ) = vault::process_harvest<StrategyType, BaseCoin, StrategyCoin>(keeper_cap, strategy_balance);
 
         (to_apply, HarvestLock {
             vault_cap_lock,
-            profit,
-            debt_payment,
+            harvest_info
         })
     }
 
@@ -206,27 +185,23 @@ module satay::base_strategy {
         profit: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
-        let HarvestLock<StrategyType> {
-            vault_cap_lock,
-            profit: profit_expected,
-            debt_payment: debt_payment_expected,
-        } = harvest_lock;
-
-        assert!(coin::value(&profit) == profit_expected, ERR_HARVEST);
-        assert!(coin::value(&debt_payment) == debt_payment_expected, ERR_HARVEST);
-
-        vault::deposit_profit<StrategyType, BaseCoin>(
-            &keeper_cap,
-            profit,
-        );
-        vault::keeper_debt_payment<StrategyType, BaseCoin>(
-            &keeper_cap,
-            debt_payment,
-        );
         vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
             &keeper_cap,
             strategy_coins,
         );
+
+        let HarvestLock<StrategyType> {
+            vault_cap_lock,
+            harvest_info
+        } = harvest_lock;
+
+        vault::destroy_harvest_info<StrategyType, BaseCoin>(
+            &keeper_cap,
+            harvest_info,
+            debt_payment,
+            profit
+        );
+
         let vault_cap = vault::destroy_keeper_capability(keeper_cap);
         close_vault<StrategyType>(
             vault_cap,
@@ -276,7 +251,7 @@ module satay::base_strategy {
         let TendLock<StrategyType> {
             vault_cap_lock
         } = tend_lock;
-        deposit_strategy_coin<StrategyType, StrategyCoin>(
+        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
             &keeper_cap,
             strategy_coins,
         );
@@ -360,13 +335,13 @@ module satay::base_strategy {
     /// returns the amount of profit to return to the vault during harvest
     /// @param harvest_lock - the HarvestLock for StrategyType
     public fun get_harvest_profit<StrategyType: drop>(harvest_lock: &HarvestLock<StrategyType>): u64 {
-        harvest_lock.profit
+        vault::get_harvest_profit(&harvest_lock.harvest_info)
     }
 
     /// returns the amount of debt to pay back to the vault during harvest
     /// @param harvest_lock - the HarvestLock for StrategyType
     public fun get_harvest_debt_payment<StrategyType: drop>(harvest_lock: &HarvestLock<StrategyType>): u64 {
-        harvest_lock.debt_payment
+        vault::get_harvest_debt_payment(&harvest_lock.harvest_info)
     }
 
     /// returns the amount of debt to pay back to the vault during user withdraw
@@ -374,7 +349,7 @@ module satay::base_strategy {
     public fun get_user_withdraw_amount_needed<StrategyType: drop, BaseCoin>(
         user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>
     ): u64 {
-        vault::get_amount_needed(&user_withdraw_lock.user_liq_lock)
+        vault::get_liquidation_amount_needed(&user_withdraw_lock.user_liq_lock)
     }
 
     // helpers
@@ -397,5 +372,16 @@ module satay::base_strategy {
         stop_handle: VaultCapLock<StrategyType>
     ) {
         satay::unlock_vault<StrategyType>(vault_cap, stop_handle);
+    }
+
+    #[test_only]
+    public fun deposit_strategy_coin<StrategyType: drop, StrategyCoin>(
+        keeper_cap: &KeeperCapability<StrategyType>,
+        strategy_coins: Coin<StrategyCoin>,
+    ) {
+        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
+            keeper_cap,
+            strategy_coins,
+        );
     }
 }

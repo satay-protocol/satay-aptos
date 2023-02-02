@@ -1397,7 +1397,7 @@ module satay::test_vault {
             &vault_cap,
             vault_coins
         );
-        assert!(vault::get_amount_needed(&user_liq_lock) == amount_needed, ERR_USER_LIQUIDATION);
+        assert!(vault::get_liquidation_amount_needed(&user_liq_lock) == amount_needed, ERR_USER_LIQUIDATION);
         let user_cap = vault::test_get_user_cap(user, vault_cap);
         vault::test_user_liquidation(&user_cap, debt_payment, user_liq_lock, &TestStrategy {});
         let (vault_cap, _) = vault::test_destroy_user_cap(user_cap);
