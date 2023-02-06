@@ -159,18 +159,6 @@ module satay::base_strategy {
         })
     }
 
-    // /// calculates new debt position for StrategyType and returns Coin<BaseCoin> to deploy to strategy
-    // /// @param keeper_cap - holds the VaultCapability and witness for vault operations
-    // /// @param strategy_balance - the amount of BaseCoin in the strategy
-    // /// @param vault_cap_lock - holds the vault_id, stored in HarvestLock
-    // public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
-    //     keeper_cap: &KeeperCapability<StrategyType>,
-    //     strategy_balance: u64,
-    //     vault_cap_lock: VaultCapLock<StrategyType>,
-    // ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
-    //
-    // }
-
     /// closes a vault for harvest, called by keeper
     /// @param keeper_cap - holds the VaultCapability and witness for vault operations
     /// @param harvest_lock - holds the vault_id, profit, and debt_payment amounts
