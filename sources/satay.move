@@ -443,6 +443,15 @@ module satay::satay {
         vault::get_total_debt(option::borrow(&vault_info.vault_cap))
     }
 
+    public fun get_vault_balance<CoinType>(vault_id: u64) : u64 acquires ManagerAccount {
+        assert_manager_initialized();
+        let account = borrow_global_mut<ManagerAccount>(@satay);
+        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
+        let vault_cap = option::borrow(&vault_info.vault_cap);
+        vault::balance<CoinType>(vault_cap)
+    }
+
+
     /// returns the total assets of vault_id
     /// @param vault_id - the id of the vault in the ManagerAccount resource
     public fun get_total_assets<BaseCoin>(vault_id: u64): u64
@@ -674,15 +683,6 @@ module satay::satay {
             debt_ratio,
             &witness
         );
-    }
-
-    #[test_only]
-    public fun balance<CoinType>(manager_addr: address, vault_id: u64) : u64 acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(manager_addr);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::balance<CoinType>(vault_cap)
     }
 
     #[test_only]

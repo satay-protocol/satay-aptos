@@ -23,6 +23,7 @@ module satay::base_strategy {
     struct UserWithdrawLock<StrategyType: drop, phantom BaseCoin> {
         vault_cap_lock: VaultCapLock<StrategyType>,
         user_liq_lock: UserLiquidationLock<BaseCoin>,
+        user_cap: UserCapability,
         witness: StrategyType
     }
 
@@ -30,9 +31,10 @@ module satay::base_strategy {
     /// @field vault_cap_lock - holds the vault_id, must be destroyed through satay::unlock_vault
     /// @field profit - the amount of BaseCoin profit since last harvest
     /// @field debt_payment - the amount of BaseCoin to return to cover outstanding debt
-    struct HarvestLock<phantom StrategyType: drop> {
+    struct HarvestLock<StrategyType: drop> {
         vault_cap_lock: VaultCapLock<StrategyType>,
         harvest_info: HarvestInfo,
+        keeper_cap: KeeperCapability<StrategyType>
     }
 
     /// created and destroyed during tend
@@ -104,11 +106,11 @@ module satay::base_strategy {
     /// @param keeper_cap - holds the VaultCapability and witness for vault operations
     /// @param amount - the amount of StrategyCoin to withdraw from the vault
     public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(
-        keeper_cap: &KeeperCapability<StrategyType>,
+        harvest_lock: &HarvestLock<StrategyType>,
         amount: u64,
     ): Coin<StrategyCoin> {
         vault::withdraw_strategy_coin<StrategyType, StrategyCoin>(
-            keeper_cap,
+            &harvest_lock.keeper_cap,
             amount,
         )
     }
@@ -118,12 +120,11 @@ module satay::base_strategy {
     /// @param amount - the amount of StrategyCoin to withdraw from the vault
     /// @param user_withdraw_lock - holds the vault_id, amount_needed, vault_coins, and witness
     public fun withdraw_strategy_coin_for_liquidation<StrategyType: drop, StrategyCoin, BaseCoin>(
-        user_cap: &UserCapability,
-        amount: u64,
         user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>,
+        amount: u64,
     ): Coin<StrategyCoin> {
         vault::withdraw_strategy_coin_for_liquidation<StrategyType, StrategyCoin, BaseCoin>(
-            user_cap,
+            &user_withdraw_lock.user_cap,
             amount,
             &user_withdraw_lock.witness,
         )
@@ -135,12 +136,13 @@ module satay::base_strategy {
     /// @param keeper - the transaction signer; must have keeper role on strategy_config for StrategyType on vault_id
     /// @param vault_id - the id for the vault
     /// @param witness - an instance of StrategyType to prove the source of the call
-    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin>(
+    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
         keeper: &signer,
         vault_id: u64,
+        strategy_balance: u64,
         witness: StrategyType,
-    ) : (KeeperCapability<StrategyType>, VaultCapLock<StrategyType>) {
-        let (vault_cap, stop_handle) = open_vault<StrategyType>(
+    ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
+        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
             vault_id,
             &witness
         );
@@ -149,28 +151,29 @@ module satay::base_strategy {
             vault_cap,
             witness
         );
-        (keeper_cap, stop_handle)
-    }
-
-    /// calculates new debt position for StrategyType and returns Coin<BaseCoin> to deploy to strategy
-    /// @param keeper_cap - holds the VaultCapability and witness for vault operations
-    /// @param strategy_balance - the amount of BaseCoin in the strategy
-    /// @param vault_cap_lock - holds the vault_id, stored in HarvestLock
-    public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
-        keeper_cap: &KeeperCapability<StrategyType>,
-        strategy_balance: u64,
-        vault_cap_lock: VaultCapLock<StrategyType>,
-    ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
-        let (
-            to_apply,
-            harvest_info
-        ) = vault::process_harvest<StrategyType, BaseCoin, StrategyCoin>(keeper_cap, strategy_balance);
+        let (to_apply, harvest_info) = vault::process_harvest<StrategyType, BaseCoin, StrategyCoin>(
+            &keeper_cap,
+            strategy_balance
+        );
 
         (to_apply, HarvestLock {
             vault_cap_lock,
-            harvest_info
+            harvest_info,
+            keeper_cap
         })
     }
+
+    // /// calculates new debt position for StrategyType and returns Coin<BaseCoin> to deploy to strategy
+    // /// @param keeper_cap - holds the VaultCapability and witness for vault operations
+    // /// @param strategy_balance - the amount of BaseCoin in the strategy
+    // /// @param vault_cap_lock - holds the vault_id, stored in HarvestLock
+    // public fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
+    //     keeper_cap: &KeeperCapability<StrategyType>,
+    //     strategy_balance: u64,
+    //     vault_cap_lock: VaultCapLock<StrategyType>,
+    // ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
+    //
+    // }
 
     /// closes a vault for harvest, called by keeper
     /// @param keeper_cap - holds the VaultCapability and witness for vault operations
@@ -179,21 +182,21 @@ module satay::base_strategy {
     /// @param profit - the Coin<BaseCoin> to deposit as profit into the vault
     /// @param strategy_coins - the Coin<StrategyCoin> resulting from BaseCoin deployment
     public fun close_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
-        keeper_cap: KeeperCapability<StrategyType>,
         harvest_lock: HarvestLock<StrategyType>,
         debt_payment: Coin<BaseCoin>,
         profit: Coin<BaseCoin>,
         strategy_coins: Coin<StrategyCoin>
     ) {
+        let HarvestLock<StrategyType> {
+            vault_cap_lock,
+            harvest_info,
+            keeper_cap
+        } = harvest_lock;
+
         vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
             &keeper_cap,
             strategy_coins,
         );
-
-        let HarvestLock<StrategyType> {
-            vault_cap_lock,
-            harvest_info
-        } = harvest_lock;
 
         vault::destroy_harvest_info<StrategyType, BaseCoin>(
             &keeper_cap,
@@ -274,7 +277,7 @@ module satay::base_strategy {
         vault_id: u64,
         vault_coins: Coin<VaultCoin<BaseCoin>>,
         witness: StrategyType
-    ): (UserCapability, UserWithdrawLock<StrategyType, BaseCoin>) {
+    ): UserWithdrawLock<StrategyType, BaseCoin> {
         let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
             vault_id,
             &witness
@@ -290,11 +293,12 @@ module satay::base_strategy {
             vault_cap,
         );
 
-        (user_cap, UserWithdrawLock<StrategyType, BaseCoin> {
+        UserWithdrawLock<StrategyType, BaseCoin> {
             vault_cap_lock,
             user_liq_lock,
-            witness
-        })
+            witness,
+            user_cap
+        }
     }
 
     /// closes a vault for user withdraw
@@ -302,14 +306,14 @@ module satay::base_strategy {
     /// @param user_withdraw_lock - holds the vault_cap_lock, amount_needed, vault_coins, and witness
     /// @param base_coins - the Coin<BaseCoin> to return to the vault
     public fun close_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
-        user_cap: UserCapability,
         user_withdraw_lock: UserWithdrawLock<StrategyType, BaseCoin>,
         base_coins: Coin<BaseCoin>,
     ) {
         let UserWithdrawLock<StrategyType, BaseCoin> {
             vault_cap_lock,
             user_liq_lock,
-            witness
+            witness,
+            user_cap
         } = user_withdraw_lock;
 
         vault::user_liquidation(
@@ -383,5 +387,16 @@ module satay::base_strategy {
             keeper_cap,
             strategy_coins,
         );
+    }
+
+    #[test_only]
+    public fun test_withdraw_base_coin<StrategyType: drop, BaseCoin>(
+        harvest_lock: &HarvestLock<StrategyType>,
+        amount: u64,
+    ): Coin<BaseCoin> {
+        vault::test_keeper_withdraw_base_coin<StrategyType, BaseCoin>(
+            &harvest_lock.keeper_cap,
+            amount,
+        )
     }
 }
