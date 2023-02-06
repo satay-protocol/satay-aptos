@@ -775,6 +775,88 @@ module satay::test_satay {
         )
     }
 
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    fun test_keeper_lock_unlock_vault(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy>(
+            satay,
+            0,
+            TestStrategy {}
+        );
+        satay::test_keeper_unlock_vault<TestStrategy>(keeper_cap, vault_cap_lock);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    #[expected_failure]
+    fun test_keeper_lock_unlock_vault_unauthorized(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy>(
+            user,
+            0,
+            TestStrategy {}
+        );
+        satay::test_keeper_unlock_vault<TestStrategy>(keeper_cap, vault_cap_lock);
+    }
+
+    #[test(
+        aptos_framework = @aptos_framework,
+        satay = @satay,
+        coins_manager = @satay,
+        user = @0x47,
+    )]
+    fun test_user_lock_unlock_vault(
+        aptos_framework: &signer,
+        satay: &signer,
+        coins_manager: &signer,
+        user: &signer
+    ) {
+        setup_test_and_create_vault_with_strategy(
+            aptos_framework,
+            satay,
+            coins_manager,
+            user
+        );
+
+        let (user_cap, vault_cap_lock) = satay::test_user_lock_vault<TestStrategy>(
+            satay,
+            0,
+            &TestStrategy {}
+        );
+        satay::test_user_unlock_vault<TestStrategy>(user_cap, vault_cap_lock);
+    }
+
     // test admin functions
     #[test(
         aptos_framework = @aptos_framework,

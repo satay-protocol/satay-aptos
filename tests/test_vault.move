@@ -1393,12 +1393,12 @@ module satay::test_vault {
 
         let debt_payment = coin::extract(&mut aptos, amount_needed);
 
+        let user_cap = vault::test_get_user_cap(user, vault_cap);
         let user_liq_lock = vault::test_get_liquidation_lock<TestStrategy, AptosCoin>(
-            &vault_cap,
+            &user_cap,
             vault_coins
         );
-        assert!(vault::get_amount_needed(&user_liq_lock) == amount_needed, ERR_USER_LIQUIDATION);
-        let user_cap = vault::test_get_user_cap(user, vault_cap);
+        assert!(vault::get_liquidation_amount_needed(&user_liq_lock) == amount_needed, ERR_USER_LIQUIDATION);
         vault::test_user_liquidation(&user_cap, debt_payment, user_liq_lock, &TestStrategy {});
         let (vault_cap, _) = vault::test_destroy_user_cap(user_cap);
         assert!(coin::balance<AptosCoin>(signer::address_of(user)) == vault_coin_liquidate, ERR_USER_LIQUIDATION);
@@ -1443,11 +1443,11 @@ module satay::test_vault {
         let insufficient_aptos = coin::extract(&mut aptos, amount_needed - 1);
         coin::deposit(signer::address_of(user), aptos);
 
+        let user_cap = vault::test_get_user_cap(user, vault_cap);
         let user_liq_lock = vault::test_get_liquidation_lock<TestStrategy, AptosCoin>(
-            &vault_cap,
+            &user_cap,
             vault_coins
         );
-        let user_cap = vault::test_get_user_cap(user, vault_cap);
         vault::test_user_liquidation(&user_cap, insufficient_aptos, user_liq_lock, &TestStrategy {});
         let (vault_cap, _) = vault::test_destroy_user_cap(user_cap);
 

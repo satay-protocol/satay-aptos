@@ -66,6 +66,12 @@ module satay::vault {
     /// when the strategy does not return enough BaseCoin for a user withdraw
     const ERR_INSUFFICIENT_USER_RETURN: u64 = 110;
 
+    /// when strategy does not return expected debt payment
+    const ERR_DEBT_PAYMENT: u64 = 111;
+
+    /// when strategy does not return expected profit payment
+    const ERR_PROFIT_PAYMENT: u64 = 112;
+
     /// holds Coin<CoinType> for a vault account
     /// @field coin - the stored coins
     /// @field deposit_events - event handle for deposit events
@@ -180,6 +186,14 @@ module satay::vault {
     struct UserLiquidationLock<phantom BaseCoin> {
         vault_coins: Coin<VaultCoin<BaseCoin>>,
         amount_needed: u64,
+    }
+
+    /// holds the information about harvest requirements
+    /// @field profit - the profit of the harvest
+    /// @field debt_payment - the debt payment of the harvest
+    struct HarvestInfo {
+        profit: u64,
+        debt_payment: u64,
     }
 
     // events
@@ -502,21 +516,21 @@ module satay::vault {
     /// @param vault_cap - the VaultCapability of the vault
     /// @param vault_coins - a reference to the Coin<VaultCoin<BaseCoin>> to liquidate
     public(friend) fun get_liquidation_lock<StrategyType: drop, BaseCoin>(
-        vault_cap: &VaultCapability,
+        user_cap: &UserCapability,
         vault_coins: Coin<VaultCoin<BaseCoin>>
     ): UserLiquidationLock<BaseCoin>
     acquires CoinStore, Vault, VaultStrategy {
         // check if vault has enough balance
         let vault_coin_amount = coin::value(&vault_coins);
-        let vault_balance = balance<BaseCoin>(vault_cap);
+        let vault_balance = balance<BaseCoin>(&user_cap.vault_cap);
         let value = calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
-            vault_cap,
+            &user_cap.vault_cap,
             vault_coin_amount
         );
         assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
 
         let amount_needed = value - vault_balance;
-        let total_debt = total_debt<StrategyType>(vault_cap);
+        let total_debt = total_debt<StrategyType>(&user_cap.vault_cap);
         assert!(total_debt >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
         UserLiquidationLock<BaseCoin> {
             vault_coins,
@@ -567,7 +581,7 @@ module satay::vault {
         } = user_liq_lock;
         assert!(coin::value(&base_coins) >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
 
-        debt_payment<StrategyType, BaseCoin>(&user_cap.vault_cap, base_coins, witness);
+        deposit_debt_payment<StrategyType, BaseCoin>(&user_cap.vault_cap, base_coins, witness);
 
         let base_coins = withdraw_as_user(user_cap, vault_coins);
         coin::deposit<BaseCoin>(user_cap.user_addr, base_coins);
@@ -701,35 +715,7 @@ module satay::vault {
 
     // for keeper
 
-    /// deposits profit into the vault
-    /// @param keeper_cap - a KeeperCapability
-    /// @param base_coin - the Coin<BaseCoin> profit to deposit
-    public(friend) fun deposit_profit<StrategyType: drop, BaseCoin>(
-        keeper_cap: &KeeperCapability<StrategyType>,
-        base_coin: Coin<BaseCoin>,
-    )
-    acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
-        let vault_cap = &keeper_cap.vault_cap;
-        let witness = &keeper_cap.witness;
-        report_gain<StrategyType>(vault_cap, coin::value(&base_coin), witness);
-        assess_fees<StrategyType, BaseCoin>(
-            &mut base_coin,
-            vault_cap,
-            witness
-        );
-        deposit_base_coin(vault_cap, base_coin, witness);
-    }
 
-    /// makes a debt payment to the vault
-    /// @param keeper_cap - a KeeperCapability
-    /// @param base_coin - the Coin<BaseCoin> debt payment to make
-    public(friend) fun keeper_debt_payment<StrategyType: drop, BaseCoin>(
-        keeper_cap: &KeeperCapability<StrategyType>,
-        base_coin: Coin<BaseCoin>,
-    )
-    acquires Vault, CoinStore, VaultStrategy {
-        debt_payment(&keeper_cap.vault_cap, base_coin, &keeper_cap.witness);
-    }
 
     /// deposits a strategy coin into the vault
     /// @param keeper_cap - a KeeperCapability
@@ -773,7 +759,7 @@ module satay::vault {
     public(friend) fun process_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         strategy_balance: u64,
-    ) : (Coin<BaseCoin>, u64, u64) acquires VaultStrategy, Vault, CoinStore {
+    ) : (Coin<BaseCoin>, HarvestInfo) acquires VaultStrategy, Vault, CoinStore {
 
         let vault_cap = &keeper_cap.vault_cap;
         let witness = &keeper_cap.witness;
@@ -808,7 +794,33 @@ module satay::vault {
             );
         };
 
-        (to_apply, profit, debt_payment)
+        (to_apply, HarvestInfo {
+            profit,
+            debt_payment
+        })
+    }
+
+    /// destroys the harvest info, ensuring that the debt payment and profit are correct
+    /// @param keeper_capability - a KeeperCapability
+    /// @param harvest_info - the HarvestInfo to destroy
+    /// @param debt_payment_coins - the Coin<BaseCoin> debt payment to deposit
+    /// @param profit_coins - the Coin<BaseCoin> profit to deposit
+    public(friend) fun destroy_harvest_info<StrategyType: drop, BaseCoin>(
+        keeper_cap: &KeeperCapability<StrategyType>,
+        harvest_info: HarvestInfo,
+        debt_payment_coins: Coin<BaseCoin>,
+        profit_coins: Coin<BaseCoin>,
+    ) acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
+        let HarvestInfo {
+            debt_payment: debt_payment_amount,
+            profit: profit_amount
+        } = harvest_info;
+
+        assert!(coin::value(&debt_payment_coins) == debt_payment_amount, ERR_DEBT_PAYMENT);
+        keeper_debt_payment<StrategyType, BaseCoin>(keeper_cap, debt_payment_coins);
+
+        assert!(coin::value(&profit_coins) == profit_amount, ERR_PROFIT_PAYMENT);
+        deposit_profit(keeper_cap, profit_coins);
     }
 
     /// calculates the profit, loss, and debt payment for a harvest
@@ -848,6 +860,8 @@ module satay::vault {
 
         (profit, loss, debt_payment)
     }
+
+
 
     // getters
 
@@ -1122,8 +1136,20 @@ module satay::vault {
 
     /// returns the amount needed from a user liquidation lock
     /// @param user_liq_lock - the UserLiquidationLock
-    public fun get_amount_needed<BaseCoin>(user_liq_lock: &UserLiquidationLock<BaseCoin>): u64 {
+    public fun get_liquidation_amount_needed<BaseCoin>(user_liq_lock: &UserLiquidationLock<BaseCoin>): u64 {
         user_liq_lock.amount_needed
+    }
+
+    /// returns the amount of BaseCoin debt to return to the vault during a harvest
+    /// @param harvest_info - the HarvestInfo
+    public fun get_harvest_debt_payment(harvest_info: &HarvestInfo): u64 {
+        harvest_info.debt_payment
+    }
+
+    /// returns the amount of BaseCoin profit to return to the vault during a harvest
+    /// @param harvest_info - the HarvestInfo
+    public fun get_harvest_profit(harvest_info: &HarvestInfo): u64 {
+        harvest_info.profit
     }
 
     // helpers
@@ -1225,7 +1251,7 @@ module satay::vault {
     /// @param vault_cap - the VaultCapability for the vault
     /// @param base_coin - the Coin<BaseCoin> to deposit
     /// @param witness - a reference to a StrategyType instance
-    fun debt_payment<StrategyType: drop, BaseCoin>(
+    fun deposit_debt_payment<StrategyType: drop, BaseCoin>(
         vault_cap: &VaultCapability,
         base_coin: Coin<BaseCoin>,
         witness: &StrategyType
@@ -1238,6 +1264,36 @@ module satay::vault {
             witness
         );
         deposit_base_coin(vault_cap, base_coin, witness);
+    }
+
+    /// deposits profit into the vault
+    /// @param keeper_cap - a KeeperCapability
+    /// @param base_coin - the Coin<BaseCoin> profit to deposit
+    fun deposit_profit<StrategyType: drop, BaseCoin>(
+        keeper_cap: &KeeperCapability<StrategyType>,
+        base_coin: Coin<BaseCoin>,
+    )
+    acquires Vault, CoinStore, VaultStrategy, VaultCoinCaps {
+        let vault_cap = &keeper_cap.vault_cap;
+        let witness = &keeper_cap.witness;
+        report_gain<StrategyType>(vault_cap, coin::value(&base_coin), witness);
+        assess_fees<StrategyType, BaseCoin>(
+            &mut base_coin,
+            vault_cap,
+            witness
+        );
+        deposit_base_coin(vault_cap, base_coin, witness);
+    }
+
+    /// makes a debt payment to the vault
+    /// @param keeper_cap - a KeeperCapability
+    /// @param base_coin - the Coin<BaseCoin> debt payment to make
+    fun keeper_debt_payment<StrategyType: drop, BaseCoin>(
+        keeper_cap: &KeeperCapability<StrategyType>,
+        base_coin: Coin<BaseCoin>,
+    )
+    acquires Vault, CoinStore, VaultStrategy {
+        deposit_debt_payment(&keeper_cap.vault_cap, base_coin, &keeper_cap.witness);
     }
 
     /// assesses fees for a given profit, updates the StrategyType last_report timestamp and total gain for the vault
@@ -1693,12 +1749,12 @@ module satay::vault {
 
     #[test_only]
     public fun test_get_liquidation_lock<StrategyType: drop, BaseCoin>(
-        vault_cap: &VaultCapability,
+        user_cap: &UserCapability,
         vault_coins: Coin<VaultCoin<BaseCoin>>
     ): UserLiquidationLock<BaseCoin>
     acquires CoinStore, Vault, VaultStrategy {
         get_liquidation_lock<StrategyType, BaseCoin>(
-            vault_cap,
+            user_cap,
             vault_coins
         )
     }
