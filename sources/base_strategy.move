@@ -5,7 +5,7 @@ module satay::base_strategy {
 
     use satay_vault_coin::vault_coin::VaultCoin;
 
-    use satay::vault::{Self, VaultCapability, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
+    use satay::vault::{Self, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
     use satay::satay::{Self, VaultCapLock};
 
     // error codes
@@ -142,13 +142,9 @@ module satay::base_strategy {
         strategy_balance: u64,
         witness: StrategyType,
     ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
-        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
-            vault_id,
-            &witness
-        );
-        let keeper_cap = vault::get_keeper_capability<StrategyType>(
+        let (keeper_cap, vault_cap_lock) = satay::keeper_lock_vault<StrategyType>(
             keeper,
-            vault_cap,
+            vault_id,
             witness
         );
         let (to_apply, harvest_info) = vault::process_harvest<StrategyType, BaseCoin, StrategyCoin>(
@@ -205,9 +201,8 @@ module satay::base_strategy {
             profit
         );
 
-        let vault_cap = vault::destroy_keeper_capability(keeper_cap);
-        close_vault<StrategyType>(
-            vault_cap,
+        satay::keeper_unlock_vault<StrategyType>(
+            keeper_cap,
             vault_cap_lock
         );
     }
@@ -223,18 +218,13 @@ module satay::base_strategy {
         vault_id: u64,
         witness: StrategyType,
     ): (KeeperCapability<StrategyType>, TendLock<StrategyType>) {
-        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
-            vault_id,
-            &witness
-        );
-        let debt_out_standing = vault::debt_out_standing<StrategyType, BaseCoin>(&vault_cap);
-        assert!(debt_out_standing == 0, ERR_DEBT_OUT_STANDING);
-
-        let keeper_cap = vault::get_keeper_capability<StrategyType>(
+        assert!(satay::get_debt_out_standing<StrategyType, BaseCoin>(vault_id) == 0, ERR_DEBT_OUT_STANDING);
+        let (keeper_cap, vault_cap_lock) = satay::keeper_lock_vault<StrategyType>(
             keeper,
-            vault_cap,
+            vault_id,
             witness
         );
+
         let tend_lock = TendLock {
             vault_cap_lock,
         };
@@ -258,9 +248,8 @@ module satay::base_strategy {
             &keeper_cap,
             strategy_coins,
         );
-        let vault_cap = vault::destroy_keeper_capability(keeper_cap);
-        close_vault<StrategyType>(
-            vault_cap,
+        satay::keeper_unlock_vault<StrategyType>(
+            keeper_cap,
             vault_cap_lock
         );
     }
@@ -278,19 +267,15 @@ module satay::base_strategy {
         vault_coins: Coin<VaultCoin<BaseCoin>>,
         witness: StrategyType
     ): UserWithdrawLock<StrategyType, BaseCoin> {
-        let (vault_cap, vault_cap_lock) = open_vault<StrategyType>(
+        let (user_cap, vault_cap_lock) = satay::user_lock_vault<StrategyType>(
+            user,
             vault_id,
             &witness
         );
 
         let user_liq_lock = vault::get_liquidation_lock<StrategyType, BaseCoin>(
-            &vault_cap,
+            &user_cap,
             vault_coins
-        );
-
-        let user_cap = vault::get_user_capability(
-            user,
-            vault_cap,
         );
 
         UserWithdrawLock<StrategyType, BaseCoin> {
@@ -323,9 +308,7 @@ module satay::base_strategy {
             &witness
         );
 
-        let (vault_cap, _) = vault::destroy_user_capability(user_cap);
-
-        close_vault<StrategyType>(vault_cap, vault_cap_lock);
+        satay::user_unlock_vault<StrategyType>(user_cap, vault_cap_lock);
     }
 
     // getters
@@ -354,28 +337,6 @@ module satay::base_strategy {
         user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>
     ): u64 {
         vault::get_liquidation_amount_needed(&user_withdraw_lock.user_liq_lock)
-    }
-
-    // helpers
-
-    /// gets the VaultCapability and VaultCapLock<StrategyType> for vault_id
-    /// @param vault_id - the id for the vault
-    /// @param witness - a reference to an instance of StrategyType to prove the source of the call
-    fun open_vault<StrategyType: drop>(
-        vault_id: u64,
-        witness: &StrategyType
-    ): (VaultCapability, VaultCapLock<StrategyType>) {
-        satay::lock_vault<StrategyType>(vault_id, witness)
-    }
-
-    /// returns the VaultCapability and destroys the VaultCapLock<StrategyType>
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param vault_cap_lock - the VaultCapLock<StrategyType> for the vault
-    fun close_vault<StrategyType: drop>(
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock<StrategyType>
-    ) {
-        satay::unlock_vault<StrategyType>(vault_cap, stop_handle);
     }
 
     #[test_only]
