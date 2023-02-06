@@ -8,11 +8,6 @@ module satay::base_strategy {
     use satay::vault::{Self, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
     use satay::satay::{Self, VaultCapLock};
 
-    // error codes
-
-    /// when a keeper calls tend but the strategy has debt outstanding
-    const ERR_DEBT_OUT_STANDING: u64 = 304;
-
     // operation locks
 
     /// created and destroyed during user withdraw
@@ -189,53 +184,6 @@ module satay::base_strategy {
             profit
         );
 
-        satay::keeper_unlock_vault<StrategyType>(
-            keeper_cap,
-            vault_cap_lock
-        );
-    }
-
-    // for tend
-
-    /// opens a vault for tend, called by keeper
-    /// @param keeper - the transaction signer; must have keeper role on strategy_config for StrategyType on vault_id
-    /// @param vault_id - the id for the vault
-    /// @param witness - an instance of StrategyType to prove the source of the call
-    public fun open_vault_for_tend<StrategyType: drop, BaseCoin>(
-        keeper: &signer,
-        vault_id: u64,
-        witness: StrategyType,
-    ): (KeeperCapability<StrategyType>, TendLock<StrategyType>) {
-        assert!(satay::get_debt_out_standing<StrategyType, BaseCoin>(vault_id) == 0, ERR_DEBT_OUT_STANDING);
-        let (keeper_cap, vault_cap_lock) = satay::keeper_lock_vault<StrategyType>(
-            keeper,
-            vault_id,
-            witness
-        );
-
-        let tend_lock = TendLock {
-            vault_cap_lock,
-        };
-
-        (keeper_cap, tend_lock)
-    }
-
-    /// closes a vault for tend, called by keeper
-    /// @param keeper_cap - holds the VaultCapability and witness for vault operations
-    /// @param tend_lock - holds the vault_cap_lock
-    /// @param strategy_coins - the Coin<StrategyCoin> resulting reinvestment of rewards
-    public fun close_vault_for_tend<StrategyType: drop, StrategyCoin>(
-        keeper_cap: KeeperCapability<StrategyType>,
-        tend_lock: TendLock<StrategyType>,
-        strategy_coins: Coin<StrategyCoin>
-    ) {
-        let TendLock<StrategyType> {
-            vault_cap_lock
-        } = tend_lock;
-        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
-            &keeper_cap,
-            strategy_coins,
-        );
         satay::keeper_unlock_vault<StrategyType>(
             keeper_cap,
             vault_cap_lock

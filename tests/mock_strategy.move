@@ -70,28 +70,6 @@ module satay::mock_strategy {
         );
     }
 
-    public entry fun tend(
-        keeper: &signer,
-        vault_id: u64,
-    ) {
-        let (
-            keeper_cap,
-            tend_lock
-        ) = base_strategy::open_vault_for_tend<MockStrategy, AptosCoin>(
-            keeper,
-            vault_id,
-            MockStrategy {}
-        );
-
-        let wrapped_aptos = aptos_wrapper_product::reinvest_returns();
-
-        base_strategy::close_vault_for_tend<MockStrategy, WrappedAptos>(
-            keeper_cap,
-            tend_lock,
-            wrapped_aptos,
-        );
-    }
-
     public entry fun withdraw_for_user(
         user: &signer,
         vault_id: u64,
