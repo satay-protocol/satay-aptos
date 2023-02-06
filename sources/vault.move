@@ -516,21 +516,21 @@ module satay::vault {
     /// @param vault_cap - the VaultCapability of the vault
     /// @param vault_coins - a reference to the Coin<VaultCoin<BaseCoin>> to liquidate
     public(friend) fun get_liquidation_lock<StrategyType: drop, BaseCoin>(
-        vault_cap: &VaultCapability,
+        user_cap: &UserCapability,
         vault_coins: Coin<VaultCoin<BaseCoin>>
     ): UserLiquidationLock<BaseCoin>
     acquires CoinStore, Vault, VaultStrategy {
         // check if vault has enough balance
         let vault_coin_amount = coin::value(&vault_coins);
-        let vault_balance = balance<BaseCoin>(vault_cap);
+        let vault_balance = balance<BaseCoin>(&user_cap.vault_cap);
         let value = calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
-            vault_cap,
+            &user_cap.vault_cap,
             vault_coin_amount
         );
         assert!(vault_balance < value, ERR_ENOUGH_BALANCE_ON_VAULT);
 
         let amount_needed = value - vault_balance;
-        let total_debt = total_debt<StrategyType>(vault_cap);
+        let total_debt = total_debt<StrategyType>(&user_cap.vault_cap);
         assert!(total_debt >= amount_needed, ERR_INSUFFICIENT_USER_RETURN);
         UserLiquidationLock<BaseCoin> {
             vault_coins,
@@ -1749,12 +1749,12 @@ module satay::vault {
 
     #[test_only]
     public fun test_get_liquidation_lock<StrategyType: drop, BaseCoin>(
-        vault_cap: &VaultCapability,
+        user_cap: &UserCapability,
         vault_coins: Coin<VaultCoin<BaseCoin>>
     ): UserLiquidationLock<BaseCoin>
     acquires CoinStore, Vault, VaultStrategy {
         get_liquidation_lock<StrategyType, BaseCoin>(
-            vault_cap,
+            user_cap,
             vault_coins
         )
     }
