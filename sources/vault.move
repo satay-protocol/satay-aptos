@@ -919,11 +919,11 @@ module satay::vault {
         vault_cap.vault_id == vault_id
     }
 
-    /// returns the StrategyCoin balance of the vault referenced by keeper_cap.vault_cap
+    /// returns the CoinType balance of the vault referenced by keeper_cap.vault_cap
     /// @param keeper_cap - a KeeperCapability
-    public fun harvest_balance<StrategyType: drop, StrategyCoin>(keeper_cap: &KeeperCapability<StrategyType>): u64
+    public fun harvest_balance<StrategyType: drop, CoinType>(keeper_cap: &KeeperCapability<StrategyType>): u64
     acquires CoinStore {
-        balance<StrategyCoin>(&keeper_cap.vault_cap)
+        balance<CoinType>(&keeper_cap.vault_cap)
     }
 
     /// returns the balance of CoinType of the vault

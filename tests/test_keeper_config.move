@@ -45,7 +45,7 @@ module satay::test_keeper_config {
     fun initialize_strategy(
         governance: &signer
     ) {
-        mock_strategy::initialize(
+        mock_strategy::approve(
             governance,
             0,
             0
@@ -57,7 +57,7 @@ module satay::test_keeper_config {
         satay: &signer,
     ) {
         initialize_with_vault(aptos_framework, satay);
-        mock_strategy::initialize(
+        mock_strategy::approve(
             satay,
             0,
             0

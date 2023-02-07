@@ -94,7 +94,7 @@ module satay::test_satay {
         satay: &signer,
     ) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        satay::test_approve_strategy<TestStrategy, USDT>(
+        satay::test_approve_strategy<TestStrategy, AptosCoin>(
             satay,
             0,
             DEBT_RATIO,
@@ -591,7 +591,7 @@ module satay::test_satay {
 
         approve_strategy(aptos_framework, satay);
 
-        assert!(satay::has_strategy<TestStrategy>(0), ERR_APPROVE_STRATEGY);
+        assert!(satay::has_strategy<TestStrategy, AptosCoin>(0), ERR_APPROVE_STRATEGY);
     }
 
     #[test(
@@ -613,13 +613,13 @@ module satay::test_satay {
             user
         );
 
-        satay::test_approve_strategy<TestStrategy2, BTC>(
+        satay::test_approve_strategy<TestStrategy2, AptosCoin>(
             satay,
             0,
             DEBT_RATIO,
             TestStrategy2 {}
         );
-        assert!(satay::has_strategy<TestStrategy2>(0), ERR_APPROVE_STRATEGY);
+        assert!(satay::has_strategy<TestStrategy2, AptosCoin>(0), ERR_APPROVE_STRATEGY);
     }
 
     #[test(
@@ -644,14 +644,14 @@ module satay::test_satay {
         let (
             vault_cap,
             stop_handle
-        ) = satay::test_lock_vault<TestStrategy>(
+        ) = satay::test_lock_vault<TestStrategy, AptosCoin>(
             0,
             &TestStrategy {}
         );
 
         satay::test_assert_vault_cap_and_stop_handle_match<TestStrategy>(&vault_cap, &stop_handle);
 
-        satay::test_unlock_vault<TestStrategy>(vault_cap, stop_handle);
+        satay::test_unlock_vault<TestStrategy, AptosCoin>(vault_cap, stop_handle);
     }
 
     #[test(
@@ -673,27 +673,27 @@ module satay::test_satay {
             user
         );
 
-        satay::test_approve_strategy<TestStrategy2, BTC>(
+        satay::test_approve_strategy<TestStrategy2, AptosCoin>(
             satay,
             0,
             DEBT_RATIO,
             TestStrategy2 {}
         );
 
-        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy>(
+        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy, AptosCoin>(
             0,
             &TestStrategy {}
         );
-        satay::test_unlock_vault<TestStrategy>(
+        satay::test_unlock_vault<TestStrategy, AptosCoin>(
             vault_cap,
             stop_handle
         );
 
-        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy2>(
+        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy2, AptosCoin>(
             0,
             &TestStrategy2 {}
         );
-        satay::test_unlock_vault<TestStrategy2>(
+        satay::test_unlock_vault<TestStrategy2, AptosCoin>(
             vault_cap,
             stop_handle
         );
@@ -720,11 +720,11 @@ module satay::test_satay {
             user
         );
 
-        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy2>(
+        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy2, AptosCoin>(
             0,
             &TestStrategy2 {}
         );
-        satay::test_unlock_vault<TestStrategy2>(
+        satay::test_unlock_vault<TestStrategy2, AptosCoin>(
             vault_cap,
             vault_lock
         )
@@ -757,19 +757,19 @@ module satay::test_satay {
             TestStrategy2 {}
         );
 
-        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy>(
+        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy, AptosCoin>(
             0,
             &TestStrategy {}
         );
-        let (vault_cap_2, vault_lock_2) = satay::test_lock_vault<TestStrategy2>(
+        let (vault_cap_2, vault_lock_2) = satay::test_lock_vault<TestStrategy2, AptosCoin>(
             0,
             &TestStrategy2 {}
         );
-        satay::test_unlock_vault<TestStrategy2>(
+        satay::test_unlock_vault<TestStrategy2, AptosCoin>(
             vault_cap_2,
             vault_lock_2,
         );
-        satay::test_unlock_vault<TestStrategy>(
+        satay::test_unlock_vault<TestStrategy, AptosCoin>(
             vault_cap,
             vault_lock
         )
@@ -794,12 +794,12 @@ module satay::test_satay {
             user
         );
 
-        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy>(
+        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy, AptosCoin>(
             satay,
             0,
             TestStrategy {}
         );
-        satay::test_keeper_unlock_vault<TestStrategy>(keeper_cap, vault_cap_lock);
+        satay::test_keeper_unlock_vault<TestStrategy, AptosCoin>(keeper_cap, vault_cap_lock);
     }
 
     #[test(
@@ -822,12 +822,12 @@ module satay::test_satay {
             user
         );
 
-        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy>(
+        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy, AptosCoin>(
             user,
             0,
             TestStrategy {}
         );
-        satay::test_keeper_unlock_vault<TestStrategy>(keeper_cap, vault_cap_lock);
+        satay::test_keeper_unlock_vault<TestStrategy, AptosCoin>(keeper_cap, vault_cap_lock);
     }
 
     #[test(
@@ -849,12 +849,12 @@ module satay::test_satay {
             user
         );
 
-        let (user_cap, vault_cap_lock) = satay::test_user_lock_vault<TestStrategy>(
+        let (user_cap, vault_cap_lock) = satay::test_user_lock_vault<TestStrategy, AptosCoin>(
             satay,
             0,
             &TestStrategy {}
         );
-        satay::test_user_unlock_vault<TestStrategy>(user_cap, vault_cap_lock);
+        satay::test_user_unlock_vault<TestStrategy, AptosCoin>(user_cap, vault_cap_lock);
     }
 
     // test admin functions
@@ -878,7 +878,7 @@ module satay::test_satay {
         );
 
         let debt_ratio = 100;
-        satay::test_update_strategy_debt_ratio(
+        satay::test_update_strategy_debt_ratio<TestStrategy, AptosCoin>(
             satay,
             0,
             debt_ratio,

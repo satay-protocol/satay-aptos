@@ -3,12 +3,12 @@ module satay::strategy_coin {
     use std::signer;
     use std::string;
 
+    use aptos_std::type_info;
 
     use aptos_framework::coin::{Self, MintCapability, BurnCapability, Coin, FreezeCapability};
     use aptos_framework::account::{Self, SignerCapability};
 
     use satay::strategy_config;
-    use aptos_std::type_info;
 
     // error codes
 
@@ -18,13 +18,6 @@ module satay::strategy_coin {
     const ERR_NOT_INITIALIZED: u64 = 2;
     /// when non-manager calls manager function
     const ERR_NOT_MANAGER: u64 = 3;
-
-    // constants
-
-    /// replace this with the name of the coin you are issuing
-    const NAME_SUFFIX: vector<u8> = b" Coin";
-    /// replace this with the symbol of the coin you are issuing
-    const SYMBOL_PREFIX: vector<u8> = b"";
 
     /// replace this with the unique product coin name
     struct StrategyCoin<phantom StrategyType: drop, phantom BaseCoin> {}
@@ -46,15 +39,15 @@ module satay::strategy_coin {
         assert_deployer(deployer);
 
         let strategy_struct = type_info::struct_name(&type_info::type_of<StrategyType>());
+        let base_coin_symbol = coin::symbol<BaseCoin>();
 
-        let name = coin::name<BaseCoin>();
-        string::append_utf8(&mut name, b"-");
+        let name = copy base_coin_symbol;
+        string::append_utf8(&mut name, b":");
         string::append_utf8(&mut name, copy strategy_struct);
-        string::append_utf8(&mut name, NAME_SUFFIX);
 
 
         let symbol = coin::symbol<BaseCoin>();
-        string::append_utf8(&mut symbol, b"-");
+        string::append_utf8(&mut symbol, b":");
         string::append_utf8(&mut name, copy strategy_struct);
 
         let (
@@ -114,6 +107,20 @@ module satay::strategy_coin {
         assert_strategy_initialized<StrategyType, BaseCoin>();
         let strategy_account = borrow_global_mut<StrategyAccount<StrategyType, BaseCoin>>(@satay);
         coin::burn(strategy_coins, &strategy_account.burn_cap)
+    }
+
+    /// withdraw BaseCoin from strategy account
+    /// @param strategy_manager - the transaction signer; must be the strategy manager
+    /// @param amount - the amount of BaseCoin to withdraw
+    /// @param witness - the strategy type witness
+    public fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
+        amount: u64,
+        _witness: StrategyType
+    ): Coin<BaseCoin> acquires StrategyAccount {
+        assert_strategy_initialized<StrategyType, BaseCoin>();
+        let strategy_account = borrow_global_mut<StrategyAccount<StrategyType, BaseCoin>>(@satay);
+        let strategy_signer = account::create_signer_with_capability(&strategy_account.signer_cap);
+        coin::withdraw<BaseCoin>(&strategy_signer, amount)
     }
 
     // helpers

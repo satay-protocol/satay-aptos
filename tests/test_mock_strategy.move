@@ -12,8 +12,7 @@ module satay::test_mock_strategy {
     use satay::vault;
     use satay::satay;
     use satay::mock_strategy::{Self, MockStrategy};
-    use satay::aptos_wrapper_product::{WrappedAptos};
-    use satay::aptos_wrapper_product;
+    use satay::strategy_coin::StrategyCoin;
 
     const INITIAL_DEBT_RATIO: u64 = 10000;
     const MAX_DEBT_RATIO: u64 = 10000;
@@ -53,8 +52,8 @@ module satay::test_mock_strategy {
         user: &signer,
     ) {
         initialize_vault_with_deposit(aptos_framework, satay, user);
-        aptos_wrapper_product::initialize(satay);
-        mock_strategy::initialize(
+        mock_strategy::initialize(satay);
+        mock_strategy::approve(
             satay,
             0,
             INITIAL_DEBT_RATIO
@@ -68,15 +67,16 @@ module satay::test_mock_strategy {
     )]
     fun test_initialize_strategy(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_vault_with_deposit(aptos_framework, satay, user);
-        mock_strategy::initialize(
+        mock_strategy::initialize(satay);
+        mock_strategy::approve(
             satay,
             0,
             INITIAL_DEBT_RATIO
         );
 
         let vault_cap = satay::open_vault(0);
-        assert!(vault::has_strategy<MockStrategy>(&vault_cap), ERR_INITIALIZE);
-        assert!(vault::has_coin<WrappedAptos>(&vault_cap), ERR_INITIALIZE);
+        assert!(vault::has_strategy<MockStrategy, AptosCoin>(&vault_cap), ERR_INITIALIZE);
+        assert!(vault::has_coin<StrategyCoin<MockStrategy, AptosCoin>>(&vault_cap), ERR_INITIALIZE);
         assert!(vault::credit_available<MockStrategy, AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_INITIALIZE);
         satay::close_vault(0, vault_cap);
     }
@@ -93,7 +93,7 @@ module satay::test_mock_strategy {
         let vault_cap = satay::open_vault(0);
         assert!(vault::credit_available<MockStrategy, AptosCoin>(&vault_cap) == 0, ERR_HARVEST);
         assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_HARVEST);
-        assert!(vault::balance<WrappedAptos>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
+        assert!(vault::balance<StrategyCoin<MockStrategy, AptosCoin>>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
     }
 
@@ -110,7 +110,7 @@ module satay::test_mock_strategy {
         let vault_cap = satay::open_vault(0);
         assert!(vault::credit_available<MockStrategy, AptosCoin>(&vault_cap) == 0, ERR_REVOKE);
         assert!(vault::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
-        assert!(vault::balance<WrappedAptos>(&vault_cap) == 0, ERR_HARVEST);
+        assert!(vault::balance<StrategyCoin<MockStrategy, AptosCoin>>(&vault_cap) == 0, ERR_HARVEST);
         satay::close_vault(0, vault_cap);
     }
 }
