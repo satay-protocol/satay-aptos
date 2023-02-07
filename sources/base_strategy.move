@@ -7,6 +7,7 @@ module satay::base_strategy {
 
     use satay::vault::{Self, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
     use satay::satay::{Self, VaultCapLock};
+    use satay::base_product::ProductCoin;
 
     // operation locks
 
@@ -64,13 +65,13 @@ module satay::base_strategy {
     /// @param vault_id - the id for the vault
     /// @param debt_ratio - the new debt ratio for StrategyType
     /// @param witness - an instance of StrategyType to prove the source of the call
-    public fun update_debt_ratio<StrategyType: drop>(
+    public fun update_debt_ratio<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType
     ) {
-        satay::update_strategy_debt_ratio<StrategyType>(
+        satay::update_strategy_debt_ratio<StrategyType, BaseCoin>(
             vault_manager,
             vault_id,
             debt_ratio,
@@ -82,12 +83,12 @@ module satay::base_strategy {
     /// @param vault_manager - the transaction signer; must have the vault manager role for vault_id
     /// @param vault_id - the id for the vault
     /// @param witness - an instance of StrategyType to prove the source of the call
-    public fun revoke_strategy<StrategyType: drop>(
+    public fun revoke_strategy<StrategyType: drop, BaseCoin>(
         vault_manager: &signer,
         vault_id: u64,
         witness: StrategyType
     ) {
-        update_debt_ratio<StrategyType>(
+        update_debt_ratio<StrategyType, BaseCoin>(
             vault_manager,
             vault_id,
             0,
@@ -100,11 +101,11 @@ module satay::base_strategy {
     /// withdraws StrategyCoin from a vault for harvest, called by keeper
     /// @param keeper_cap - holds the VaultCapability and witness for vault operations
     /// @param amount - the amount of StrategyCoin to withdraw from the vault
-    public fun withdraw_strategy_coin<StrategyType: drop, StrategyCoin>(
+    public fun withdraw_strategy_coin<StrategyType: drop, BaseCoin>(
         harvest_lock: &HarvestLock<StrategyType>,
         amount: u64,
-    ): Coin<StrategyCoin> {
-        vault::withdraw_strategy_coin<StrategyType, StrategyCoin>(
+    ): Coin<ProductCoin<StrategyType, BaseCoin>> {
+        vault::withdraw_strategy_coin<StrategyType, BaseCoin>(
             &harvest_lock.keeper_cap,
             amount,
         )
@@ -114,11 +115,11 @@ module satay::base_strategy {
     /// @param user_cap - holds the VaultCapability and user address
     /// @param amount - the amount of StrategyCoin to withdraw from the vault
     /// @param user_withdraw_lock - holds the vault_id, amount_needed, vault_coins, and witness
-    public fun withdraw_strategy_coin_for_liquidation<StrategyType: drop, StrategyCoin, BaseCoin>(
+    public fun withdraw_strategy_coin_for_liquidation<StrategyType: drop, BaseCoin>(
         user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>,
         amount: u64,
-    ): Coin<StrategyCoin> {
-        vault::withdraw_strategy_coin_for_liquidation<StrategyType, StrategyCoin, BaseCoin>(
+    ): Coin<ProductCoin<StrategyType, BaseCoin>> {
+        vault::withdraw_strategy_coin_for_liquidation<StrategyType, BaseCoin>(
             &user_withdraw_lock.user_cap,
             amount,
             &user_withdraw_lock.witness,
@@ -131,18 +132,18 @@ module satay::base_strategy {
     /// @param keeper - the transaction signer; must have keeper role on strategy_config for StrategyType on vault_id
     /// @param vault_id - the id for the vault
     /// @param witness - an instance of StrategyType to prove the source of the call
-    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
+    public fun open_vault_for_harvest<StrategyType: drop, BaseCoin>(
         keeper: &signer,
         vault_id: u64,
         strategy_balance: u64,
         witness: StrategyType,
     ) : (Coin<BaseCoin>, HarvestLock<StrategyType>) {
-        let (keeper_cap, vault_cap_lock) = satay::keeper_lock_vault<StrategyType>(
+        let (keeper_cap, vault_cap_lock) = satay::keeper_lock_vault<StrategyType, BaseCoin>(
             keeper,
             vault_id,
             witness
         );
-        let (to_apply, harvest_info) = vault::process_harvest<StrategyType, BaseCoin, StrategyCoin>(
+        let (to_apply, harvest_info) = vault::process_harvest<StrategyType, BaseCoin>(
             &keeper_cap,
             strategy_balance
         );
@@ -164,7 +165,7 @@ module satay::base_strategy {
         harvest_lock: HarvestLock<StrategyType>,
         debt_payment: Coin<BaseCoin>,
         profit: Coin<BaseCoin>,
-        strategy_coins: Coin<StrategyCoin>
+        strategy_coins: Coin<ProductCoin<StrategyType, BaseCoin>>
     ) {
         let HarvestLock<StrategyType> {
             vault_cap_lock,
@@ -172,7 +173,7 @@ module satay::base_strategy {
             keeper_cap
         } = harvest_lock;
 
-        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
+        vault::deposit_strategy_coin<StrategyType, BaseCoin>(
             &keeper_cap,
             strategy_coins,
         );
@@ -184,7 +185,7 @@ module satay::base_strategy {
             profit
         );
 
-        satay::keeper_unlock_vault<StrategyType>(
+        satay::keeper_unlock_vault<StrategyType, BaseCoin>(
             keeper_cap,
             vault_cap_lock
         );
@@ -197,13 +198,13 @@ module satay::base_strategy {
     /// @param vault_id - the id for the vault
     /// @param vault_coins - the amount of VaultCoin to liquidate
     /// @param witness - an instance of StrategyType to prove the source of the call
-    public fun open_vault_for_user_withdraw<StrategyType: drop, BaseCoin, StrategyCoin>(
+    public fun open_vault_for_user_withdraw<StrategyType: drop, BaseCoin>(
         user: &signer,
         vault_id: u64,
         vault_coins: Coin<VaultCoin<BaseCoin>>,
         witness: StrategyType
     ): UserWithdrawLock<StrategyType, BaseCoin> {
-        let (user_cap, vault_cap_lock) = satay::user_lock_vault<StrategyType>(
+        let (user_cap, vault_cap_lock) = satay::user_lock_vault<StrategyType, BaseCoin>(
             user,
             vault_id,
             &witness
@@ -244,7 +245,7 @@ module satay::base_strategy {
             &witness
         );
 
-        satay::user_unlock_vault<StrategyType>(user_cap, vault_cap_lock);
+        satay::user_unlock_vault<StrategyType, BaseCoin>(user_cap, vault_cap_lock);
     }
 
     // getters
@@ -276,11 +277,11 @@ module satay::base_strategy {
     }
 
     #[test_only]
-    public fun deposit_strategy_coin<StrategyType: drop, StrategyCoin>(
+    public fun deposit_strategy_coin<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
-        strategy_coins: Coin<StrategyCoin>,
+        strategy_coins: Coin<ProductCoin<StrategyType, BaseCoin>>,
     ) {
-        vault::deposit_strategy_coin<StrategyType, StrategyCoin>(
+        vault::deposit_strategy_coin<StrategyType, BaseCoin>(
             keeper_cap,
             strategy_coins,
         );
