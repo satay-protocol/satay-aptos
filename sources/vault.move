@@ -15,11 +15,11 @@ module satay::vault {
     use satay::dao_storage;
     use satay::math;
     use satay::vault_config;
-    use satay::strategy_config;
+    use satay::keeper_config;
     use satay::global_config;
     use satay::vault_coin_account;
     use std::bcs::to_bytes;
-    use satay::base_product::ProductCoin;
+    use satay::strategy_coin::StrategyCoin;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -319,12 +319,12 @@ module satay::vault {
     /// @param keeper - the transaction signer; must be the keeper of StrategyType on the vault at vault_cap.vault_addr
     /// @param vault_cap - the VaultCapability of the vault
     /// @param witness - a StrategyType instance
-    public(friend) fun get_keeper_capability<StrategyType: drop>(
+    public(friend) fun get_keeper_capability<StrategyType: drop, BaseCoin>(
         keeper: &signer,
         vault_cap: VaultCapability,
         witness: StrategyType
     ): KeeperCapability<StrategyType> {
-        strategy_config::assert_keeper<StrategyType>(keeper, vault_cap.vault_addr);
+        keeper_config::assert_keeper<StrategyType, BaseCoin>(keeper, vault_cap.vault_addr);
         KeeperCapability<StrategyType> {
             vault_cap,
             witness
@@ -545,18 +545,18 @@ module satay::vault {
         user_cap: &UserCapability,
         strategy_coin_amount: u64,
         _witness: &StrategyType
-    ): Coin<ProductCoin<StrategyType, BaseCoin>>
+    ): Coin<StrategyCoin<StrategyType, BaseCoin>>
     acquires CoinStore, Vault {
         let vault_cap = &user_cap.vault_cap;
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
         let withdraw_amount = strategy_coin_amount;
-        let strategy_coin_balance = balance<ProductCoin<StrategyType, BaseCoin>>(vault_cap);
+        let strategy_coin_balance = balance<StrategyCoin<StrategyType, BaseCoin>>(vault_cap);
         if (withdraw_amount > strategy_coin_balance) {
             withdraw_amount = strategy_coin_balance;
         };
 
-        withdraw<ProductCoin<StrategyType, BaseCoin>>(
+        withdraw<StrategyCoin<StrategyType, BaseCoin>>(
             vault_cap,
             withdraw_amount
         )
@@ -664,7 +664,7 @@ module satay::vault {
             assess_fees_events: account::new_event_handle<AssessFeesEvent>(&vault_acc),
         });
 
-        strategy_config::initialize<StrategyType>(
+        keeper_config::initialize<StrategyType, BaseCoin>(
             &vault_acc,
             witness
         );
@@ -675,8 +675,8 @@ module satay::vault {
             debt_ratio,
         });
 
-        if(!has_coin<ProductCoin<StrategyType, BaseCoin>>(vault_cap)){
-            add_coin<ProductCoin<StrategyType, BaseCoin>>(vault_cap);
+        if(!has_coin<StrategyCoin<StrategyType, BaseCoin>>(vault_cap)){
+            add_coin<StrategyCoin<StrategyType, BaseCoin>>(vault_cap);
         };
 
         // update vault params
@@ -721,7 +721,7 @@ module satay::vault {
     /// @param strategy_coin - the Coin<StrategyCoin> to deposit
     public(friend) fun deposit_strategy_coin<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
-        strategy_coin: Coin<ProductCoin<StrategyType, BaseCoin>>,
+        strategy_coin: Coin<StrategyCoin<StrategyType, BaseCoin>>,
     )
     acquires CoinStore, Vault {
         let vault_cap = &keeper_cap.vault_cap;
@@ -735,18 +735,18 @@ module satay::vault {
     public(friend) fun withdraw_strategy_coin<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         strategy_coin_amount: u64,
-    ): Coin<ProductCoin<StrategyType, BaseCoin>>
+    ): Coin<StrategyCoin<StrategyType, BaseCoin>>
     acquires CoinStore, Vault {
         let vault_cap = &keeper_cap.vault_cap;
         assert_base_coin_correct_for_vault_cap<BaseCoin>(vault_cap);
 
         let withdraw_amount = strategy_coin_amount;
-        let strategy_coin_balance = balance<ProductCoin<StrategyType, BaseCoin>>(vault_cap);
+        let strategy_coin_balance = balance<StrategyCoin<StrategyType, BaseCoin>>(vault_cap);
         if (withdraw_amount > strategy_coin_balance) {
             withdraw_amount = strategy_coin_balance;
         };
 
-        withdraw<ProductCoin<StrategyType, BaseCoin>>(
+        withdraw<StrategyCoin<StrategyType, BaseCoin>>(
             vault_cap,
             withdraw_amount
         )
@@ -1520,12 +1520,12 @@ module satay::vault {
     }
 
     #[test_only]
-    public fun test_get_keeper_cap<StrategyType: drop>(
+    public fun test_get_keeper_cap<StrategyType: drop, BaseCoin>(
         keeper: &signer,
         vault_cap: VaultCapability,
         witness: StrategyType
     ): KeeperCapability<StrategyType> {
-        get_keeper_capability<StrategyType>(keeper, vault_cap, witness)
+        get_keeper_capability<StrategyType, BaseCoin>(keeper, vault_cap, witness)
     }
 
     #[test_only]
@@ -1622,7 +1622,7 @@ module satay::vault {
     #[test_only]
     public fun test_deposit_strategy_coin<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
-        strategy_coin: Coin<ProductCoin<StrategyType, BaseCoin>>,
+        strategy_coin: Coin<StrategyCoin<StrategyType, BaseCoin>>,
     )
     acquires CoinStore, Vault {
         deposit_strategy_coin<StrategyType, BaseCoin>(keeper_cap, strategy_coin);
@@ -1632,7 +1632,7 @@ module satay::vault {
     public fun test_withdraw_strategy_coin<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
         amount: u64,
-    ) : Coin<ProductCoin<StrategyType, BaseCoin>>
+    ) : Coin<StrategyCoin<StrategyType, BaseCoin>>
     acquires CoinStore, Vault {
         withdraw_strategy_coin<StrategyType, BaseCoin>(keeper_cap, amount)
     }

@@ -336,7 +336,7 @@ module satay::satay {
     ): (KeeperCapability<StrategyType>, VaultCapLock<StrategyType>)
     acquires ManagerAccount {
         let (vault_cap, vault_cap_lock) = lock_vault<StrategyType, BaseCoin>(vault_id, &witness);
-        let keeper_cap = vault::get_keeper_capability<StrategyType>(keeper, vault_cap, witness);
+        let keeper_cap = vault::get_keeper_capability<StrategyType, BaseCoin>(keeper, vault_cap, witness);
         (keeper_cap, vault_cap_lock)
     }
 

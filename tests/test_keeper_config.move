@@ -1,5 +1,5 @@
 #[test_only]
-module satay::test_strategy_config {
+module satay::test_keeper_config {
 
     use std::signer;
 
@@ -9,7 +9,7 @@ module satay::test_strategy_config {
     use satay::vault_coin_account;
     use satay::satay;
     use satay::mock_strategy::{Self, MockStrategy};
-    use satay::strategy_config;
+    use satay::keeper_config;
 
     fun initialize(
         aptos_framework: &signer,
@@ -105,10 +105,10 @@ module satay::test_strategy_config {
         initialize_with_vault_and_strategy(aptos_framework, satay);
         let vault_addr = satay::get_vault_address_by_id(0);
         let new_keeper_address = signer::address_of(new_keeper);
-        strategy_config::set_keeper<MockStrategy>(satay, vault_addr, new_keeper_address);
-        strategy_config::assert_keeper<MockStrategy>(satay, vault_addr);
-        strategy_config::accept_keeper<MockStrategy>(new_keeper, vault_addr);
-        strategy_config::assert_keeper<MockStrategy>(new_keeper, vault_addr);
+        keeper_config::set_keeper<MockStrategy, AptosCoin>(satay, vault_addr, new_keeper_address);
+        keeper_config::assert_keeper<MockStrategy, AptosCoin>(satay, vault_addr);
+        keeper_config::accept_keeper<MockStrategy, AptosCoin>(new_keeper, vault_addr);
+        keeper_config::assert_keeper<MockStrategy, AptosCoin>(new_keeper, vault_addr);
     }
 
     #[test(
@@ -125,7 +125,7 @@ module satay::test_strategy_config {
         initialize_with_vault_and_strategy(aptos_framework, satay);
         let vault_addr = satay::get_vault_address_by_id(0);
         let new_keeper_address = signer::address_of(non_keeper);
-        strategy_config::set_keeper<MockStrategy>(non_keeper, new_keeper_address, vault_addr);
+        keeper_config::set_keeper<MockStrategy, AptosCoin>(non_keeper, new_keeper_address, vault_addr);
     }
 
     #[test(
@@ -141,6 +141,6 @@ module satay::test_strategy_config {
     ) {
         initialize_with_vault_and_strategy(aptos_framework, satay);
         let vault_addr = satay::get_vault_address_by_id(0);
-        strategy_config::accept_keeper<MockStrategy>(non_keeper, vault_addr);
+        keeper_config::accept_keeper<MockStrategy, AptosCoin>(non_keeper, vault_addr);
     }
 }

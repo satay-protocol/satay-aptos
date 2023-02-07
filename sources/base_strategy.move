@@ -7,7 +7,7 @@ module satay::base_strategy {
 
     use satay::vault::{Self, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
     use satay::satay::{Self, VaultCapLock};
-    use satay::base_product::ProductCoin;
+    use satay::strategy_coin::StrategyCoin;
 
     // operation locks
 
@@ -104,7 +104,7 @@ module satay::base_strategy {
     public fun withdraw_strategy_coin<StrategyType: drop, BaseCoin>(
         harvest_lock: &HarvestLock<StrategyType>,
         amount: u64,
-    ): Coin<ProductCoin<StrategyType, BaseCoin>> {
+    ): Coin<StrategyCoin<StrategyType, BaseCoin>> {
         vault::withdraw_strategy_coin<StrategyType, BaseCoin>(
             &harvest_lock.keeper_cap,
             amount,
@@ -118,7 +118,7 @@ module satay::base_strategy {
     public fun withdraw_strategy_coin_for_liquidation<StrategyType: drop, BaseCoin>(
         user_withdraw_lock: &UserWithdrawLock<StrategyType, BaseCoin>,
         amount: u64,
-    ): Coin<ProductCoin<StrategyType, BaseCoin>> {
+    ): Coin<StrategyCoin<StrategyType, BaseCoin>> {
         vault::withdraw_strategy_coin_for_liquidation<StrategyType, BaseCoin>(
             &user_withdraw_lock.user_cap,
             amount,
@@ -161,11 +161,11 @@ module satay::base_strategy {
     /// @param debt_payment - the Coin<BaseCoin> to pay back to the vault
     /// @param profit - the Coin<BaseCoin> to deposit as profit into the vault
     /// @param strategy_coins - the Coin<StrategyCoin> resulting from BaseCoin deployment
-    public fun close_vault_for_harvest<StrategyType: drop, BaseCoin, StrategyCoin>(
+    public fun close_vault_for_harvest<StrategyType: drop, BaseCoin>(
         harvest_lock: HarvestLock<StrategyType>,
         debt_payment: Coin<BaseCoin>,
         profit: Coin<BaseCoin>,
-        strategy_coins: Coin<ProductCoin<StrategyType, BaseCoin>>
+        strategy_coins: Coin<StrategyCoin<StrategyType, BaseCoin>>
     ) {
         let HarvestLock<StrategyType> {
             vault_cap_lock,
@@ -279,7 +279,7 @@ module satay::base_strategy {
     #[test_only]
     public fun deposit_strategy_coin<StrategyType: drop, BaseCoin>(
         keeper_cap: &KeeperCapability<StrategyType>,
-        strategy_coins: Coin<ProductCoin<StrategyType, BaseCoin>>,
+        strategy_coins: Coin<StrategyCoin<StrategyType, BaseCoin>>,
     ) {
         vault::deposit_strategy_coin<StrategyType, BaseCoin>(
             keeper_cap,
