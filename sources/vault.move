@@ -3,6 +3,7 @@ module satay::vault {
     use std::signer;
     use std::string;
     use std::option;
+    use std::bcs::to_bytes;
 
     use aptos_std::type_info::{Self, TypeInfo};
 
@@ -11,15 +12,13 @@ module satay::vault {
     use aptos_framework::timestamp;
     use aptos_framework::event::{Self, EventHandle};
 
-    use satay_vault_coin::vault_coin::{VaultCoin};
+    use satay_coins::vault_coin::VaultCoin;
+    use satay_coins::strategy_coin::StrategyCoin;
+
     use satay::dao_storage;
     use satay::math;
     use satay::vault_config;
     use satay::keeper_config;
-    use satay::global_config;
-    use satay::vault_coin_account;
-    use std::bcs::to_bytes;
-    use satay::strategy_coin::StrategyCoin;
 
     friend satay::satay;
     friend satay::base_strategy;
@@ -73,14 +72,10 @@ module satay::vault {
     /// when strategy does not return expected profit payment
     const ERR_PROFIT_PAYMENT: u64 = 112;
 
-    /// holds Coin<CoinType> for a vault account
-    /// @field coin - the stored coins
+    /// holds the coins for each CoinType of a vault
+    /// @field coin - the coin for CoinType
     /// @field deposit_events - event handle for deposit events
     /// @field withdraw_events - event handle for withdraw events
-    struct VaultCoinCap has key {
-        vault_coin_account_cap: SignerCapability
-    }
-
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>,
         deposit_events: EventHandle<DepositEvent>,
@@ -286,15 +281,6 @@ module satay::vault {
         vault_coin_amount: u64
     }
 
-    public(friend) fun initialize(
-        satay_admin: &signer
-    ) {
-        let vault_coin_account_cap = vault_coin_account::retrieve_signer_cap(satay_admin);
-        move_to(satay_admin, VaultCoinCap {
-            vault_coin_account_cap
-        });
-    }
-
     /// creates a VaultManagerCapability
     /// @param vault_manager - the transaction signer; must be the vault manager of the vault at vault_cap.vault_addr
     /// @param vault_cap - the VaultCapability of the vault
@@ -371,18 +357,12 @@ module satay::vault {
     /// @param management_fee - the management fee of the vault in BPS
     /// @param performance_fee - the performance fee of the vault in BPS
     public(friend) fun new<BaseCoin>(
-        governance: &signer,
+        satay_coins_account: &signer,
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
-    ): VaultCapability acquires VaultCoinCap {
-        global_config::assert_governance(governance);
+    ): VaultCapability {
         assert_fee_amounts(management_fee, performance_fee);
-
-        let vault_coin_cap = borrow_global<VaultCoinCap>(@satay);
-        let vault_coin_account = account::create_signer_with_capability(
-            &vault_coin_cap.vault_coin_account_cap
-        );
 
         // create vault coin name
         let vault_coin_name = coin::name<BaseCoin>();
@@ -392,7 +372,7 @@ module satay::vault {
 
         // create a resource account for the vault managed by the sender
         let (vault_acc, storage_cap) = account::create_resource_account(
-            &vault_coin_account,
+            satay_coins_account,
             *string::bytes(&seed),
         );
 
@@ -422,7 +402,7 @@ module satay::vault {
             freeze_cap,
             mint_cap
         ) = coin::initialize<VaultCoin<BaseCoin>>(
-            &vault_coin_account,
+            satay_coins_account,
             vault_coin_name,
             vault_coin_symbol,
             base_coin_decimals,
@@ -1449,7 +1429,7 @@ module satay::vault {
         vault_id: u64,
         management_fee: u64,
         performance_fee: u64
-    ): VaultCapability acquires VaultCoinCap {
+    ): VaultCapability {
         new<BaseCoin>(
             governance,
             vault_id,

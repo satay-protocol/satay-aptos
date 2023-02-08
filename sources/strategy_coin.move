@@ -1,6 +1,5 @@
 module satay::strategy_coin {
 
-    use std::signer;
     use std::string;
 
     use aptos_std::type_info;
@@ -8,43 +7,52 @@ module satay::strategy_coin {
     use aptos_framework::coin::{Self, MintCapability, BurnCapability, Coin, FreezeCapability};
     use aptos_framework::account::{Self, SignerCapability};
 
+    use satay_coins::strategy_coin::StrategyCoin;
+
     use satay::strategy_config;
+
+    friend satay::satay;
 
     // error codes
 
-    /// when non-deployer calls initialize
-    const ERR_NOT_DEPLOYER: u64 = 1;
-    /// when product is not initialized
-    const ERR_NOT_INITIALIZED: u64 = 2;
-    /// when non-manager calls manager function
-    const ERR_NOT_MANAGER: u64 = 3;
+    /// the strategy capability
+    /// @param signer_cap - the StrategyCapability for the strategy account
+    struct StrategyCapability<phantom StrategyType, phantom BaseCoin> has store {
+        signer_cap: SignerCapability
+    }
 
-    /// replace this with the unique product coin name
-    struct StrategyCoin<phantom StrategyType: drop, phantom BaseCoin> {}
-
-    struct StrategyAccount<phantom StrategyType: drop, phantom BaseCoin> has key {
-        signer_cap: SignerCapability,
-        manager_address: address,
+    /// the coin capabilities for StrategyCoin<StrategyType, BaseCoin>
+    /// @param signer_cap - the signer capability for the strategy account
+    /// @param mint_cap - the mint capability for the strategy coin
+    /// @param burn_cap - the burn capability for the strategy coin
+    /// @param freeze_cap - the freeze capability for the strategy coin
+    struct StrategyCoinCaps<phantom StrategyType: drop, phantom BaseCoin> has key {
         mint_cap: MintCapability<StrategyCoin<StrategyType, BaseCoin>>,
         burn_cap: BurnCapability<StrategyCoin<StrategyType, BaseCoin>>,
         freeze_cap: FreezeCapability<StrategyCoin<StrategyType, BaseCoin>>
     }
 
-    // deployer functions
+    /// stores the coins for a strategy
+    /// @field coin - the coin
+    struct CoinStore<phantom CoinType> has key {
+        coin: Coin<CoinType>
+    }
 
-    /// initialize the strategy coin and account
+    // governance functions
+
+    /// register the strategy coin and account
     /// @param strategy_manager - the transaction signer
-    public fun initialize<StrategyType: drop, BaseCoin>(deployer: &signer, witness: StrategyType) {
-        // assert that the deployer is calling initialize
-        assert_deployer(deployer);
-
+    public(friend) fun initialize<StrategyType: drop, BaseCoin>(
+        satay_account: &signer,
+        strategy_manager_address: address,
+        witness: StrategyType
+    ): StrategyCapability<StrategyType, BaseCoin> {
         let strategy_struct = type_info::struct_name(&type_info::type_of<StrategyType>());
         let base_coin_symbol = coin::symbol<BaseCoin>();
 
         let name = copy base_coin_symbol;
         string::append_utf8(&mut name, b":");
         string::append_utf8(&mut name, copy strategy_struct);
-
 
         let symbol = coin::symbol<BaseCoin>();
         string::append_utf8(&mut symbol, b":");
@@ -55,7 +63,7 @@ module satay::strategy_coin {
             freeze_cap,
             mint_cap
         ) = coin::initialize<StrategyCoin<StrategyType, BaseCoin>>(
-            deployer,
+            satay_account,
             name,
             symbol,
             coin::decimals<BaseCoin>(),
@@ -65,97 +73,106 @@ module satay::strategy_coin {
         let (
             strategy_signer,
             signer_cap
-        ) = account::create_resource_account(deployer, *string::bytes(&symbol));
+        ) = account::create_resource_account(satay_account, *string::bytes(&symbol));
 
         strategy_config::initialize<StrategyType, BaseCoin>(
             &strategy_signer,
-            signer::address_of(deployer),
+            strategy_manager_address,
             &witness
         );
 
-        coin::register<BaseCoin>(&strategy_signer);
 
-        let product_account = StrategyAccount {
-            signer_cap,
-            manager_address: signer::address_of(deployer),
+
+        let strategy_coin_caps = StrategyCoinCaps<StrategyType, BaseCoin> {
             mint_cap,
             burn_cap,
             freeze_cap
         };
 
-        move_to(deployer, product_account);
+        move_to(&strategy_signer, strategy_coin_caps);
+
+        let strategy_cap = StrategyCapability<StrategyType, BaseCoin> {
+            signer_cap
+        };
+
+        add_coin<StrategyType, BaseCoin, BaseCoin>(&strategy_cap);
+
+        strategy_cap
     }
 
     // mint and burn
 
-    public fun mint<StrategyType: drop, BaseCoin>(
+    /// mint amount of StrategyCoin<StrategyType, BaseCoin>
+    /// @param strategy_cap - the StrategyCapability for the strategy account
+    /// @param amount - the amount of StrategyCoin<StrategyType, BaseCoin> to mint
+    public(friend) fun mint<StrategyType: drop, BaseCoin>(
+        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
         amount: u64,
-        _witness: StrategyType,
     ): Coin<StrategyCoin<StrategyType, BaseCoin>>
-    acquires StrategyAccount {
-        assert_strategy_initialized<StrategyType, BaseCoin>();
-        let strategy_account = borrow_global_mut<StrategyAccount<StrategyType, BaseCoin>>(@satay);
-        coin::mint(amount, &strategy_account.mint_cap)
+    acquires StrategyCoinCaps {
+        let strategy_address = strategy_account_address(strategy_cap);
+        let strategy_coin_caps = borrow_global<StrategyCoinCaps<StrategyType, BaseCoin>>(strategy_address);
+        coin::mint(amount, &strategy_coin_caps.mint_cap)
     }
 
-
-    public fun burn<StrategyType: drop, BaseCoin>(
-        strategy_coins: Coin<StrategyCoin<StrategyType, BaseCoin>>,
-        _witness: StrategyType
+    /// burn amount of StrategyCoin<StrategyType, BaseCoin>
+    /// @param strategy_coins - the StrategyCoin<StrategyType, BaseCoin> to burn
+    /// _witness - the witness for the strategy type
+    public(friend) fun burn<StrategyType: drop, BaseCoin>(
+        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
+        strategy_coins: Coin<StrategyCoin<StrategyType, BaseCoin>>
     )
-    acquires StrategyAccount {
-        assert_strategy_initialized<StrategyType, BaseCoin>();
-        let strategy_account = borrow_global_mut<StrategyAccount<StrategyType, BaseCoin>>(@satay);
-        coin::burn(strategy_coins, &strategy_account.burn_cap)
+    acquires StrategyCoinCaps {
+        let strategy_address = strategy_account_address(strategy_cap);
+        let strategy_coin_caps = borrow_global<StrategyCoinCaps<StrategyType, BaseCoin>>(strategy_address);
+        coin::burn(strategy_coins, &strategy_coin_caps.burn_cap);
     }
 
-    /// withdraw BaseCoin from strategy account
-    /// @param strategy_manager - the transaction signer; must be the strategy manager
-    /// @param amount - the amount of BaseCoin to withdraw
-    /// @param witness - the strategy type witness
-    public fun withdraw_base_coin<StrategyType: drop, BaseCoin>(
-        amount: u64,
-        _witness: StrategyType
-    ): Coin<BaseCoin> acquires StrategyAccount {
-        assert_strategy_initialized<StrategyType, BaseCoin>();
-        let strategy_account = borrow_global_mut<StrategyAccount<StrategyType, BaseCoin>>(@satay);
-        let strategy_signer = account::create_signer_with_capability(&strategy_account.signer_cap);
-        coin::withdraw<BaseCoin>(&strategy_signer, amount)
+    // coin functions
+
+    /// creates a CoinStore<CoinType> in the strategy account
+    /// @param strategy_cap - the StrategyCapability for the strategy account
+    public(friend) fun add_coin<StrategyType: drop, BaseCoin, CoinType>(
+        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>
+    ) {
+        let strategy_signer = account::create_signer_with_capability(&strategy_cap.signer_cap);
+        move_to(&strategy_signer, CoinStore<CoinType> {
+            coin: coin::zero<CoinType>()
+        });
     }
 
-    // helpers
-
-    /// deposit CoinType to user, register if necessary
-    /// @param user - the transaction signer
+    /// deposit CoinType into strategy account
+    /// @param strategy_cap - the StrategyCapability for the strategy account
     /// @param coins - the coins to deposit
-    public fun safe_deposit<CoinType>(user: &signer, coins: Coin<CoinType>) {
-        if (coin::is_account_registered<CoinType>(signer::address_of(user))) {
-            coin::deposit<CoinType>(signer::address_of(user), coins);
-        } else {
-            coin::register<CoinType>(user);
-            coin::deposit<CoinType>(signer::address_of(user), coins);
-        }
+    public(friend) fun deposit<StrategyType: drop, BaseCoin, CoinType>(
+        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
+        coins: Coin<CoinType>
+    )
+    acquires CoinStore {
+        let strategy_coin_account_address = strategy_account_address(strategy_cap);
+        let coin_store = borrow_global_mut<CoinStore<CoinType>>(strategy_coin_account_address);
+        coin::merge(&mut coin_store.coin, coins);
+    }
+
+    /// withdraw CoinType from strategy account
+    /// @param strategy_cap - the StrategyCapability for the strategy account
+    /// @param amount - the amount of CoinType to withdraw
+    public(friend) fun withdraw<StrategyType: drop, BaseCoin, CoinType>(
+        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
+        amount: u64
+    ): Coin<CoinType>
+    acquires CoinStore {
+        let strategy_coin_account_address = strategy_account_address(strategy_cap);
+        let coin_store = borrow_global_mut<CoinStore<CoinType>>(strategy_coin_account_address);
+        coin::extract(&mut coin_store.coin, amount)
     }
 
     // getters
 
     /// gets the address of the product account for BaseCoin
-    public fun strategy_account_address<StrategyType: drop, BaseCoin>(): address
-    acquires StrategyAccount {
-        assert_strategy_initialized<StrategyType, BaseCoin>();
-        let strategy_account = borrow_global<StrategyAccount<StrategyType, BaseCoin>>(@satay);
-        account::get_signer_capability_address(&strategy_account.signer_cap)
-    }
-
-    // access control
-
-    /// asserts that the transaction signer is the deployer of the module
-    /// @param deployer - must be the deployer of the package
-    fun assert_deployer(deployer: &signer) {
-        assert!(signer::address_of(deployer) == @satay, ERR_NOT_DEPLOYER);
-    }
-
-    fun assert_strategy_initialized<StrategyType: drop, BaseCoin>() {
-        assert!(exists<StrategyAccount<StrategyType, BaseCoin>>(@satay), ERR_NOT_INITIALIZED)
+    public fun strategy_account_address<StrategyType: drop, BaseCoin>(
+        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>
+    ): address {
+        account::get_signer_capability_address(&strategy_cap.signer_cap)
     }
 }

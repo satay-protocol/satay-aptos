@@ -3,11 +3,11 @@ module satay::base_strategy {
 
     use aptos_framework::coin::{Coin};
 
-    use satay_vault_coin::vault_coin::VaultCoin;
+    use satay_coins::vault_coin::VaultCoin;
+    use satay_coins::strategy_coin::StrategyCoin;
 
     use satay::vault::{Self, UserCapability, KeeperCapability, UserLiquidationLock, HarvestInfo};
     use satay::satay::{Self, VaultCapLock};
-    use satay::strategy_coin::StrategyCoin;
 
     // operation locks
 

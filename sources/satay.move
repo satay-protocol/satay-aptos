@@ -9,10 +9,16 @@ module satay::satay {
     use aptos_std::table::{Self, Table};
 
     use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::account::{Self, SignerCapability};
+
+    use satay_coins::vault_coin::VaultCoin;
 
     use satay::global_config;
     use satay::vault::{Self, VaultCapability, KeeperCapability, UserCapability};
-    use satay_vault_coin::vault_coin::VaultCoin;
+    use satay::satay_account;
+    use satay::strategy_coin;
+    use satay_coins::strategy_coin::StrategyCoin;
+    use satay::strategy_coin::StrategyCapability;
 
     friend satay::base_strategy;
 
@@ -29,6 +35,10 @@ module satay::satay {
 
     // structs
 
+    struct SatayAccount has key {
+        signer_cap: SignerCapability
+    }
+
     /// holds all VaultInfo resources in a table mapping vault_id to VaultInfo
     /// @field next_vault_id - id of the next vault created by new_vault
     /// @field vaults - mapping from vault_id to VaultInfo
@@ -41,6 +51,10 @@ module satay::satay {
     /// @field vault_cap - Option holding VaultCapability; needed to allow lending to strategies
     struct VaultInfo has store {
         vault_cap: Option<VaultCapability>,
+    }
+
+    struct StrategyInfo<phantom StrategyType: drop, phantom BaseCoin> has key {
+        strategy_cap: Option<StrategyCapability<StrategyType, BaseCoin>>
     }
 
     /// returned by lock_vault to ensure a subsequent call to unlock_vault with corresponding vault_id
@@ -60,7 +74,10 @@ module satay::satay {
             next_vault_id: 0,
         });
         global_config::initialize(satay);
-        vault::initialize(satay);
+        let signer_cap = satay_account::retrieve_signer_cap(satay);
+        move_to(satay, SatayAccount {
+            signer_cap
+        });
     }
 
     // governance functions
@@ -70,7 +87,7 @@ module satay::satay {
     /// @param management_fee - the vault's management fee in BPS, charged annually
     /// @param performance_fee - the vault's performance fee in bips, charged on profits
     public entry fun new_vault<BaseCoin>(governance: &signer, management_fee: u64, performance_fee: u64)
-    acquires ManagerAccount {
+    acquires ManagerAccount, SatayAccount {
         global_config::assert_governance(governance);
 
         assert_manager_initialized();
@@ -80,9 +97,12 @@ module satay::satay {
         let vault_id = account.next_vault_id;
         account.next_vault_id = account.next_vault_id + 1;
 
+        let satay_account = borrow_global<SatayAccount>(@satay);
+        let satay_account_signer = account::create_signer_with_capability(&satay_account.signer_cap);
+
         // create vault and add to manager vaults table
         let vault_cap = vault::new<BaseCoin>(
-            governance,
+            &satay_account_signer,
             vault_id,
             management_fee,
             performance_fee
@@ -95,6 +115,21 @@ module satay::satay {
                 vault_cap: option::some(vault_cap),
             }
         );
+    }
+
+    public fun new_strategy<StrategyType: drop, BaseCoin>(governance: &signer, witness: StrategyType)
+    acquires SatayAccount {
+        global_config::assert_governance(governance);
+        let satay_account = borrow_global<SatayAccount>(@satay);
+        let satay_account_signer = account::create_signer_with_capability(&satay_account.signer_cap);
+        let strategy_cap = strategy_coin::initialize<StrategyType, BaseCoin>(
+            &satay_account_signer,
+            signer::address_of(governance),
+            witness
+        );
+        move_to(&satay_account_signer, StrategyInfo<StrategyType, BaseCoin> {
+            strategy_cap: option::some(strategy_cap)
+        });
     }
 
     // vault manager fucntions
@@ -378,7 +413,86 @@ module satay::satay {
         unlock_vault<StrategyType, BaseCoin>(vault_cap, vault_cap_lock);
     }
 
+    // strategy coin functions
+
+    /// mint amount of StrategyCoin<StrategyType, BaseCoin>
+    /// @param amount - amount to mint
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_mint<StrategyType: drop, BaseCoin>(
+        amount: u64,
+        _witness: StrategyType
+    ): Coin<StrategyCoin<StrategyType, BaseCoin>>
+    acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<StrategyType, BaseCoin>>(
+            satay_account_address
+        );
+        strategy_coin::mint(option::borrow(&strategy_info.strategy_cap), amount)
+    }
+
+    /// burn amount of StrategyCoin<StrategyType, BaseCoin>
+    /// @param strategy_coins - Coin<StrategyCoin<StrategyType, BaseCoin>> to burn
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_burn<StrategyType: drop, BaseCoin>(
+        strategy_coins: Coin<StrategyCoin<StrategyType, BaseCoin>>,
+        _witness: StrategyType
+    ) acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<StrategyType, BaseCoin>>(
+            satay_account_address
+        );
+        strategy_coin::burn(option::borrow(&strategy_info.strategy_cap), strategy_coins);
+    }
+
+    /// create CoinStore<CoinType> for the strategy account
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_add_coin<StrategyType: drop, BaseCoin, CoinType>(
+        _witness: StrategyType
+    ) acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<StrategyType, BaseCoin>>(
+            satay_account_address
+        );
+        strategy_coin::add_coin<StrategyType, BaseCoin, CoinType>(option::borrow(&strategy_info.strategy_cap));
+    }
+
+    /// deposit amount of CoinType into the strategy account
+    /// @param coins - Coin<CoinType> to deposit
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_deposit<StrategyType: drop, BaseCoin, CoinType>(
+        coins: Coin<CoinType>,
+        _witness: StrategyType
+    ) acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<StrategyType, BaseCoin>>(
+            satay_account_address
+        );
+        strategy_coin::deposit<StrategyType, BaseCoin, CoinType>(option::borrow(&strategy_info.strategy_cap), coins);
+    }
+
+    /// withdraw amount of CoinType from the strategy account
+    /// @param amount - amount to withdraw
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_withdraw<StrategyType: drop, BaseCoin, CoinType>(
+        amount: u64,
+        _witness: StrategyType
+    ): Coin<CoinType> acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<StrategyType, BaseCoin>>(
+            satay_account_address
+        );
+        strategy_coin::withdraw<StrategyType, BaseCoin, CoinType>(option::borrow(&strategy_info.strategy_cap), amount)
+    }
+
     // getter functions
+
+    // satay account
+
+    /// gets the address of the satay account
+    public fun get_satay_account_address(): address acquires SatayAccount {
+        let satay_account = borrow_global<SatayAccount>(@satay);
+        account::get_signer_capability_address(&satay_account.signer_cap)
+    }
 
     // ManagerAccount fields
 
