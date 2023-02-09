@@ -17,19 +17,19 @@ module satay::strategy_coin {
 
     /// the strategy capability
     /// @param signer_cap - the StrategyCapability for the strategy account
-    struct StrategyCapability<phantom StrategyType, phantom BaseCoin> has store {
+    struct StrategyCapability<phantom BaseCoin, phantom StrategyType: drop> has store {
         signer_cap: SignerCapability
     }
 
-    /// the coin capabilities for StrategyCoin<StrategyType, BaseCoin>
+    /// the coin capabilities for StrategyCoin<BaseCoin, StrategyType>
     /// @param signer_cap - the signer capability for the strategy account
     /// @param mint_cap - the mint capability for the strategy coin
     /// @param burn_cap - the burn capability for the strategy coin
     /// @param freeze_cap - the freeze capability for the strategy coin
-    struct StrategyCoinCaps<phantom StrategyType: drop, phantom BaseCoin> has key {
-        mint_cap: MintCapability<StrategyCoin<StrategyType, BaseCoin>>,
-        burn_cap: BurnCapability<StrategyCoin<StrategyType, BaseCoin>>,
-        freeze_cap: FreezeCapability<StrategyCoin<StrategyType, BaseCoin>>
+    struct StrategyCoinCaps<phantom BaseCoin, phantom StrategyType: drop> has key {
+        mint_cap: MintCapability<StrategyCoin<BaseCoin, StrategyType>>,
+        burn_cap: BurnCapability<StrategyCoin<BaseCoin, StrategyType>>,
+        freeze_cap: FreezeCapability<StrategyCoin<BaseCoin, StrategyType>>
     }
 
     /// stores the coins for a strategy
@@ -42,11 +42,11 @@ module satay::strategy_coin {
 
     /// register the strategy coin and account
     /// @param strategy_manager - the transaction signer
-    public(friend) fun initialize<StrategyType: drop, BaseCoin>(
+    public(friend) fun initialize<BaseCoin, StrategyType: drop>(
         satay_account: &signer,
         strategy_manager_address: address,
         witness: StrategyType
-    ): StrategyCapability<StrategyType, BaseCoin> {
+    ): StrategyCapability<BaseCoin, StrategyType> {
         let strategy_struct = type_info::struct_name(&type_info::type_of<StrategyType>());
         let base_coin_symbol = coin::symbol<BaseCoin>();
 
@@ -62,7 +62,7 @@ module satay::strategy_coin {
             burn_cap,
             freeze_cap,
             mint_cap
-        ) = coin::initialize<StrategyCoin<StrategyType, BaseCoin>>(
+        ) = coin::initialize<StrategyCoin<BaseCoin, StrategyType>>(
             satay_account,
             name,
             symbol,
@@ -75,7 +75,7 @@ module satay::strategy_coin {
             signer_cap
         ) = account::create_resource_account(satay_account, *string::bytes(&symbol));
 
-        strategy_config::initialize<StrategyType, BaseCoin>(
+        strategy_config::initialize<BaseCoin, StrategyType>(
             &strategy_signer,
             strategy_manager_address,
             &witness
@@ -83,7 +83,7 @@ module satay::strategy_coin {
 
 
 
-        let strategy_coin_caps = StrategyCoinCaps<StrategyType, BaseCoin> {
+        let strategy_coin_caps = StrategyCoinCaps<BaseCoin, StrategyType> {
             mint_cap,
             burn_cap,
             freeze_cap
@@ -91,40 +91,40 @@ module satay::strategy_coin {
 
         move_to(&strategy_signer, strategy_coin_caps);
 
-        let strategy_cap = StrategyCapability<StrategyType, BaseCoin> {
+        let strategy_cap = StrategyCapability<BaseCoin, StrategyType> {
             signer_cap
         };
 
-        add_coin<StrategyType, BaseCoin, BaseCoin>(&strategy_cap);
+        add_coin<BaseCoin, StrategyType, BaseCoin>(&strategy_cap);
 
         strategy_cap
     }
 
     // mint and burn
 
-    /// mint amount of StrategyCoin<StrategyType, BaseCoin>
+    /// mint amount of StrategyCoin<BaseCoin, StrategyType>
     /// @param strategy_cap - the StrategyCapability for the strategy account
-    /// @param amount - the amount of StrategyCoin<StrategyType, BaseCoin> to mint
-    public(friend) fun mint<StrategyType: drop, BaseCoin>(
-        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
+    /// @param amount - the amount of StrategyCoin<BaseCoin, StrategyType> to mint
+    public(friend) fun mint<BaseCoin, StrategyType: drop>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>,
         amount: u64,
-    ): Coin<StrategyCoin<StrategyType, BaseCoin>>
+    ): Coin<StrategyCoin<BaseCoin, StrategyType>>
     acquires StrategyCoinCaps {
         let strategy_address = strategy_account_address(strategy_cap);
-        let strategy_coin_caps = borrow_global<StrategyCoinCaps<StrategyType, BaseCoin>>(strategy_address);
+        let strategy_coin_caps = borrow_global<StrategyCoinCaps<BaseCoin, StrategyType>>(strategy_address);
         coin::mint(amount, &strategy_coin_caps.mint_cap)
     }
 
-    /// burn amount of StrategyCoin<StrategyType, BaseCoin>
-    /// @param strategy_coins - the StrategyCoin<StrategyType, BaseCoin> to burn
+    /// burn amount of StrategyCoin<BaseCoin, StrategyType>
+    /// @param strategy_coins - the StrategyCoin<BaseCoin, StrategyType> to burn
     /// _witness - the witness for the strategy type
-    public(friend) fun burn<StrategyType: drop, BaseCoin>(
-        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
-        strategy_coins: Coin<StrategyCoin<StrategyType, BaseCoin>>
+    public(friend) fun burn<BaseCoin, StrategyType: drop>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>,
+        strategy_coins: Coin<StrategyCoin<BaseCoin, StrategyType>>
     )
     acquires StrategyCoinCaps {
         let strategy_address = strategy_account_address(strategy_cap);
-        let strategy_coin_caps = borrow_global<StrategyCoinCaps<StrategyType, BaseCoin>>(strategy_address);
+        let strategy_coin_caps = borrow_global<StrategyCoinCaps<BaseCoin, StrategyType>>(strategy_address);
         coin::burn(strategy_coins, &strategy_coin_caps.burn_cap);
     }
 
@@ -132,8 +132,8 @@ module satay::strategy_coin {
 
     /// creates a CoinStore<CoinType> in the strategy account
     /// @param strategy_cap - the StrategyCapability for the strategy account
-    public(friend) fun add_coin<StrategyType: drop, BaseCoin, CoinType>(
-        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>
+    public(friend) fun add_coin<BaseCoin, StrategyType: drop, CoinType>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>
     ) {
         let strategy_signer = account::create_signer_with_capability(&strategy_cap.signer_cap);
         move_to(&strategy_signer, CoinStore<CoinType> {
@@ -144,8 +144,8 @@ module satay::strategy_coin {
     /// deposit CoinType into strategy account
     /// @param strategy_cap - the StrategyCapability for the strategy account
     /// @param coins - the coins to deposit
-    public(friend) fun deposit<StrategyType: drop, BaseCoin, CoinType>(
-        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
+    public(friend) fun deposit<BaseCoin, StrategyType: drop, CoinType>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>,
         coins: Coin<CoinType>
     )
     acquires CoinStore {
@@ -157,8 +157,8 @@ module satay::strategy_coin {
     /// withdraw CoinType from strategy account
     /// @param strategy_cap - the StrategyCapability for the strategy account
     /// @param amount - the amount of CoinType to withdraw
-    public(friend) fun withdraw<StrategyType: drop, BaseCoin, CoinType>(
-        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>,
+    public(friend) fun withdraw<BaseCoin, StrategyType: drop, CoinType>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>,
         amount: u64
     ): Coin<CoinType>
     acquires CoinStore {
@@ -170,8 +170,8 @@ module satay::strategy_coin {
     // getters
 
     /// gets the address of the product account for BaseCoin
-    public fun strategy_account_address<StrategyType: drop, BaseCoin>(
-        strategy_cap: &StrategyCapability<StrategyType, BaseCoin>
+    public fun strategy_account_address<BaseCoin, StrategyType: drop>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>
     ): address {
         account::get_signer_capability_address(&strategy_cap.signer_cap)
     }

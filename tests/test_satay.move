@@ -12,7 +12,7 @@ module satay::test_satay {
     use satay_coins::vault_coin::VaultCoin;
 
     use satay::satay;
-    use satay::coins::{Self, USDT, BTC};
+    use satay::coins::{Self, USDT};
     use satay::vault::{Self};
     use satay::satay_account;
 
@@ -44,19 +44,17 @@ module satay::test_satay {
         coin::register<AptosCoin>(aptos_framework);
         satay_account::initialize_satay_account(
             satay,
-            x"0a5361746179436f696e73020000000000000000403130333837434146364441363631433033364236443031384642423035433530433231374130373745453136413043344338353633373844393938454533414297021f8b08000000000002ff2d903f6fc32010c5773e45e425536c30d8984a9d3a77ca184511704782621b0bb0db7cfb9ab6dbfd79ef774f7759b47dea3b5ec9ac273cbc1f8e679df5eb23f8391dc98631f9309731ab694d8f645dee5103de96307afbda17959fa6356b336245c84503444c09d395a4c2b9d9022a32facd1ce5928343c1ac108a1a66a5b14ab79c0288ce7568a1730cd5c006cd5bca15db0d52236b1903c50b1f703b012e3803ced663aa3fc386e70ca3375772f7b95c7ae4bca4b7a6d9dbc76a6a1ba6462f39a4d3a84dfa2f6d8858ef828a44dc8a093a6994341aa9e985e9991c7ae55ae7da1ea550d8513e8861107d45d26ac0c7e2f9434d7b82c6c5fd7b5f213e9bd29ed26fa2ea0739f85a445d010000020d73747261746567795f636f696ebf011f8b08000000000002ff4d8f410ec2201045f79c620e60d23d312ef4081ab7cd0863db4881c060429ade5d2068246c18fe7fffcf300c303ba323f04c103924c590226978ba00570ec834e58b5b2c94db34c898c1a37ae14462287e4ddeb85c2c8fdc1481a24b4111a0522e590615a860742534b7946f4c864755b0631789d5e9643abefd442963cf6f6fd8049453136bcabd225ab1892c8545f5f64dd417f9ef7ff4335a76eb6f78cb9e0ef09d9e3152959d60dbc52e3ebb49a3451801000000000a7661756c745f636f696eaf011f8b08000000000002ff4d8f310ec2300c45f79cc237c88e1003307002d6cab8a6ad48e32a7190aaaa77278922c0f2643fffff6dad859bb83e828e0c5143228514b987a704b863727a91c943ee0aa0e20a0bd20b0736361f5f7971b266feb156227094148801892479050a8c9af759a15e1f0eefa2da5196ed1a6466e9936bf27513ff31d80ce42a76c5e2976a60cf61a296bb42ed852f735c46f42a339c3172199c60dbcd6e3e1cb58cd7f900000000000000",
+            x"0a5361746179436f696e73020000000000000000403241383933453237324133313136324437393735414641464239344439333132453041413143323532424139353946393543323536453939343342373946434196021f8b08000000000002ff2d50bd6e833010defd14114ba6800163a052a7ce9d32465174679f132b80916d68f3f6b5db6ef7dd7d7fbacb0aea0977bab205663abc1f8e6788f0fa70760947b6930fd62d795d97bce447b6ad770f9a6eab9bac7aa54361e7798b8013158c5d406b4f2150b8b2907d6e2a1b651affeeb88151486839081c00476ca5a4bad502a996ad018d8d31bcefc4d0b4d874c2d4ed28fb5e0d409cab2efb6bda4f9a565a342dca52283fdd4ee7a8278b5776b731273d625cc35b5525f8d8b0546eae608d2e9c26c0f03f2ae7a94c848279dab348773d8e3da624940265dd0f7234a94e23a9172375bc1dc4300859b0b0a1b63e6bfeace6d4a0323e7defcbf96795e129fc362a7e00444fcab75d010000020d73747261746567795f636f696ec4011f8b08000000000002ff4d8f410ac3201045f79e620e50c85e4a17ed115aba0d539d26a14946742c48c8ddab62a0e2c6f1fff7ff745d0723cf36808c04417c3402319085377bb88b47a121dd785a21dfaa41c1040ecd0707525df65b7233a76c79a5aaf014387a4380c6705c058ca78cb18550dd5a7f31ced29b8ced9b482d6ce3dcf0f527681d5a7e7dc3a6209f9258529e05518b0db4929f4c6b5f456d91fffe6737e22abcc0150395c1098ec9217b24471aac6777816d57bbfa012fb975701e01000000000a7661756c745f636f696eaf011f8b08000000000002ff4d8f310ec2300c45f79cc237c88e1003307002d6cab8a6ad48e32a7190aaaa77278922c0f2643fffff6dad859bb83e828e0c5143228514b987a704b863727a91c943ee0aa0e20a0bd20b0736361f5f7971b266feb156227094148801892479050a8c9af759a15e1f0eefa2da5196ed1a6466e9936bf27513ff31d80ce42a76c5e2976a60cf61a296bb42ed852f735c46f42a339c3172199c60dbcd6e3e1cb58cd7f900000000000000",
             vector[
-                x"a11ceb0b0500000005010002020208070a270831200a5105000000010002000100010d73747261746567795f636f696e0c5374726174656779436f696e0b64756d6d795f6669656c641f0373dfe41c4490b1c7bc9a230dd45f5ecd5f1e9818a3203910377ae1211d93000201020100",
-                x"a11ceb0b05000000050100020202060708210829200a490500000001000100010a7661756c745f636f696e095661756c74436f696e0b64756d6d795f6669656c641f0373dfe41c4490b1c7bc9a230dd45f5ecd5f1e9818a3203910377ae1211d93000201020100"
+                x"a11ceb0b0500000005010002020208070a270831200a5105000000010002000102010d73747261746567795f636f696e0c5374726174656779436f696e0b64756d6d795f6669656c6450fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5000201020100",
+                x"a11ceb0b05000000050100020202060708210829200a490500000001000100010a7661756c745f636f696e095661756c74436f696e0b64756d6d795f6669656c6450fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5000201020100"
             ],
-
         );
         satay::initialize(satay);
         coins::register_coins(coins_manager);
 
         account::create_account_for_test(signer::address_of(user));
         coin::register<AptosCoin>(user);
-        coin::register<USDT>(user);
     }
 
     fun create_vault(
@@ -88,7 +86,6 @@ module satay::test_satay {
         aptos_coin::mint(aptos_framework, user_address, amount);
         satay::deposit<AptosCoin>(
             user,
-            0,
             amount
         );
     }
@@ -98,9 +95,8 @@ module satay::test_satay {
         satay: &signer,
     ) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        satay::test_approve_strategy<TestStrategy, AptosCoin>(
+        satay::test_approve_strategy<AptosCoin, TestStrategy>(
             satay,
-            0,
             DEBT_RATIO,
             TestStrategy {}
         );
@@ -134,7 +130,6 @@ module satay::test_satay {
             coins_manager,
             user
         );
-        satay::test_assert_manager_initialized();
     }
 
     #[test(
@@ -177,8 +172,7 @@ module satay::test_satay {
             user
         );
         create_vault(satay);
-        assert!(satay::get_next_vault_id() == 1, ERR_NEW_VAULT);
-        assert!(satay::get_total_assets<AptosCoin>(0) == 0, ERR_NEW_VAULT);
+        assert!(satay::get_total_assets<AptosCoin>() == 0, ERR_NEW_VAULT);
     }
 
     #[test(
@@ -251,16 +245,15 @@ module satay::test_satay {
         let management_fee = 1000;
         let performance_fee = 2000;
 
-        satay::update_vault_fee(
+        satay::update_vault_fee<AptosCoin>(
             satay,
-            0,
             management_fee,
             performance_fee
         );
 
-        let vault_cap = satay::open_vault(0);
+        let vault_cap = satay::test_lock_vault<AptosCoin>();
         let (management_fee_val, performance_fee_val) = vault::get_fees(&vault_cap);
-        satay::close_vault(0, vault_cap);
+        satay::test_unlock_vault(vault_cap);
 
         assert!(management_fee_val == management_fee, ERR_UPDATE_FEES);
         assert!(performance_fee_val == performance_fee, ERR_UPDATE_FEES);
@@ -289,9 +282,8 @@ module satay::test_satay {
         let management_fee = 1000;
         let performance_fee = 2000;
 
-        satay::update_vault_fee(
+        satay::update_vault_fee<AptosCoin>(
             user,
-            0,
             management_fee,
             performance_fee
         );
@@ -344,7 +336,6 @@ module satay::test_satay {
 
         satay::withdraw<AptosCoin>(
             user,
-            0,
             DEPOSIT_AMOUNT
         );
 
@@ -375,21 +366,20 @@ module satay::test_satay {
 
         user_deposit(aptos_framework, user);
 
-        let vault_cap = satay::open_vault(0);
+        let vault_cap = satay::test_lock_vault<AptosCoin>();
 
-        let credit = vault::credit_available<TestStrategy, AptosCoin>(&vault_cap);
-        let aptos = vault::test_withdraw_base_coin<TestStrategy, AptosCoin>(
+        let credit = vault::credit_available<AptosCoin, TestStrategy>(&vault_cap);
+        let aptos = vault::test_withdraw_base_coin<AptosCoin, TestStrategy>(
             &vault_cap,
             credit,
             &TestStrategy {}
         );
         coin::deposit(signer::address_of(aptos_framework), aptos);
 
-        satay::close_vault(0, vault_cap);
+        satay::test_unlock_vault<AptosCoin>(vault_cap);
 
         satay::withdraw<AptosCoin>(
             user,
-            0,
             DEPOSIT_AMOUNT
         );
     }
@@ -415,8 +405,8 @@ module satay::test_satay {
             user
         );
 
-        satay::freeze_vault(satay, 0);
-        assert!(satay::is_vault_frozen(0), ERR_FREEZE);
+        satay::freeze_vault<AptosCoin>(satay);
+        assert!(satay::is_vault_frozen<AptosCoin>(), ERR_FREEZE);
     }
 
     #[test(
@@ -439,7 +429,7 @@ module satay::test_satay {
             user
         );
 
-        satay::freeze_vault(user, 0);
+        satay::freeze_vault<AptosCoin>(user);
     }
 
     #[test(
@@ -461,9 +451,9 @@ module satay::test_satay {
             user
         );
 
-        satay::freeze_vault(satay, 0);
-        satay::unfreeze_vault(satay, 0);
-        assert!(!satay::is_vault_frozen(0), ERR_FREEZE);
+        satay::freeze_vault<AptosCoin>(satay);
+        satay::unfreeze_vault<AptosCoin>(satay);
+        assert!(!satay::is_vault_frozen<AptosCoin>(), ERR_FREEZE);
     }
 
     #[test(
@@ -486,8 +476,8 @@ module satay::test_satay {
             user
         );
 
-        satay::freeze_vault(satay, 0);
-        satay::unfreeze_vault(user, 0);
+        satay::freeze_vault<AptosCoin>(satay);
+        satay::unfreeze_vault<AptosCoin>(user);
     }
 
     #[test(
@@ -510,7 +500,7 @@ module satay::test_satay {
             user
         );
 
-        satay::freeze_vault(satay, 0);
+        satay::freeze_vault<AptosCoin>(satay);
 
         user_deposit(aptos_framework, user);
     }
@@ -536,11 +526,10 @@ module satay::test_satay {
 
         user_deposit(aptos_framework, user);
 
-        satay::freeze_vault(satay, 0);
+        satay::freeze_vault<AptosCoin>(satay);
 
         satay::withdraw<AptosCoin>(
             user,
-            0,
             DEPOSIT_AMOUNT
         );
 
@@ -566,8 +555,8 @@ module satay::test_satay {
             user
         );
 
-        satay::freeze_vault(satay, 0);
-        satay::unfreeze_vault(satay, 0);
+        satay::freeze_vault<AptosCoin>(satay);
+        satay::unfreeze_vault<AptosCoin>(satay);
 
         user_deposit(aptos_framework, user);
 
@@ -595,7 +584,7 @@ module satay::test_satay {
 
         approve_strategy(aptos_framework, satay);
 
-        assert!(satay::has_strategy<TestStrategy, AptosCoin>(0), ERR_APPROVE_STRATEGY);
+        assert!(satay::has_strategy<AptosCoin, TestStrategy>(), ERR_APPROVE_STRATEGY);
     }
 
     #[test(
@@ -617,13 +606,12 @@ module satay::test_satay {
             user
         );
 
-        satay::test_approve_strategy<TestStrategy2, AptosCoin>(
+        satay::test_approve_strategy<AptosCoin, TestStrategy2>(
             satay,
-            0,
             DEBT_RATIO,
             TestStrategy2 {}
         );
-        assert!(satay::has_strategy<TestStrategy2, AptosCoin>(0), ERR_APPROVE_STRATEGY);
+        assert!(satay::has_strategy<AptosCoin, TestStrategy2>(), ERR_APPROVE_STRATEGY);
     }
 
     #[test(
@@ -645,17 +633,10 @@ module satay::test_satay {
             user
         );
 
-        let (
-            vault_cap,
-            stop_handle
-        ) = satay::test_lock_vault<TestStrategy, AptosCoin>(
-            0,
+        let vault_cap = satay::test_strategy_lock_vault<AptosCoin, TestStrategy>(
             &TestStrategy {}
         );
-
-        satay::test_assert_vault_cap_and_stop_handle_match<TestStrategy>(&vault_cap, &stop_handle);
-
-        satay::test_unlock_vault<TestStrategy, AptosCoin>(vault_cap, stop_handle);
+        satay::test_strategy_unlock_vault<AptosCoin, TestStrategy>(vault_cap);
     }
 
     #[test(
@@ -677,30 +658,16 @@ module satay::test_satay {
             user
         );
 
-        satay::test_approve_strategy<TestStrategy2, AptosCoin>(
+        satay::test_approve_strategy<AptosCoin, TestStrategy2>(
             satay,
-            0,
             DEBT_RATIO,
             TestStrategy2 {}
         );
 
-        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy, AptosCoin>(
-            0,
-            &TestStrategy {}
-        );
-        satay::test_unlock_vault<TestStrategy, AptosCoin>(
-            vault_cap,
-            stop_handle
-        );
-
-        let (vault_cap, stop_handle) = satay::test_lock_vault<TestStrategy2, AptosCoin>(
-            0,
-            &TestStrategy2 {}
-        );
-        satay::test_unlock_vault<TestStrategy2, AptosCoin>(
-            vault_cap,
-            stop_handle
-        );
+        let vault_cap = satay::test_strategy_lock_vault<AptosCoin, TestStrategy>(&TestStrategy {});
+        satay::test_strategy_unlock_vault<AptosCoin, TestStrategy>(vault_cap, );
+        let vault_cap = satay::test_strategy_lock_vault<AptosCoin, TestStrategy2>(&TestStrategy2 {});
+        satay::test_strategy_unlock_vault<AptosCoin, TestStrategy2>(vault_cap, );
     }
 
 
@@ -724,14 +691,8 @@ module satay::test_satay {
             user
         );
 
-        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy2, AptosCoin>(
-            0,
-            &TestStrategy2 {}
-        );
-        satay::test_unlock_vault<TestStrategy2, AptosCoin>(
-            vault_cap,
-            vault_lock
-        )
+        let vault_cap = satay::test_strategy_lock_vault<AptosCoin, TestStrategy2>(&TestStrategy2 {});
+        satay::test_strategy_unlock_vault<AptosCoin, TestStrategy2>(vault_cap)
     }
 
     #[test(
@@ -754,29 +715,16 @@ module satay::test_satay {
             user
         );
 
-        satay::test_approve_strategy<TestStrategy2, BTC>(
+        satay::test_approve_strategy<AptosCoin, TestStrategy2>(
             satay,
-            0,
             DEBT_RATIO,
             TestStrategy2 {}
         );
 
-        let (vault_cap, vault_lock) = satay::test_lock_vault<TestStrategy, AptosCoin>(
-            0,
-            &TestStrategy {}
-        );
-        let (vault_cap_2, vault_lock_2) = satay::test_lock_vault<TestStrategy2, AptosCoin>(
-            0,
-            &TestStrategy2 {}
-        );
-        satay::test_unlock_vault<TestStrategy2, AptosCoin>(
-            vault_cap_2,
-            vault_lock_2,
-        );
-        satay::test_unlock_vault<TestStrategy, AptosCoin>(
-            vault_cap,
-            vault_lock
-        )
+        let vault_cap = satay::test_strategy_lock_vault<AptosCoin, TestStrategy>(&TestStrategy {});
+        let vault_cap_2 = satay::test_strategy_lock_vault<AptosCoin, TestStrategy2>(&TestStrategy2 {});
+        satay::test_strategy_unlock_vault<AptosCoin, TestStrategy2>(vault_cap_2);
+        satay::test_strategy_unlock_vault<AptosCoin, TestStrategy>(vault_cap);
     }
 
     #[test(
@@ -798,12 +746,11 @@ module satay::test_satay {
             user
         );
 
-        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy, AptosCoin>(
+        let keeper_cap = satay::test_keeper_lock_vault<AptosCoin, TestStrategy>(
             satay,
-            0,
             TestStrategy {}
         );
-        satay::test_keeper_unlock_vault<TestStrategy, AptosCoin>(keeper_cap, vault_cap_lock);
+        satay::test_keeper_unlock_vault<AptosCoin, TestStrategy>(keeper_cap);
     }
 
     #[test(
@@ -826,12 +773,11 @@ module satay::test_satay {
             user
         );
 
-        let (keeper_cap, vault_cap_lock) = satay::test_keeper_lock_vault<TestStrategy, AptosCoin>(
+        let keeper_cap = satay::test_keeper_lock_vault<AptosCoin, TestStrategy>(
             user,
-            0,
             TestStrategy {}
         );
-        satay::test_keeper_unlock_vault<TestStrategy, AptosCoin>(keeper_cap, vault_cap_lock);
+        satay::test_keeper_unlock_vault<AptosCoin, TestStrategy>(keeper_cap);
     }
 
     #[test(
@@ -853,12 +799,8 @@ module satay::test_satay {
             user
         );
 
-        let (user_cap, vault_cap_lock) = satay::test_user_lock_vault<TestStrategy, AptosCoin>(
-            satay,
-            0,
-            &TestStrategy {}
-        );
-        satay::test_user_unlock_vault<TestStrategy, AptosCoin>(user_cap, vault_cap_lock);
+        let user_cap = satay::test_user_lock_vault<AptosCoin>(satay, );
+        satay::test_user_unlock_vault<AptosCoin>(user_cap);
     }
 
     // test admin functions
@@ -882,9 +824,8 @@ module satay::test_satay {
         );
 
         let debt_ratio = 100;
-        satay::test_update_strategy_debt_ratio<TestStrategy, AptosCoin>(
+        satay::test_update_strategy_debt_ratio<AptosCoin, TestStrategy>(
             satay,
-            0,
             debt_ratio,
             TestStrategy {}
         );

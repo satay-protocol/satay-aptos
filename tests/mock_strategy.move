@@ -15,39 +15,37 @@ module satay::mock_strategy {
     struct MockStrategy has drop {}
 
     public fun initialize(satay: &signer) {
-        satay::new_strategy<MockStrategy, AptosCoin>(satay, MockStrategy {});
+        satay::new_strategy<AptosCoin, MockStrategy>(satay, MockStrategy {});
     }
 
-    public fun apply_position(aptos_coins: Coin<AptosCoin>): Coin<StrategyCoin<MockStrategy, AptosCoin>> {
+    public fun apply_position(aptos_coins: Coin<AptosCoin>): Coin<StrategyCoin<AptosCoin, MockStrategy>> {
         let aptos_value = coin::value(&aptos_coins);
-        satay::strategy_deposit<MockStrategy, AptosCoin, AptosCoin>(aptos_coins, MockStrategy {});
-        satay::strategy_mint<MockStrategy, AptosCoin>(aptos_value, MockStrategy {})
+        satay::strategy_deposit<AptosCoin, MockStrategy, AptosCoin>(aptos_coins, MockStrategy {});
+        satay::strategy_mint<AptosCoin, MockStrategy>(aptos_value, MockStrategy {})
     }
 
-    public fun liquidate_position(wrapped_aptos_coins: Coin<StrategyCoin<MockStrategy, AptosCoin>>): Coin<AptosCoin> {
+    public fun liquidate_position(wrapped_aptos_coins: Coin<StrategyCoin<AptosCoin, MockStrategy>>): Coin<AptosCoin> {
         let wrapped_aptos_value = coin::value(&wrapped_aptos_coins);
         satay::strategy_burn(wrapped_aptos_coins, MockStrategy {});
-        satay::strategy_withdraw<MockStrategy, AptosCoin, AptosCoin>(wrapped_aptos_value, MockStrategy {})
+        satay::strategy_withdraw<AptosCoin, MockStrategy, AptosCoin>(wrapped_aptos_value, MockStrategy {})
     }
 
-    public entry fun approve(governance: &signer, vault_id: u64, debt_ratio: u64, ) {
-        base_strategy::initialize<MockStrategy, AptosCoin>(
+    public entry fun approve(governance: &signer, debt_ratio: u64) {
+        base_strategy::approve_strategy<AptosCoin, MockStrategy>(
             governance,
-            vault_id,
             debt_ratio,
             MockStrategy {}
         );
     }
 
-    public entry fun harvest(keeper: &signer, vault_id: u64, ) {
-        let strategy_aptos_balance = get_strategy_aptos_balance(vault_id);
+    public entry fun harvest(keeper: &signer) {
+        let strategy_aptos_balance = get_strategy_aptos_balance();
 
         let (
             to_apply,
             harvest_lock
-        ) = base_strategy::open_vault_for_harvest<MockStrategy, AptosCoin>(
+        ) = base_strategy::open_vault_for_harvest<AptosCoin, MockStrategy>(
             keeper,
-            vault_id,
             strategy_aptos_balance,
             MockStrategy {}
         );
@@ -60,7 +58,7 @@ module satay::mock_strategy {
 
         if(profit > 0 || debt_payment > 0){
             let wrapped_aptos_to_liquidate = get_wrapped_amount_for_aptos_amount(profit + debt_payment);
-            let wrapped_aptos = base_strategy::withdraw_strategy_coin<MockStrategy, AptosCoin>(
+            let wrapped_aptos = base_strategy::withdraw_strategy_coin<AptosCoin, MockStrategy>(
                 &harvest_lock,
                 wrapped_aptos_to_liquidate,
             );
@@ -72,7 +70,7 @@ module satay::mock_strategy {
 
         let wrapped_aptos = apply_position(to_apply);
 
-        base_strategy::close_vault_for_harvest<MockStrategy, AptosCoin>(
+        base_strategy::close_vault_for_harvest<AptosCoin, MockStrategy>(
             harvest_lock,
             debt_payment_coins,
             profit_coins,
@@ -80,11 +78,10 @@ module satay::mock_strategy {
         );
     }
 
-    public entry fun withdraw_for_user(user: &signer, vault_id: u64, share_amount: u64) {
+    public entry fun withdraw_for_user(user: &signer, share_amount: u64) {
         let vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, share_amount);
-        let user_withdraw_lock = base_strategy::open_vault_for_user_withdraw<MockStrategy, AptosCoin>(
+        let user_withdraw_lock = base_strategy::open_vault_for_user_withdraw<AptosCoin, MockStrategy>(
             user,
-            vault_id,
             vault_coins,
             MockStrategy {}
         );
@@ -94,7 +91,7 @@ module satay::mock_strategy {
         let to_return = coin::zero<AptosCoin>();
         if(amount_needed > 0){
             let wrapped_aptos_to_withdraw = get_wrapped_amount_for_aptos_amount(amount_needed);
-            let wrapped_aptos = base_strategy::withdraw_strategy_coin_for_liquidation<MockStrategy, AptosCoin>(
+            let wrapped_aptos = base_strategy::withdraw_strategy_coin_for_liquidation<AptosCoin, MockStrategy>(
                 &user_withdraw_lock,
                 wrapped_aptos_to_withdraw,
             );
@@ -102,33 +99,31 @@ module satay::mock_strategy {
             coin::merge(&mut to_return, aptos_to_return);
         };
 
-        base_strategy::close_vault_for_user_withdraw<MockStrategy, AptosCoin>(
+        base_strategy::close_vault_for_user_withdraw<AptosCoin, MockStrategy>(
             user_withdraw_lock,
             to_return,
         );
     }
 
     // update the strategy debt ratio
-    public entry fun update_debt_ratio(vault_manager: &signer, vault_id: u64, debt_ratio: u64) {
-        base_strategy::update_debt_ratio<MockStrategy, AptosCoin>(
+    public entry fun update_debt_ratio(vault_manager: &signer, debt_ratio: u64) {
+        base_strategy::update_debt_ratio<AptosCoin, MockStrategy>(
             vault_manager,
-            vault_id,
             debt_ratio,
             MockStrategy {}
         );
     }
 
-    public entry fun revoke(vault_manager: &signer, vault_id: u64) {
-        base_strategy::revoke_strategy<MockStrategy, AptosCoin>(
+    public entry fun revoke(vault_manager: &signer) {
+        base_strategy::revoke_strategy<AptosCoin, MockStrategy>(
             vault_manager,
-            vault_id,
             MockStrategy {}
         );
-        harvest(vault_manager, vault_id);
+        harvest(vault_manager);
     }
 
-    fun get_strategy_aptos_balance(vault_id: u64): u64 {
-        let wrapped_balance = satay::get_vault_balance<StrategyCoin<MockStrategy, AptosCoin>>(vault_id);
+    fun get_strategy_aptos_balance(): u64 {
+        let wrapped_balance = satay::get_vault_balance<AptosCoin, StrategyCoin<AptosCoin, MockStrategy>>();
         get_aptos_amount_for_wrapped_amount(wrapped_balance)
     }
 
