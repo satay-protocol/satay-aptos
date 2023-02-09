@@ -21,14 +21,9 @@ module satay::satay {
 
     // error codes
 
-    /// when the transaction signer does not have enough privileges
-    const ERR_NOT_DEPLOYER: u64 = 1;
-    /// when  is not initialized
-    const ERR_MANAGER: u64 = 2;
+
     /// when StrategyType is not approved for a vault
-    const ERR_STRATEGY: u64 = 3;
-    /// when the vault id of VaultCapability and VaultCapLock do not match
-    const ERR_VAULT_CAP: u64 = 4;
+    const ERR_STRATEGY: u64 = 1;
 
     // structs
 
