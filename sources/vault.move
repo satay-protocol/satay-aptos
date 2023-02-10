@@ -78,14 +78,14 @@ module satay::vault {
     }
 
     /// holds the information about a vault
-    /// management_fee: u64 - in BPS
-    /// performance_fee: u64 - in BPS
-    /// debt_ratio: u64 - in BPS
-    /// total_debt: u64 - same decimals as BaseCoin
-    /// deposits_frozen: bool
-    /// user_deposit_events: EventHandle<UserDepositEvent>
-    /// update_fees_events: EventHandle<UpdateFeesEvent>
-    /// freeze_events: EventHandle<FreezeEvent>
+    /// * management_fee: u64 - in BPS
+    /// * performance_fee: u64 - in BPS
+    /// * debt_ratio: u64 - in BPS
+    /// * total_debt: u64 - same decimals as BaseCoin
+    /// * deposits_frozen: bool
+    /// * user_deposit_events: EventHandle<UserDepositEvent>
+    /// * update_fees_events: EventHandle<UpdateFeesEvent>
+    /// * freeze_events: EventHandle<FreezeEvent>
     struct Vault<phantom BaseCoin> has key {
         management_fee: u64,
         performance_fee: u64,
@@ -99,9 +99,9 @@ module satay::vault {
     }
 
     /// holds the Coin capabilities for each VaultCoin<BaseCoin>; stored on the Vault<BaseCoin> resource account
-    /// mint_cap: MintCapability<VaultCoin<BaseCoin>>
-    /// freeze_cap: FreezeCapability<VaultCoin<BaseCoin>>
-    /// burn_cap: BurnCapability<VaultCoin<BaseCoin>>
+    /// * mint_cap: MintCapability<VaultCoin<BaseCoin>>
+    /// * freeze_cap: FreezeCapability<VaultCoin<BaseCoin>>
+    /// * burn_cap: BurnCapability<VaultCoin<BaseCoin>>
     struct VaultCoinCaps<phantom BaseCoin> has key {
         mint_cap: MintCapability<VaultCoin<BaseCoin>>,
         freeze_cap: FreezeCapability<VaultCoin<BaseCoin>>,
@@ -109,17 +109,17 @@ module satay::vault {
     }
 
     /// holds the information about a strategy approved on a vault
-    /// debt_ratio: u64 - in BPS
-    /// total_debt: u64 - same decimals as BaseCoin
-    /// total_gain: u64 - same decimals as BaseCoin
-    /// total_loss: u64 - same decimals as BaseCoin
-    /// last_report: u64 - timestamp
-    /// debt_ratio_change_events: EventHandle<DebtRatioChangeEvent>
-    /// debt_change_events: EventHandle<DebtChangeEvent>
-    /// gain_events: EventHandle<GainEvent>
-    /// loss_events: EventHandle<LossEvent>
-    /// harvest_events: EventHandle<HarvestEvent>
-    /// assess_fees_events: EventHandle<AssessFeesEvent>
+    /// * debt_ratio: u64 - in BPS
+    /// * total_debt: u64 - same decimals as BaseCoin
+    /// * total_gain: u64 - same decimals as BaseCoin
+    /// * total_loss: u64 - same decimals as BaseCoin
+    /// * last_report: u64 - timestamp
+    /// * debt_ratio_change_events: EventHandle<DebtRatioChangeEvent>
+    /// * debt_change_events: EventHandle<DebtChangeEvent>
+    /// * gain_events: EventHandle<GainEvent>
+    /// * loss_events: EventHandle<LossEvent>
+    /// * harvest_events: EventHandle<HarvestEvent>
+    /// * assess_fees_events: EventHandle<AssessFeesEvent>
     struct VaultStrategy<phantom StrategyType, phantom BaseCoin> has key, store {
         debt_ratio: u64,
         total_debt: u64,
@@ -137,28 +137,28 @@ module satay::vault {
     // capabilities
 
     /// capability to perform vault operations
-    /// signer_cap: SignerCapability - for the Vault<BaseCoin> resource account
+    /// * signer_cap: SignerCapability - for the Vault<BaseCoin> resource account
     struct VaultCapability<phantom BaseCoin> has store {
         signer_cap: SignerCapability,
     }
 
     /// capability to perform vault manager operations
-    /// vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
     struct VaultManagerCapability<phantom BaseCoin> {
         vault_cap: VaultCapability<BaseCoin>
     }
 
     /// capability to perform keeper operations
-    /// vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
-    /// witness: StrategyType - used for witness pattern
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * witness: StrategyType - used for witness pattern
     struct KeeperCapability<phantom BaseCoin, StrategyType: drop> {
         vault_cap: VaultCapability<BaseCoin>,
         witness: StrategyType
     }
 
     /// capability to perform user operations
-    /// vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
-    /// user_addr: address
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * user_addr: address
     struct UserCapability<phantom BaseCoin> {
         vault_cap: VaultCapability<BaseCoin>,
         user_addr: address,
@@ -167,16 +167,16 @@ module satay::vault {
     // strategy operation locks
 
     /// enforces properties of user liquidation
-    /// vault_coins: Coin<VaultCoin<BaseCoin>> - the vault coins to liquidate
-    /// amount_needed: u64 - the amount of BaseCoin needed to liquidate
+    /// * vault_coins: Coin<VaultCoin<BaseCoin>> - the vault coins to liquidate
+    /// * amount_needed: u64 - the amount of BaseCoin needed to liquidate
     struct UserLiquidationLock<phantom BaseCoin> {
         vault_coins: Coin<VaultCoin<BaseCoin>>,
         amount_needed: u64,
     }
 
     /// enforces properties of harvest
-    /// profit: u64 - the amount of BaseCoin profit to return
-    /// debt_payment: u64 - the amount of BaseCoin debt payment to return
+    /// * profit: u64 - the amount of BaseCoin profit to return
+    /// * debt_payment: u64 - the amount of BaseCoin debt payment to return
     struct HarvestInfo {
         profit: u64,
         debt_payment: u64,
@@ -187,13 +187,13 @@ module satay::vault {
     // coin store events
 
     /// event emitted when a coin is deposited to a CoinStore
-    /// amount: u64
+    /// * amount: u64
     struct DepositEvent has drop, store {
         amount: u64,
     }
 
     /// event emitted when a coin is withdrawn from a CoinStore
-    /// amount: u64
+    /// * amount: u64
     struct WithdrawEvent has drop, store {
         amount: u64,
     }
@@ -201,9 +201,9 @@ module satay::vault {
     // vault events
 
     /// event emitted when a user deposits to a vault
-    /// user_addr: address
-    /// base_coin_amount: u64 - the amount of the base coin deposited
-    /// vault_coin_amount: u64 - the amount of the vault coin minted
+    /// * user_addr: address
+    /// * base_coin_amount: u64 - the amount of the base coin deposited
+    /// * vault_coin_amount: u64 - the amount of the vault coin minted
     struct UserDepositEvent has drop, store {
         user_addr: address,
         base_coin_amount: u64,
@@ -211,9 +211,9 @@ module satay::vault {
     }
 
     /// event emitted when a user withdraws from a vault
-    /// user_addr: address
-    /// base_coin_amount: u64 - the amount of the base coin withdrawn
-    /// vault_coin_amount: u64 - the amount of the vault coin burned
+    /// * user_addr: address
+    /// * base_coin_amount: u64 - the amount of the base coin withdrawn
+    /// * vault_coin_amount: u64 - the amount of the vault coin burned
     struct UserWithdrawEvent has drop, store {
         user_addr: address,
         base_coin_amount: u64,
@@ -221,15 +221,15 @@ module satay::vault {
     }
 
     /// event emitted when the fees of a vault are updated
-    /// management_fee: u64 - in BPS
-    /// performance_fee: u64 - in BPS
+    /// * management_fee: u64 - in BPS
+    /// * performance_fee: u64 - in BPS
     struct UpdateFeesEvent has drop, store {
         management_fee: u64,
         performance_fee: u64,
     }
 
     /// event emitted when the deposits of a vault are frozen or unfrozen
-    /// frozen: bool - true if frozen, false if unfrozen
+    /// * frozen: bool - true if frozen, false if unfrozen
     struct FreezeEvent has drop, store {
         frozen: bool,
     }
@@ -237,39 +237,39 @@ module satay::vault {
     // vault strategy events
 
     /// event emitted when the debt ratio of a strategy is changed
-    /// debt_ratio: u64 - in BPS
+    /// * debt_ratio: u64 - in BPS
     struct DebtRatioChangeEvent has drop, store {
         debt_ratio: u64,
     }
 
     /// event emitted when the debt of a strategy is changed
-    /// debt_payment: u64 - the amount of debt paid
-    /// credit: u64 - the amount of debt added
+    /// * debt_payment: u64 - the amount of debt paid
+    /// * credit: u64 - the amount of debt added
     struct DebtChangeEvent has drop, store {
         debt_payment: u64,
         credit: u64,
     }
 
     /// event emitted when a strategy realizes a profit
-    /// gain: u64 - the amount of profit
+    /// * gain: u64 - the amount of profit
     struct GainEvent has drop, store {
         gain: u64,
     }
 
     /// event emitted when a strategy realizes a loss
-    /// loss: u64 - the amount of loss
+    /// * loss: u64 - the amount of loss
     struct LossEvent has drop, store {
         loss: u64,
     }
 
     /// event emitted when a strategy is harvested
-    /// timestamp: u64 - the timestamp of the harvest
+    /// * timestamp: u64 - the timestamp of the harvest
     struct HarvestEvent has drop, store {
         timestamp: u64,
     }
 
     /// event emitted when fees are assessed on a strategy
-    /// vault_coin_amount: u64 - the amount of vault coins minted for fees
+    /// * vault_coin_amount: u64 - the amount of vault coins minted for fees
     struct AssessFeesEvent has drop, store {
         vault_coin_amount: u64
     }
@@ -277,8 +277,8 @@ module satay::vault {
     // capability creation
 
     /// creates a VaultManagerCapability<BaseCoin> from a VaultCapability<BaseCoin>
-    /// vault_manager: signer - must be the vault manager of Vault<BaseCoin>
-    /// vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * vault_manager: signer - must be the vault manager of Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
     public(friend) fun get_vault_manager_capability<BaseCoin>(
         vault_manager: &signer,
         vault_cap: VaultCapability<BaseCoin>
@@ -289,7 +289,7 @@ module satay::vault {
     }
 
     /// destroys a VaultManagerCapability<BaseCoin>
-    /// vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
     public(friend) fun destroy_vault_manager_capability<BaseCoin>(
         vault_manager_cap: VaultManagerCapability<BaseCoin>
     ): VaultCapability<BaseCoin> {
@@ -300,9 +300,9 @@ module satay::vault {
     }
 
     /// creates a KeeperCapability to access Vault<BaseCoin> from StrategyType
-    /// keeper: signer - must be a keeper of StrategyType on Vault<BaseCoin>
-    /// vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
-    /// witness: StrategyType - proves that function is invoked by module of StrategyType
+    /// * keeper: signer - must be a keeper of StrategyType on Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * witness: StrategyType - proves that function is invoked by module of StrategyType
     public(friend) fun get_keeper_capability<BaseCoin, StrategyType: drop>(
         keeper: &signer,
         vault_cap: VaultCapability<BaseCoin>,
@@ -317,7 +317,7 @@ module satay::vault {
     }
 
     /// destroys a KeeperCapability<BaseCoin, StrategyType>
-    /// keeper_cap: KeeperCapability<BaseCoin, StrategyType> - for Vault<BaseCoin>
+    /// * keeper_cap: KeeperCapability<BaseCoin, StrategyType> - for Vault<BaseCoin>
     public(friend) fun destroy_keeper_capability<BaseCoin, StrategyType: drop>(
         keeper_cap: KeeperCapability<BaseCoin, StrategyType>
     ): VaultCapability<BaseCoin> {
@@ -329,8 +329,8 @@ module satay::vault {
     }
 
     /// creates a UserCapability<BaseCoin> for Vault<BaseCoin>
-    /// user: signer
-    /// vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * user: signer
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
     public(friend) fun get_user_capability<BaseCoin>(
         user: &signer,
         vault_cap: VaultCapability<BaseCoin>
@@ -342,7 +342,7 @@ module satay::vault {
     }
 
     /// destroys a UserCapability
-    /// @param user_cap - a UserCapability
+    /// * user_cap: UserCapability<BaseCoin> - for Vault<BaseCoin>
     public(friend) fun destroy_user_capability<BaseCoin>(
         user_cap: UserCapability<BaseCoin>
     ): (VaultCapability<BaseCoin>, address) {
@@ -355,11 +355,10 @@ module satay::vault {
 
     // governance functions
 
-    /// creates a new vault for BaseCoin with the given management and performance fees
-    /// @param governance - the transaction signer; must be the governance account
-    /// @param vault_id - the id of the vault
-    /// @param management_fee - the management fee of the vault in BPS
-    /// @param performance_fee - the performance fee of the vault in BPS
+    /// creates a new Vault<BaseCoin> with the given management and performance fees
+    /// * satay_coins_account: signer - must be the satay_coins deployer
+    /// * management_fee: u64 - in BPS
+    /// * performance_fee: u64 - in BPS
     public(friend) fun new<BaseCoin>(
         satay_coins_account: &signer,
         management_fee: u64,
@@ -427,9 +426,9 @@ module satay::vault {
 
     // user functions
 
-    /// deposits BaseCoin into the vault and returns VaultCoin<BaseCoin>
-    /// @param user_cap - a UserCapability
-    /// @param base_coins - the Coin<BaseCoin> to deposit
+    /// deposits BaseCoin into Vault<BaseCoin> and returns VaultCoin<BaseCoin>
+    /// * user_cap: UserCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * base_coins: Coin<BaseCoin> - the BaseCoin to deposit
     public(friend) fun deposit_as_user<BaseCoin>(
         user_cap: &UserCapability<BaseCoin>,
         base_coins: Coin<BaseCoin>
@@ -459,9 +458,9 @@ module satay::vault {
         coin::mint<VaultCoin<BaseCoin>>(vault_coin_amount, &caps.mint_cap)
     }
 
-    /// burns VaultCoin<BaseCoin> and withdraws BaseCoin from the vault
-    /// @param user_cap - a UserCapability
-    /// @param vault_coins - the Coin<VaultCoin<BaseCoin>> to burn
+    /// burns VaultCoin<BaseCoin> and withdraws BaseCoin from Vault<BaseCoin>
+    /// * user_cap: UserCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * vault_coins: Coin<VaultCoin<BaseCoin>> - the VaultCoin<BaseCoin> to burn
     public(friend) fun withdraw_as_user<BaseCoin>(
         user_cap: &UserCapability<BaseCoin>,
         vault_coins: Coin<VaultCoin<BaseCoin>>
@@ -488,9 +487,9 @@ module satay::vault {
         withdraw(vault_cap, base_coin_amount)
     }
 
-    /// get the amount of BaseCoin needed for liquidation of VaultCoin<BaseCoin>
-    /// @param vault_cap - the VaultCapability of the vault
-    /// @param vault_coins - a reference to the Coin<VaultCoin<BaseCoin>> to liquidate
+    /// store Coin<VaultCoin<BaseCoin>> to liquidate and calculate the amount of BaseCoin needed for liquidation
+    /// * user_cap: UserCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * vault_coins: Coin<VaultCoin<BaseCoin>> - the VaultCoin<BaseCoin> to liquidate
     public(friend) fun get_liquidation_lock<BaseCoin, StrategyType: drop>(
         user_cap: &UserCapability<BaseCoin>,
         vault_coins: Coin<VaultCoin<BaseCoin>>
@@ -515,10 +514,10 @@ module satay::vault {
         }
     }
 
-    /// withdraws StrategyCoin for user liquidation
-    /// @param user_cap - a UserCapability
-    /// @param strategy_coin_amount - the amount of StrategyCoin to withdraw
-    /// @param _witness - a reference to a StrategyType instance
+    /// withdraws StrategyCoin<BaseCoin, StrategyType> for user liquidation
+    /// * user_cap: UserCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * strategy_coin_amount: u64
+    /// * _witness: &StrategyType - witness pattern
     public(friend) fun withdraw_strategy_coin_for_liquidation<BaseCoin, StrategyType: drop>(
         user_cap: &UserCapability<BaseCoin>,
         strategy_coin_amount: u64,
@@ -539,11 +538,11 @@ module satay::vault {
         )
     }
 
-    /// deposits BaseCoin debt from StrategyType to vault and liquidates VaultCoin<BaseCoin> for user
-    /// @param user_cap - a UserCapability
-    /// @param base_coins - the Coin<BaseCoin> debt to deposit
-    /// @param user_liq_lock - the UserLiquidationLock<BaseCoin> to liquidate
-    /// @param witness - a reference to a StrategyType instance
+    /// deposits BaseCoin debt from StrategyType to Vault<BaseCoin> and liquidates VaultCoin<BaseCoin> for user
+    /// * user_cap: UserCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * base_coins: Coin<BaseCoin> - the BaseCoin debt to repay
+    /// * user_liq_lock: UserLiquidationLock<BaseCoin> - holds VaultCoin<BaseCoin> to liquidate and debt amount needed
+    /// * witness: &StrategyType - witness pattern
     public(friend) fun user_liquidation<BaseCoin, StrategyType: drop>(
         user_cap: &UserCapability<BaseCoin>,
         base_coins: Coin<BaseCoin>,
@@ -566,10 +565,10 @@ module satay::vault {
 
     // vault manager functions
 
-    /// updates the vault's management and performance fees
-    /// @param vault_manager_cap - a VaultManagerCapability
-    /// @param management_fee - the new management fee
-    /// @param performance_fee - the new performance fee
+    /// updates Vault<BaseCoin> performance and management fees
+    /// * vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * management_fee: u64 - in BPS
+    /// * performance_fee: u64 - in BPS
     public(friend) fun update_fee<BaseCoin>(
         vault_manager_cap: &VaultManagerCapability<BaseCoin>,
         management_fee: u64,
@@ -589,8 +588,8 @@ module satay::vault {
         });
     }
 
-    /// freezes the vault's deposits
-    /// @param vault_manager_cap - a VaultManagerCapability
+    /// freezes deposits to Vault<BaseCoin>
+    /// * vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
     public(friend) fun freeze_vault<BaseCoin>(vault_manager_cap: &VaultManagerCapability<BaseCoin>)
     acquires Vault {
         assert_vault_active(&vault_manager_cap.vault_cap);
@@ -602,8 +601,8 @@ module satay::vault {
         });
     }
 
-    /// unfreezes the vault's deposits
-    /// @param vault_manager_cap - a VaultManagerCapability
+    /// unfreezes deposits to Vault<BaseCoin>
+    /// * vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
     public(friend) fun unfreeze_vault<BaseCoin>(vault_manager_cap: &VaultManagerCapability<BaseCoin>)
     acquires Vault {
         assert_vault_not_active(&vault_manager_cap.vault_cap);
@@ -615,10 +614,10 @@ module satay::vault {
         });
     }
 
-    /// approves StrategyType for vault
-    /// @param vault_manager_cap - a VaultManagerCapability
-    /// @param debt_ratio - the initial debt ratio for the strategy
-    /// @param witness - a reference to a StrategyType instance
+    /// approves StrategyType for Vault<BaseCoin>
+    /// * vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * debt_ratio: u64 - in BPS
+    /// * witness: &StrategyType - witness pattern
     public(friend) fun approve_strategy<BaseCoin, StrategyType: drop>(
         vault_manager_cap: &VaultManagerCapability<BaseCoin>,
         debt_ratio: u64,
@@ -667,10 +666,10 @@ module satay::vault {
         vault.debt_ratio = vault.debt_ratio + debt_ratio;
     }
 
-    /// updates the debt ratio for StrategyType
-    /// @param vault_manager_cap - a VaultManagerCapability
-    /// @param debt_ratio - the new debt ratio for the strategy
-    /// @param witness - a reference to a StrategyType instance
+    /// updates the debt ratio for StrategyType on Vault<BaseCoin>
+    /// * vault_manager_cap: VaultManagerCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * debt_ratio: u64 - in BPS
+    /// * _witness: &StrategyType - witness pattern
     public(friend) fun update_strategy_debt_ratio<BaseCoin, StrategyType: drop>(
         vault_manager_cap: &VaultManagerCapability<BaseCoin>,
         debt_ratio: u64,
@@ -699,9 +698,9 @@ module satay::vault {
 
     // for keeper
 
-    /// deposits a strategy coin into the vault
-    /// @param keeper_cap - a KeeperCapability
-    /// @param strategy_coin - the Coin<StrategyCoin> to deposit
+    /// deposits StrategyCoin<BaseCoin, StrategyType> into Vault<BaseCoin>
+    /// * keeper_cap: KeeperCapability<BaseCoin, StrategyType> - for Vault<BaseCoin>
+    /// * strategy_coin: Coin<StrategyCoin<BaseCoin, StrategyType>>
     public(friend) fun deposit_strategy_coin<BaseCoin, StrategyType: drop>(
         keeper_cap: &KeeperCapability<BaseCoin, StrategyType>,
         strategy_coin: Coin<StrategyCoin<BaseCoin, StrategyType>>,
@@ -711,9 +710,9 @@ module satay::vault {
         deposit(vault_cap, strategy_coin);
     }
 
-    /// withdraws a strategy coin from the vault
-    /// @param keeper_cap - a KeeperCapability
-    /// @param strategy_coin_amount - the amount of StrategyCoin to withdraw
+    /// withdraws StrategyCoin<BaseCoin, StrategyType> from Vault<BaseCoin>
+    /// * keeper_cap: KeeperCapability<BaseCoin, StrategyType> - for Vault<BaseCoin>
+    /// * strategy_coin_amount: u64 - amount of StrategyCoin<BaseCoin, StrategyType> to withdraw
     public(friend) fun withdraw_strategy_coin<BaseCoin, StrategyType: drop>(
         keeper_cap: &KeeperCapability<BaseCoin, StrategyType>,
         strategy_coin_amount: u64,
@@ -733,9 +732,10 @@ module satay::vault {
         )
     }
 
-    /// updates the debt reporting for the vault and StrategyType, returns the Coin<BaseCoin> to apply in the strategy and the profit/loss since the last harvest
-    /// @param keeper_cap - a KeeperCapability
-    /// @param strategy_balance - the current BaseCoin balance of the strategy
+    /// updates the debt reporting for the Vault<BaseCoin> and VaultStrategy<BaseCoin, StrategyType>
+    /// returns the Coin<BaseCoin> to apply in the strategy and the profit/loss since the last harvest
+    /// * keeper_cap: KeeperCapability<BaseCoin, StrategyType> - for Vault<BaseCoin>
+    /// * strategy_balance: u64 - BaseCoin balance of StrategyType
     public(friend) fun process_harvest<BaseCoin, StrategyType: drop>(
         keeper_cap: &KeeperCapability<BaseCoin, StrategyType>,
         strategy_balance: u64,
@@ -780,11 +780,11 @@ module satay::vault {
         })
     }
 
-    /// destroys the harvest info, ensuring that the debt payment and profit are correct
-    /// @param keeper_capability - a KeeperCapability
-    /// @param harvest_info - the HarvestInfo to destroy
-    /// @param debt_payment_coins - the Coin<BaseCoin> debt payment to deposit
-    /// @param profit_coins - the Coin<BaseCoin> profit to deposit
+    /// destroys the harvest info, ensures that the debt payment and profit are correct
+    /// * keeper_cap: KeeperCapability<BaseCoin, StrategyType> - for Vault<BaseCoin>
+    /// * harvest_info: HarvestInfo - holds the expected debt payment and profit
+    /// * debt_payment_coins: Coin<BaseCoin> - the debt repayment
+    /// * profit_coins: Coin<BaseCoin> - the profit to deposit
     public(friend) fun destroy_harvest_info<BaseCoin, StrategyType: drop>(
         keeper_cap: &KeeperCapability<BaseCoin, StrategyType>,
         harvest_info: HarvestInfo,
@@ -803,58 +803,18 @@ module satay::vault {
         deposit_profit(keeper_cap, profit_coins);
     }
 
-    /// calculates the profit, loss, and debt payment for a harvest
-    /// @param vault_cap - the VaultCapability of the vault
-    /// @param strategy_balance - the current BaseCoin balance of the strategy
-    fun prepare_return<BaseCoin, StrategyType: drop>(
-        vault_cap: &VaultCapability<BaseCoin>,
-        strategy_balance: u64
-    ): (u64, u64, u64)
-    acquires VaultStrategy, Vault, CoinStore {
-
-        // get amount of strategy debt over limit
-        let debt_out_standing = debt_out_standing<BaseCoin, StrategyType>(vault_cap);
-        let debt_payment: u64;
-        if (strategy_balance > debt_out_standing) {
-            debt_payment = debt_out_standing;
-            strategy_balance = strategy_balance - debt_payment;
-        } else {
-            debt_payment = strategy_balance;
-            strategy_balance = 0;
-        };
-
-        // calculate profit and loss
-        let profit = 0;
-        let loss = 0;
-
-        // strategy's total debt
-        let total_debt = total_debt<BaseCoin, StrategyType>(vault_cap);
-
-        total_debt = total_debt - debt_payment;
-
-        if (strategy_balance > total_debt) {
-            profit = strategy_balance - total_debt;
-        } else {
-            loss = total_debt - strategy_balance;
-        };
-
-        (profit, loss, debt_payment)
-    }
-
-
-
     // getters
 
     // vault fields
 
-    /// returns the address of the vault
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns the address of the Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun get_vault_address<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>): address {
         account::get_signer_capability_address(&vault_cap.signer_cap)
     }
 
-    /// returns the performance and management fee of the vault
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns (management_fee, performance_fee) of Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun get_fees<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>): (u64, u64)
     acquires Vault {
         let vault_address = get_vault_address(vault_cap);
@@ -862,8 +822,8 @@ module satay::vault {
         (vault.management_fee, vault.performance_fee)
     }
 
-    /// returns whether the vault is frozen for deposits
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns whether Vault<BaseCoin> is frozen for deposits
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun is_vault_frozen<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>): bool
     acquires Vault {
         let vault_address = get_vault_address(vault_cap);
@@ -871,8 +831,8 @@ module satay::vault {
         vault.deposits_frozen
     }
 
-    /// returns the debt ratio of the vault
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns the debt ratio of Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun get_debt_ratio<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires Vault {
         let vault_address = get_vault_address(vault_cap);
@@ -880,8 +840,8 @@ module satay::vault {
         vault.debt_ratio
     }
 
-    /// returns the total debt of the vault
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns the total debt of Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun get_total_debt<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires Vault {
         let vault_address = get_vault_address(vault_cap);
@@ -889,8 +849,8 @@ module satay::vault {
         vault.total_debt
     }
 
-    /// returns the balance of CoinType of the vault
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns the balance of CoinType in Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun balance<BaseCoin, CoinType>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires CoinStore {
         let vault_address = get_vault_address(vault_cap);
@@ -898,8 +858,8 @@ module satay::vault {
         coin::value(&store.coin)
     }
 
-    /// gets the total assets of the vault, including the stored coins and debt from strategies
-    /// @param vault_cap - the VaultCapability of the vault
+    /// gets the total BaseCoin assets of Vault<BaseCoin>, including the liquid assets and debt
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun total_assets<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires Vault, CoinStore {
         let vault_address = get_vault_address(vault_cap);
@@ -909,8 +869,8 @@ module satay::vault {
         vault.total_debt + balance
     }
 
-    /// returns whether the vault has a CoinStore<CoinType>
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns whether Vault<BaseCoin> has a CoinStore<CoinType>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun has_coin<BaseCoin, CoinType>(vault_cap: &VaultCapability<BaseCoin>): bool {
         let vault_address = get_vault_address(vault_cap);
         exists<CoinStore<CoinType>>(vault_address)
@@ -918,15 +878,15 @@ module satay::vault {
 
     // strategy fields
 
-    /// returns whether the vault has a VaultStrategy<StrategyType>
-    /// @param vault_cap - the VaultCapability of the vault
+    /// returns whether Vault<BaseCoin> has approved StrategyType
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun has_strategy<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): bool {
         let vault_address = get_vault_address(vault_cap);
         exists<VaultStrategy<BaseCoin, StrategyType>>(vault_address)
     }
 
-    /// gets amount of BaseCoin StrategyType has access to as a credit line from the vault
-    /// @param vault_cap - the VaultCapability of the vault
+    /// gets the amount of BaseCoin credit StrategyType can withdraw from Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun credit_available<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires Vault, VaultStrategy, CoinStore {
         let vault_address = get_vault_address(vault_cap);
@@ -968,8 +928,8 @@ module satay::vault {
         strategy_credit_available
     }
 
-    /// determines if StrategyType is past its debt limit and returns the amount of tokens to repay
-    /// @param vault_cap - the VaultCapability of the vault
+    /// gets the amount of BaseCoin debt StrategyType has withdrawn past its limit
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun debt_out_standing<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires Vault, VaultStrategy, CoinStore {
         let vault_address = get_vault_address(vault_cap);
@@ -995,8 +955,8 @@ module satay::vault {
         }
     }
 
-    /// gets the total debt for a given StrategyType
-    /// @param vault_cap - the VaultCapability for the Vault
+    /// gets the total debt of StrategyType on Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun total_debt<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
@@ -1004,8 +964,8 @@ module satay::vault {
         strategy.total_debt
     }
 
-    /// gets the total gain for a given StrategyType
-    /// @param vault_cap - the VaultCapability for the Vault
+    /// gets the total gain of StrategyType on Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun total_gain<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
@@ -1013,8 +973,8 @@ module satay::vault {
         strategy.total_gain
     }
 
-    /// gets the total loss for a given StrategyType
-    /// @param vault_cap - the VaultCapability for the Vault
+    /// gets the total loss of StrategyType on Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun total_loss<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
@@ -1022,8 +982,8 @@ module satay::vault {
         strategy.total_loss
     }
 
-    /// gets the debt ratio for a given StrategyType
-    /// @param vault_cap - the VaultCapability for the Vault
+    /// gets the debt ratio of StrategyType on Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun debt_ratio<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
@@ -1031,8 +991,8 @@ module satay::vault {
         strategy.debt_ratio
     }
 
-    /// gets the last report timestamp for a given StrategyType
-    /// @param vault_cap - the VaultCapability for the Vault
+    /// gets the last report timestamp of StrategyType on Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     public fun last_report<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>): u64
     acquires VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
@@ -1042,9 +1002,9 @@ module satay::vault {
 
     // user getters
 
-    /// calculates amount of BaseCoin to withdraw given an amount of VaultCoin to burn
-    /// @param vault_cap - the VaultCapability for the Vault
-    /// @param vault_coin_amount - the amount of VaultCoin to burn
+    /// calculates amount of BaseCoin to withdraw given an amount of VaultCoin<BaseCoin> to burn
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * vault_coin_amount: u64
     public fun calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
         vault_cap: &VaultCapability<BaseCoin>,
         vault_coin_amount: u64
@@ -1059,9 +1019,9 @@ module satay::vault {
         )
     }
 
-    /// calculates amount of VaultCoin to mint given an amount of BaseCoin to deposit
-    /// @param vault_cap - the VaultCapability for the Vault
-    /// @param base_coin_amount - the amount of BaseCoin to deposit
+    /// calculates amount of VaultCoin<BaseCoin> to mint given an amount of BaseCoin to deposit
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * base_coin_amount: u64
     public fun calculate_vault_coin_amount_from_base_coin_amount<BaseCoin>(
         vault_cap: &VaultCapability<BaseCoin>,
         base_coin_amount: u64
@@ -1084,40 +1044,30 @@ module satay::vault {
         }
     }
 
-    /// check if user_address has CoinStore for VaultCoin<CoinType>
-    /// @param user_address - the address of the user
-    public fun is_vault_coin_registered<CoinType>(user_address: address): bool {
-        coin::is_account_registered<VaultCoin<CoinType>>(user_address)
-    }
-
-    /// returns the balance of VaultCoin for user_address
-    /// @param user_address - the address of the user
-    public fun vault_coin_balance<CoinType>(user_address: address): u64 {
-        coin::balance<VaultCoin<CoinType>>(user_address)
-    }
-
-    /// returns the amount needed from a user liquidation lock
-    /// @param user_liq_lock - the UserLiquidationLock
+    /// returns the BaseCoin amount needed to destroy the UserLiquidationLock
+    /// * user_liq_lock: &UserLiquidationLock<BaseCoin>
     public fun get_liquidation_amount_needed<BaseCoin>(user_liq_lock: &UserLiquidationLock<BaseCoin>): u64 {
         user_liq_lock.amount_needed
     }
 
-    /// returns the amount of BaseCoin debt to return to the vault during a harvest
-    /// @param harvest_info - the HarvestInfo
+    /// returns the amount of BaseCoin debt amount needed to destroy the HarvestInfo
+    /// * harvest_info: &HarvestInfo
     public fun get_harvest_debt_payment(harvest_info: &HarvestInfo): u64 {
         harvest_info.debt_payment
     }
 
-    /// returns the amount of BaseCoin profit to return to the vault during a harvest
-    /// @param harvest_info - the HarvestInfo
+    /// returns the amount of BaseCoin profit needed to destroy the HarvestInfo
+    /// * harvest_info: &HarvestInfo
     public fun get_harvest_profit(harvest_info: &HarvestInfo): u64 {
         harvest_info.profit
     }
 
     // helpers
 
-    /// creates a CoinStore for CoinType in the vault
-    /// @param vault_cap - the VaultCapability for the vault
+    // coin storage
+
+    /// creates a CoinStore for CoinType in Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
     fun add_coin<BaseCoin, CoinType>(vault_cap: &VaultCapability<BaseCoin>) {
         let vault_acc = account::create_signer_with_capability(&vault_cap.signer_cap);
         move_to(&vault_acc, CoinStore<CoinType> {
@@ -1127,9 +1077,9 @@ module satay::vault {
         });
     }
 
-    /// deposits coin of CoinType into the vault
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param coin - the Coin<CoinType> to deposit
+    /// deposits Coin<CoinType> into Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * coin: Coin<CoinType>
     fun deposit<BaseCoin, CoinType>(vault_cap: &VaultCapability<BaseCoin>, coin: Coin<CoinType>)
     acquires CoinStore {
         let vault_address = get_vault_address(vault_cap);
@@ -1140,9 +1090,9 @@ module satay::vault {
         coin::merge(&mut store.coin, coin);
     }
 
-    /// withdraws coin of CoinType from the vault
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param amount - the amount of CoinType to withdraw
+    /// withdraws Coin<CoinType> from Vault<BaseCoin>
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * amount: u64
     fun withdraw<BaseCoin, CoinType>(vault_cap: &VaultCapability<BaseCoin>, amount: u64): Coin<CoinType>
     acquires CoinStore {
         let vault_address = get_vault_address(vault_cap);
@@ -1153,10 +1103,50 @@ module satay::vault {
         coin::extract(&mut store.coin, amount)
     }
 
-    /// deposits BaseCoin into Vault from StrategyType
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param base_coin - the Coin<BaseCoin> to deposit
-    /// @param witness - a reference to a StrategyType instance
+    // strategy
+
+    /// calculates the profit, loss, and debt payment for a harvest
+    /// * vault_cap: VaultCapability<BaseCoin> - for Vault<BaseCoin>
+    /// * strategy_balance: u64 - BaseCoin balance of StrategyType
+    fun prepare_return<BaseCoin, StrategyType: drop>(
+        vault_cap: &VaultCapability<BaseCoin>,
+        strategy_balance: u64
+    ): (u64, u64, u64)
+    acquires VaultStrategy, Vault, CoinStore {
+
+        // get amount of strategy debt over limit
+        let debt_out_standing = debt_out_standing<BaseCoin, StrategyType>(vault_cap);
+        let debt_payment: u64;
+        if (strategy_balance > debt_out_standing) {
+            debt_payment = debt_out_standing;
+            strategy_balance = strategy_balance - debt_payment;
+        } else {
+            debt_payment = strategy_balance;
+            strategy_balance = 0;
+        };
+
+        // calculate profit and loss
+        let profit = 0;
+        let loss = 0;
+
+        // strategy's total debt
+        let total_debt = total_debt<BaseCoin, StrategyType>(vault_cap);
+
+        total_debt = total_debt - debt_payment;
+
+        if (strategy_balance > total_debt) {
+            profit = strategy_balance - total_debt;
+        } else {
+            loss = total_debt - strategy_balance;
+        };
+
+        (profit, loss, debt_payment)
+    }
+
+    /// deposits Coin<BaseCoin> into Vault<BaseCoin> from StrategyType
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * base_coin: Coin<BaseCoin>
+    /// * _witness: &StrategyType - witness pattern
     fun deposit_base_coin<BaseCoin, StrategyType: drop>(
         vault_cap: &VaultCapability<BaseCoin>,
         base_coin: Coin<BaseCoin>,
@@ -1166,10 +1156,11 @@ module satay::vault {
         deposit(vault_cap, base_coin);
     }
 
-    /// withdraws base_coin from Vault to StrategyType, updates total debt
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param amount - the amount of BaseCoin to withdraw
-    /// @param witness - a reference to a StrategyType instance
+    /// withdraws Coin<BaseCoin> from Vault<BaseCoin> to StrategyType
+    /// asserts that amount of credit is available and updates debt reporting
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * amount: u64
+    /// * witness: &StrategyType - witness pattern
     fun withdraw_base_coin<BaseCoin, StrategyType: drop>(
         vault_cap: &VaultCapability<BaseCoin>,
         amount: u64,
@@ -1181,11 +1172,11 @@ module satay::vault {
         withdraw(vault_cap, amount)
     }
 
-    /// updates the total debt of the vault and strategy
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param credit - the amount of BaseCoin credited to StrategyType
-    /// @param debt_payment - the amount of BaseCoin debt paid back to the vault
-    /// @param witness - a reference to a StrategyType instance
+    /// updates the total debt of Vault<BaseCoin> and VaultStrategy<BaseCoin, StrategyType>
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * credit: u64
+    /// * debt_payment: u64
+    /// * _witness: &StrategyType - witness pattern
     fun update_total_debt<BaseCoin, StrategyType: drop>(
         vault_cap: &VaultCapability<BaseCoin>,
         credit: u64,
@@ -1207,10 +1198,10 @@ module satay::vault {
         })
     }
 
-    /// pays base_coin debt to the vault, updates total debt
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param base_coin - the Coin<BaseCoin> to deposit
-    /// @param witness - a reference to a StrategyType instance
+    /// deposits Coin<BaseCoin> into Vault<BaseCoin> from StrategyType and updates debt reporting
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * base_coin: Coin<BaseCoin> - debt payment
+    /// * witness: &StrategyType - witness pattern
     fun deposit_debt_payment<BaseCoin, StrategyType: drop>(
         vault_cap: &VaultCapability<BaseCoin>,
         base_coin: Coin<BaseCoin>,
@@ -1226,9 +1217,9 @@ module satay::vault {
         deposit_base_coin(vault_cap, base_coin, witness);
     }
 
-    /// deposits profit into the vault
-    /// @param keeper_cap - a KeeperCapability
-    /// @param base_coin - the Coin<BaseCoin> profit to deposit
+    /// deposits Coin<BaseCoin into Vault<BaseCoin> as profit
+    /// * vault_cap: VaultCapability<BaseCoin>
+    /// * base_coin: Coin<BaseCoin> - profit
     fun deposit_profit<BaseCoin, StrategyType: drop>(
         keeper_cap: &KeeperCapability<BaseCoin, StrategyType>,
         base_coin: Coin<BaseCoin>,
@@ -1238,16 +1229,16 @@ module satay::vault {
         let witness = &keeper_cap.witness;
         report_gain<BaseCoin, StrategyType>(vault_cap, coin::value(&base_coin), witness);
         assess_fees<BaseCoin, StrategyType>(
-            &mut base_coin,
             vault_cap,
+            &base_coin,
             witness
         );
         deposit_base_coin(vault_cap, base_coin, witness);
     }
 
-    /// makes a debt payment to the vault
-    /// @param keeper_cap - a KeeperCapability
-    /// @param base_coin - the Coin<BaseCoin> debt payment to make
+    /// deposits Coin<BaseCoin> into Vault<BaseCoin> with KeeperCapability
+    /// * keeper_cap: KeeperCapability<BaseCoin, StrategyType> - holds strategy witness
+    /// * base_coin: Coin<BaseCoin>
     fun keeper_debt_payment<BaseCoin, StrategyType: drop>(
         keeper_cap: &KeeperCapability<BaseCoin, StrategyType>,
         base_coin: Coin<BaseCoin>,
@@ -1256,13 +1247,14 @@ module satay::vault {
         deposit_debt_payment(&keeper_cap.vault_cap, base_coin, &keeper_cap.witness);
     }
 
-    /// assesses fees for a given profit, updates the StrategyType last_report timestamp and total gain for the vault
-    /// @param profit - a reference to the Coin<BaseCoin> representing the profit
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param witness - a reference to a StrategyType instance
+    /// assesses fees for a given Coin<BaseCoin> profit by minting VaultCoin<BaseCoin> to satay::dao_storage
+    /// updates the VaultStrategy<StrategyType, BaseCoin> last_report timestamp and total gain
+    /// * profit: &Coin<BaseCoin> - profit
+    /// * vault_cap: &VaultCapability<BaseCoin>
+    /// * witness: &StrategyType - witness pattern
     fun assess_fees<BaseCoin, StrategyType: drop>(
-        profit: &Coin<BaseCoin>,
         vault_cap: &VaultCapability<BaseCoin>,
+        profit: &Coin<BaseCoin>,
         witness: &StrategyType
     )
     acquires VaultStrategy, Vault, CoinStore, VaultCoinCaps {
@@ -1315,11 +1307,15 @@ module satay::vault {
         report_timestamp<BaseCoin, StrategyType>(vault_cap, witness);
     }
 
-    /// report a gain for StrategyType on the vault
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param gain - the amount of gain to report
-    /// @param _witness - a reference to a StrategyType instance
-    fun report_gain<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>, gain: u64, _witness: &StrategyType)
+    /// report a gain on VaultStrategy<BaseCoin, StrategyType>
+    /// * vault_cap: &VaultCapability<BaseCoin>
+    /// * gain: u64 - amount of gain
+    /// * _witness: &StrategyType - witness pattern
+    fun report_gain<BaseCoin, StrategyType: drop>(
+        vault_cap: &VaultCapability<BaseCoin>,
+        gain: u64,
+        _witness: &StrategyType
+    )
     acquires VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
         let strategy = borrow_global_mut<VaultStrategy<BaseCoin, StrategyType>>(vault_address);
@@ -1330,11 +1326,15 @@ module satay::vault {
         });
     }
 
-    /// report a loss for StrategyType on the vault
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param loss - the amount of loss to report
-    /// @param _witness - a reference to a StrategyType instance
-    fun report_loss<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>, loss: u64, _witness: &StrategyType)
+    /// report a loss on VaultStrategy<BaseCoin, StrategyType>
+    /// * vault_cap: &VaultCapability<BaseCoin>
+    /// * loss: u64 - amount of loss
+    /// * _witness: &StrategyType - witness pattern
+    fun report_loss<BaseCoin, StrategyType: drop>(
+        vault_cap: &VaultCapability<BaseCoin>,
+        loss: u64,
+        _witness: &StrategyType
+    )
     acquires Vault, VaultStrategy {
         let vault_address = get_vault_address(vault_cap);
         let vault = borrow_global_mut<Vault<BaseCoin>>(vault_address);
@@ -1363,9 +1363,9 @@ module satay::vault {
         });
     }
 
-    /// report harvest timestamp for StrategyType on the vault
-    /// @param vault_cap - the VaultCapability for the vault
-    /// @param _witness - a reference to a StrategyType instance
+    /// report harvest timestamp on VaultStrategy<BaseCoin, StrategyType>
+    /// * vault_cap: &VaultCapability<BaseCoin>
+    /// * _witness: &StrategyType - witness pattern
     fun report_timestamp<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>, _witness: &StrategyType)
     acquires VaultStrategy {
         let timestamp = timestamp::now_seconds();
@@ -1380,32 +1380,34 @@ module satay::vault {
     // asserts
 
     /// asserts that the debt ratio is valid
-    /// @param debt_ratio - the debt ratio in BPS
+    /// * debt_ratio: u64 - in BPS
     fun assert_debt_ratio(debt_ratio: u64) {
         assert!(debt_ratio <= MAX_DEBT_RATIO_BPS, ERR_INVALID_DEBT_RATIO);
     }
 
     /// asserts that the fee amounts are valid
-    /// @param management_fee - the management fee in BPS
-    /// @param performance_fee - the performance fee in BPS
+    /// * management_fee: u64 - in BPS
+    /// * performance_fee: u64 - in BPS
     fun assert_fee_amounts(management_fee: u64, performance_fee: u64) {
         assert!(management_fee <= MAX_MANAGEMENT_FEE && performance_fee <= MAX_PERFORMANCE_FEE, ERR_INVALID_FEE);
     }
 
-    /// asserts that the vault is active
-    /// @param vault_cap - the VaultCapability for the vault
+    /// asserts that Vault<BaseCoin> is active for deposits
+    /// * vault_cap: &VaultCapability<BaseCoin>
     fun assert_vault_active<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>)
     acquires Vault {
         assert!(!is_vault_frozen(vault_cap), ERR_VAULT_FROZEN);
     }
 
-    /// asserts that the vault is not active
-    /// @param vault_cap - the VaultCapability for the vault
+    /// asserts that Vault<BaseCoin> is not active for deposits
+    /// * vault_cap: &VaultCapability<BaseCoin>
     fun assert_vault_not_active<BaseCoin>(vault_cap: &VaultCapability<BaseCoin>)
     acquires Vault {
         assert!(is_vault_frozen(vault_cap), ERR_VAULT_NOT_FROZEN);
     }
 
+    /// asserts that Vault<BaseCoin> has approved StrategyType
+    /// * vault_cap: &VaultCapability<BaseCoin>
     fun assert_has_strategy<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>) {
         let vault_address = get_vault_address(vault_cap);
         assert!(exists<VaultStrategy<BaseCoin, StrategyType>>(vault_address), ERR_NO_STRATEGY);
@@ -1620,11 +1622,11 @@ module satay::vault {
 
     #[test_only]
     public fun test_assess_fees<BaseCoin, StrategyType: drop>(
-        profit: &Coin<BaseCoin>,
         vault_cap: &VaultCapability<BaseCoin>,
+        profit: &Coin<BaseCoin>,
         witness: &StrategyType
     ) acquires Vault, VaultStrategy, CoinStore, VaultCoinCaps {
-        assess_fees<BaseCoin, StrategyType>(profit, vault_cap, witness);
+        assess_fees<BaseCoin, StrategyType>(vault_cap, profit, witness);
     }
 
     #[test_only]

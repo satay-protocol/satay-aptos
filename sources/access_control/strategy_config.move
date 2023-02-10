@@ -19,9 +19,9 @@ module satay::strategy_config {
     const ERR_NOT_MANAGER: u64 = 3;
 
     /// holds the strategy manager information for each (BaseCoin, StrategyType), stored in strategy account
-    /// @field strategy_manager_address - the address of the current strategy manager
-    /// @field new_strategy_manager_address - the address of the new strategy manager
-    /// @field strategy_manager_change_events - the event handle for StrategyManagerChangeEvent
+    /// * strategy_manager_address: address - the address of the account that has the strategy manager role
+    /// * new_strategy_manager_addressL address - the address of the account that can accept the strategy manager role
+    /// * strategy_manager_change_events: EventHandle<StrategyManagerChangeEvent>
     struct StrategyConfig<phantom BaseCoin, phantom StrategyType: drop> has key {
         strategy_manager_address: address,
         new_strategy_manager_address: address,
@@ -29,15 +29,15 @@ module satay::strategy_config {
     }
 
     /// emitted when a new strategy manager accepts the role
-    /// @field new_strategy_manager_address - the address of the new strategy coin manager
+    /// * new_strategy_manager_address: address - the address of the account that accepted the strategy manager role
     struct StrategyManagerChangeEvent has drop, store {
         new_strategy_manager_address: address,
     }
 
     /// initializes a StrategyConfig resource in the strategy account, called by strategy_coin::initialize
-    /// @param strategy_account - the transaction signer; the resource account for the strategy
-    /// @param strategy_manager_address - the address of the strategy manager
-    /// @param _witness - proves the origin of the call
+    /// * strategy_account: &signer - the strategy resource account
+    /// * strategy_manager_address: address - the address of the account to grant the strategy manager role to
+    /// * _witness: &StrategyType - witness pattern
     public(friend) fun initialize<BaseCoin, StrategyType: drop>(
         strategy_account: &signer,
         strategy_manager_address: address,
@@ -51,9 +51,9 @@ module satay::strategy_config {
     }
 
     /// sets the new strategy coin manager address
-    /// @param strategy_manager - the transaction signer; must have the strategy manager role for the strategy
-    /// @param strategy_address - the address of the strategy account
-    /// @param new_strategy_manager_address - the address of the new strategy manager
+    /// * strategy_manager: &signer - must have the strategy manager role
+    /// * strategy_address: address - the address of the strategy resource account
+    /// * new_strategy_manager_address: address - the address of the account to grant the strategy manager role to
     public entry fun set_strategy_manager<BaseCoin, StrategyType: drop>(
         strategy_manager: &signer,
         strategy_address: address,
@@ -66,9 +66,9 @@ module satay::strategy_config {
         strategy_config.new_strategy_manager_address = new_strategy_manager_address;
     }
 
-    /// accepts the new strategy manager role for the strategy
-    /// @param new_strategy_manager - the transaction signer; must be the new strategy manager
-    /// @param strategy_address - the address of the strategy
+    /// accept the strategy manager role
+    /// * new_strategy_manager: &signer - must have the address set on StrategyConfig.new_strategy_manager_address
+    /// * strategy_address: address - the address of the strategy resource account
     public entry fun accept_strategy_manager<BaseCoin, StrategyType: drop>(
         new_strategy_manager: &signer,
         strategy_address: address
@@ -86,7 +86,7 @@ module satay::strategy_config {
     }
 
     /// returns the strategy manager address for the strategy
-    /// @param strategy_address - the address of the strategy
+    /// * strategy_address: address - the address of the strategy resource account
     public fun get_strategy_manager_address<BaseCoin, StrategyType: drop>(strategy_address: address): address
     acquires StrategyConfig {
         assert_strategy_config_exists<BaseCoin, StrategyType>(strategy_address);
@@ -95,8 +95,8 @@ module satay::strategy_config {
     }
 
     /// asserts that the signer has the strategy manager role for the strategy
-    /// @param strategy_manager - the transaction signer; must have the strategy manager role
-    /// @param strategy_address - the address of the strategy
+    /// * strategy_manager: &signer - must have the strategy manager role
+    /// * strategy_address: address - the address of the strategy resource account
     public fun assert_strategy_manager<BaseCoin, StrategyType: drop>(
         strategy_manager: &signer,
         strategy_address: address
@@ -107,8 +107,8 @@ module satay::strategy_config {
         assert!(signer::address_of(strategy_manager) == config.strategy_manager_address, ERR_NOT_MANAGER);
     }
 
-    /// asserts that StrategyCoinConfig<BaseCoin, StrategyType> exists on strategy_address
-    /// @param strategy_address - the address of the strategy
+    /// asserts that StrategyConfig<BaseCoin, StrategyType> exists on strategy_address
+    /// * strategy_address: address - the address of the strategy resource account
     fun assert_strategy_config_exists<BaseCoin, StrategyType: drop>(strategy_address: address) {
         assert!(exists<StrategyConfig<BaseCoin, StrategyType>>(strategy_address), ERR_CONFIG_DOES_NOT_EXIST);
     }

@@ -28,18 +28,18 @@ module satay::global_config {
     const ERR_NOT_NEW_DAO_ADMIN: u64 = 405;
 
     /// holds signer cap for resource account that holds GlobalConfig
-    /// @field signer_cap - signer capability for the resource account that holds GlobalConfig
+    /// * signer_cap: SignerCapability
     struct GlobalConfigResourceAccount has key {
         signer_cap: SignerCapability
     }
 
     /// the global configuation resource
-    /// @field dao_admin_address - the address of the account that holds the DAO admin role
-    /// @field governance_address - the address of the account that holds the governance role
-    /// @field new_dao_admin_address - the address of the account that can accept the DAO admin role
-    /// @field new_governance_address - the address of the account that can accept the governance role
-    /// @field dao_admin_change_events - event handle for DaoAdminChangeEvent
-    /// @field governance_change_events - event handle for GovernanceChangeEvent
+    /// * dao_admin_address: address - the address of the account that has the DAO admin role
+    /// * governance_address: address - the address of the account that has the governance role
+    /// * new_dao_admin_address: address - the address of the account that can accept the DAO admin role
+    /// * new_governance_address: address - the address of the account that can accept the governance role
+    /// * dao_admin_change_events: EventHandle<DaoAdminChangeEvent>
+    /// * governance_change_events: EventHandle<GovernanceChangeEvent>
     struct GlobalConfig has key {
         dao_admin_address: address,
         governance_address: address,
@@ -52,19 +52,19 @@ module satay::global_config {
     // events
 
     /// emitted when an acocunt accepts the dao_admin role
-    /// @field new_dao_admin_address - the address of the account that accepted the dao admin role
+    /// * new_dao_admin_address - the address of the account that accepted the DAO admin role
     struct DaoAdminChangeEvent has drop, store {
         new_dao_admin_address: address,
     }
 
     /// emitted when an account accpets the governance role
-    /// @field new_governance_address - the address of the account that accepted the governance role
+    /// * new_governance_address - the address of the account that accepted the governance role
     struct GovernanceChangeEvent has drop, store {
         new_governance_address: address,
     }
 
-    /// Initialize global config resource, called by satay::initialize
-    /// @param satay_admin - the transaction signer; must be the satay deployer account
+    /// initialize resource account and GlobalConfig resource, called by satay::initialize
+    /// * satay_admin: &signer - must be the satay deployer account
     public(friend) fun initialize(satay_admin: &signer)
     acquires GlobalConfig {
         assert!(signer::address_of(satay_admin) == @satay, ERR_NOT_SATAY);
@@ -131,32 +131,32 @@ module satay::global_config {
     // assert statements
 
     /// asserts that the transaction signer has the DAO admin role
-    /// @param dao_admin - the transaction signer; must have the DAO admin in GlobalConfig
+    /// * dao_admin: &signer - must have the DAO admin role on GlobalConfig
     public fun assert_dao_admin(dao_admin: &signer)
     acquires GlobalConfig, GlobalConfigResourceAccount {
         assert!(get_dao_admin() == signer::address_of(dao_admin), ERR_NOT_DAO_ADMIN);
     }
 
     /// asserts that the transaction signer has the governance role
-    /// @param governance - the transaction signer; must have the governance in GlobalConfig
+    /// * governance: &signer - must have the governance role on GlobalConfig
     public fun assert_governance(governance: &signer)
     acquires GlobalConfig, GlobalConfigResourceAccount {
         assert!(get_governance_address() == signer::address_of(governance), ERR_NOT_GOVERNANCE);
     }
 
     /// set new_dao_admin_address on GlobalConfig
-    /// @param dao_admin - the transaction signer; must have the DAO admin role on GlobalConfig
-    /// @param new_addr - new DAO admin address, account must accept role
-    public entry fun set_dao_admin(dao_admin: &signer, new_addr: address)
+    /// * dao_admin: &signer - must have the DAO admin role on GlobalConfig
+    /// * new_dao_admin_address: address - the address of the account that can accept the DAO admin role
+    public entry fun set_dao_admin(dao_admin: &signer, new_dao_admin_address: address)
     acquires GlobalConfigResourceAccount, GlobalConfig {
         assert_dao_admin(dao_admin);
         let global_config_account_address = get_global_config_account_address();
         let config = borrow_global_mut<GlobalConfig>(global_config_account_address);
-        config.new_dao_admin_address = new_addr;
+        config.new_dao_admin_address = new_dao_admin_address;
     }
 
     /// accept the dao admin role
-    /// @param new_dao_admin - the transaction signer; address of signer must equal new_dao_admin_address
+    /// * new_dao_admin: &signer - must have the address set on GlobalConfig.new_dao_admin_address
     public entry fun accept_dao_admin(new_dao_admin: &signer)
     acquires GlobalConfigResourceAccount, GlobalConfig {
         let global_config_account_address = get_global_config_account_address();
@@ -175,21 +175,18 @@ module satay::global_config {
     }
 
     /// set new_governance_address on GlobalConfig
-    /// @param dao_admin - the transaction signer; must currently have the governance role on GlobalConfig
-    /// @param new_addr - new governance address, account must accept role
-    public entry fun set_governance(governance: &signer, new_addr: address)
+    /// * governance: &signer - must have the governance role on GlobalConfig
+    /// * new_governance_address: address - the address of the account that can accept the governance role
+    public entry fun set_governance(governance: &signer, new_governance_address: address)
     acquires GlobalConfigResourceAccount, GlobalConfig {
         assert_governance(governance);
-
         let global_config_account_address = get_global_config_account_address();
-
         let config = borrow_global_mut<GlobalConfig>(global_config_account_address);
-
-        config.new_governance_address = new_addr;
+        config.new_governance_address = new_governance_address;
     }
 
     /// accept the governance role for new_governance_address
-    /// @param new_governance - the transaction signer; address of signer must be new_governance_address
+    /// * new_governance: &signer - must have the address set on GlobalConfig.new_governance_address
     public entry fun accept_governance(new_governance: &signer)
     acquires GlobalConfigResourceAccount, GlobalConfig {
         let global_config_account_address = get_global_config_account_address();
