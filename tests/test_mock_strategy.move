@@ -13,6 +13,7 @@ module satay::test_mock_strategy {
     use satay::satay_account;
     use satay::vault;
     use satay::satay;
+    use satay::mock_vault_strategy;
     use satay::mock_strategy::{Self, MockStrategy};
 
     const INITIAL_DEBT_RATIO: u64 = 10000;
@@ -57,7 +58,7 @@ module satay::test_mock_strategy {
     ) {
         initialize_vault_with_deposit(aptos_framework, satay, user);
         mock_strategy::initialize(satay);
-        mock_strategy::approve(
+        mock_vault_strategy::approve(
             satay,
             INITIAL_DEBT_RATIO
         );
@@ -71,7 +72,7 @@ module satay::test_mock_strategy {
     fun test_initialize_strategy(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_vault_with_deposit(aptos_framework, satay, user);
         mock_strategy::initialize(satay);
-        mock_strategy::approve(
+        mock_vault_strategy::approve(
             satay,
             INITIAL_DEBT_RATIO
         );
@@ -90,7 +91,7 @@ module satay::test_mock_strategy {
     )]
     fun test_harvest(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_with_strategy(aptos_framework, satay, user);
-        mock_strategy::harvest(satay);
+        mock_vault_strategy::harvest(satay);
 
         let vault_cap = satay::test_lock_vault<AptosCoin>();
         assert!(vault::credit_available<AptosCoin, MockStrategy>(&vault_cap) == 0, ERR_HARVEST);
@@ -106,8 +107,8 @@ module satay::test_mock_strategy {
     )]
     fun test_revoke(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_with_strategy(aptos_framework, satay, user);
-        mock_strategy::harvest(satay);
-        mock_strategy::revoke(satay);
+        mock_vault_strategy::harvest(satay);
+        mock_vault_strategy::revoke(satay);
 
         let vault_cap = satay::test_lock_vault<AptosCoin>();
         assert!(vault::credit_available<AptosCoin, MockStrategy>(&vault_cap) == 0, ERR_REVOKE);

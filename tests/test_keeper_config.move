@@ -8,7 +8,8 @@ module satay::test_keeper_config {
 
     use satay::satay_account;
     use satay::satay;
-    use satay::mock_strategy::{Self, MockStrategy};
+    use satay::mock_strategy::{MockStrategy};
+    use satay::mock_vault_strategy::{Self};
     use satay::keeper_config;
 
     fun initialize(
@@ -48,7 +49,7 @@ module satay::test_keeper_config {
     fun initialize_strategy(
         governance: &signer
     ) {
-        mock_strategy::approve(
+        mock_vault_strategy::approve(
             governance,
             0
         );
@@ -59,7 +60,7 @@ module satay::test_keeper_config {
         satay: &signer,
     ) {
         initialize_with_vault(aptos_framework, satay);
-        mock_strategy::approve(
+        mock_vault_strategy::approve(
             satay,
             0
         );
