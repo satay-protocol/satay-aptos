@@ -8,12 +8,13 @@ module satay::test_mock_strategy {
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::coin;
 
-    use satay::vault_coin_account;
+    use satay_coins::strategy_coin::StrategyCoin;
+
+    use satay::satay_account;
     use satay::vault;
     use satay::satay;
+    use satay::mock_vault_strategy;
     use satay::mock_strategy::{Self, MockStrategy};
-    use satay::aptos_wrapper_product::{WrappedAptos};
-    use satay::aptos_wrapper_product;
 
     const INITIAL_DEBT_RATIO: u64 = 10000;
     const MAX_DEBT_RATIO: u64 = 10000;
@@ -29,10 +30,13 @@ module satay::test_mock_strategy {
         user: &signer,
     ) {
         stake::initialize_for_test(aptos_framework);
-        vault_coin_account::initialize_satay_account(
+        satay_account::initialize_satay_account(
             satay,
-            x"0e53617461795661756c74436f696e020000000000000000404442334638364131454231354432454538373446303132424334384439373142373336344135453630354646303432353235434633383145383930333445334587021f8b08000000000002ff2d90cd6ec3201084ef3c45e44b4eb621fea5524f3df714a997c8b216583b28365880dde6ed0b6d6e3b3bb3f3497bdb403e60c6811858f1f47e3a5f21c0f30bf6257c586dcee440e7b535c962052de899ecdbec40e1b8d945cb673432bdae7b00b16046c80d9472e83dfa81f8d4351ea96c94b12d65e90f6d8077bc6f812b5a3159376d87ac111def0436ace58cca498a9a356dc52e757fc149b6c0b8a45051c9eb3e41141eb9c20d8d422335fae2d31e780d6ad16220b30e89740f61f36f6519e57d1785b46b095bb03e5f40f8d728adc3220632e2f048472b6863306abf0ba55d5afd27d708282717bff46ddda34c32f77fc0ec173b2d8c9145010000010a7661756c745f636f696e5d1f8b08000000000002ff45c8310a80300c40d13da7c8398a38e81d5c4ba80585b6119308527a77dbc93f7d5ee6dd524421a5d73f64497de0b338f73f56c09ee86d41711bbe769eae838a72c685240e98b13668f00109fb6b9d5200000000000000",
-            x"a11ceb0b05000000050100020202060708210829200a490500000001000100010a7661756c745f636f696e095661756c74436f696e0b64756d6d795f6669656c6405a97986a9d031c4567e15b797be516910cfcb4156312482efc6a19c0a30c948000201020100"
+            x"0a5361746179436f696e73020000000000000000403241383933453237324133313136324437393735414641464239344439333132453041413143323532424139353946393543323536453939343342373946434196021f8b08000000000002ff2d50bd6e833010defd14114ba6800163a052a7ce9d32465174679f132b80916d68f3f6b5db6ef7dd7d7fbacb0aea0977bab205663abc1f8e6788f0fa70760947b6930fd62d795d97bce447b6ad770f9a6eab9bac7aa54361e7798b8013158c5d406b4f2150b8b2907d6e2a1b651affeeb88151486839081c00476ca5a4bad502a996ad018d8d31bcefc4d0b4d874c2d4ed28fb5e0d409cab2efb6bda4f9a565a342dca52283fdd4ee7a8278b5776b731273d625cc35b5525f8d8b0546eae608d2e9c26c0f03f2ae7a94c848279dab348773d8e3da624940265dd0f7234a94e23a9172375bc1dc4300859b0b0a1b63e6bfeace6d4a0323e7defcbf96795e129fc362a7e00444fcab75d010000020d73747261746567795f636f696ec4011f8b08000000000002ff4d8f410ac3201045f79e620e50c85e4a17ed115aba0d539d26a14946742c48c8ddab62a0e2c6f1fff7ff745d0723cf36808c04417c3402319085377bb88b47a121dd785a21dfaa41c1040ecd0707525df65b7233a76c79a5aaf014387a4380c6705c058ca78cb18550dd5a7f31ced29b8ced9b482d6ce3dcf0f527681d5a7e7dc3a6209f9258529e05518b0db4929f4c6b5f456d91fffe6737e22abcc0150395c1098ec9217b24471aac6777816d57bbfa012fb975701e01000000000a7661756c745f636f696eaf011f8b08000000000002ff4d8f310ec2300c45f79cc237c88e1003307002d6cab8a6ad48e32a7190aaaa77278922c0f2643fffff6dad859bb83e828e0c5143228514b987a704b863727a91c943ee0aa0e20a0bd20b0736361f5f7971b266feb156227094148801892479050a8c9af759a15e1f0eefa2da5196ed1a6466e9936bf27513ff31d80ce42a76c5e2976a60cf61a296bb42ed852f735c46f42a339c3172199c60dbcd6e3e1cb58cd7f900000000000000",
+            vector[
+                x"a11ceb0b0500000005010002020208070a270831200a5105000000010002000102010d73747261746567795f636f696e0c5374726174656779436f696e0b64756d6d795f6669656c6450fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5000201020100",
+                x"a11ceb0b05000000050100020202060708210829200a490500000001000100010a7661756c745f636f696e095661756c74436f696e0b64756d6d795f6669656c6450fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5000201020100"
+            ],
         );
         satay::initialize(satay);
         satay::new_vault<AptosCoin>(
@@ -44,7 +48,7 @@ module satay::test_mock_strategy {
         account::create_account_for_test(signer::address_of(user));
         coin::register<AptosCoin>(user);
         aptos_coin::mint(aptos_framework, signer::address_of(user), DEPOSIT_AMOUNT);
-        satay::deposit<AptosCoin>( user, 0, DEPOSIT_AMOUNT);
+        satay::deposit<AptosCoin>(user, DEPOSIT_AMOUNT);
     }
 
     fun initialize_with_strategy(
@@ -53,10 +57,9 @@ module satay::test_mock_strategy {
         user: &signer,
     ) {
         initialize_vault_with_deposit(aptos_framework, satay, user);
-        aptos_wrapper_product::initialize(satay);
-        mock_strategy::initialize(
+        mock_strategy::initialize(satay);
+        mock_vault_strategy::approve(
             satay,
-            0,
             INITIAL_DEBT_RATIO
         );
     }
@@ -68,17 +71,17 @@ module satay::test_mock_strategy {
     )]
     fun test_initialize_strategy(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_vault_with_deposit(aptos_framework, satay, user);
-        mock_strategy::initialize(
+        mock_strategy::initialize(satay);
+        mock_vault_strategy::approve(
             satay,
-            0,
             INITIAL_DEBT_RATIO
         );
 
-        let vault_cap = satay::open_vault(0);
-        assert!(vault::has_strategy<MockStrategy>(&vault_cap), ERR_INITIALIZE);
-        assert!(vault::has_coin<WrappedAptos>(&vault_cap), ERR_INITIALIZE);
-        assert!(vault::credit_available<MockStrategy, AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_INITIALIZE);
-        satay::close_vault(0, vault_cap);
+        let vault_cap = satay::test_lock_vault<AptosCoin>();
+        assert!(vault::has_strategy<AptosCoin, MockStrategy>(&vault_cap), ERR_INITIALIZE);
+        assert!(vault::has_coin<AptosCoin, StrategyCoin<AptosCoin, MockStrategy>>(&vault_cap), ERR_INITIALIZE);
+        assert!(vault::credit_available<AptosCoin, MockStrategy>(&vault_cap) == DEPOSIT_AMOUNT, ERR_INITIALIZE);
+        satay::test_unlock_vault(vault_cap);
     }
 
     #[test(
@@ -88,13 +91,13 @@ module satay::test_mock_strategy {
     )]
     fun test_harvest(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_with_strategy(aptos_framework, satay, user);
-        mock_strategy::harvest(satay, 0);
+        mock_vault_strategy::harvest(satay);
 
-        let vault_cap = satay::open_vault(0);
-        assert!(vault::credit_available<MockStrategy, AptosCoin>(&vault_cap) == 0, ERR_HARVEST);
-        assert!(vault::balance<AptosCoin>(&vault_cap) == 0, ERR_HARVEST);
-        assert!(vault::balance<WrappedAptos>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
-        satay::close_vault(0, vault_cap);
+        let vault_cap = satay::test_lock_vault<AptosCoin>();
+        assert!(vault::credit_available<AptosCoin, MockStrategy>(&vault_cap) == 0, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin, AptosCoin>(&vault_cap) == 0, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin, StrategyCoin<AptosCoin, MockStrategy>>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
+        satay::test_unlock_vault(vault_cap);
     }
 
     #[test(
@@ -104,13 +107,13 @@ module satay::test_mock_strategy {
     )]
     fun test_revoke(aptos_framework: &signer, satay: &signer, user: &signer) {
         initialize_with_strategy(aptos_framework, satay, user);
-        mock_strategy::harvest(satay, 0);
-        mock_strategy::revoke(satay, 0);
+        mock_vault_strategy::harvest(satay);
+        mock_vault_strategy::revoke(satay);
 
-        let vault_cap = satay::open_vault(0);
-        assert!(vault::credit_available<MockStrategy, AptosCoin>(&vault_cap) == 0, ERR_REVOKE);
-        assert!(vault::balance<AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
-        assert!(vault::balance<WrappedAptos>(&vault_cap) == 0, ERR_HARVEST);
-        satay::close_vault(0, vault_cap);
+        let vault_cap = satay::test_lock_vault<AptosCoin>();
+        assert!(vault::credit_available<AptosCoin, MockStrategy>(&vault_cap) == 0, ERR_REVOKE);
+        assert!(vault::balance<AptosCoin, AptosCoin>(&vault_cap) == DEPOSIT_AMOUNT, ERR_HARVEST);
+        assert!(vault::balance<AptosCoin, StrategyCoin<AptosCoin, MockStrategy>>(&vault_cap) == 0, ERR_HARVEST);
+        satay::test_unlock_vault(vault_cap);
     }
 }

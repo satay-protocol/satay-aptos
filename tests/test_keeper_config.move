@@ -1,5 +1,5 @@
 #[test_only]
-module satay::test_vault_config {
+module satay::test_keeper_config {
 
     use std::signer;
 
@@ -8,7 +8,9 @@ module satay::test_vault_config {
 
     use satay::satay_account;
     use satay::satay;
-    use satay::vault_config;
+    use satay::mock_strategy::{MockStrategy};
+    use satay::mock_vault_strategy::{Self};
+    use satay::keeper_config;
 
     fun initialize(
         aptos_framework: &signer,
@@ -32,8 +34,8 @@ module satay::test_vault_config {
         satay::new_vault<AptosCoin>(
             governance,
             0,
-            0
-        )
+            0,
+        );
     }
 
     fun initialize_with_vault(
@@ -41,18 +43,39 @@ module satay::test_vault_config {
         satay: &signer,
     ) {
         initialize(aptos_framework, satay);
-        create_vault(satay)
+        create_vault(satay);
     }
+
+    fun initialize_strategy(
+        governance: &signer
+    ) {
+        mock_vault_strategy::approve(
+            governance,
+            0
+        );
+    }
+
+    fun initialize_with_vault_and_strategy(
+        aptos_framework: &signer,
+        satay: &signer,
+    ) {
+        initialize_with_vault(aptos_framework, satay);
+        mock_vault_strategy::approve(
+            satay,
+            0
+        );
+    }
+
 
     #[test(
         aptos_framework=@aptos_framework,
         satay=@satay,
     )]
-    fun test_create_vault(
+    fun test_initialize_strategy(
         aptos_framework: &signer,
         satay: &signer,
     ) {
-        initialize_with_vault(aptos_framework, satay);
+        initialize_with_vault_and_strategy(aptos_framework, satay);
     }
 
     #[test(
@@ -61,64 +84,65 @@ module satay::test_vault_config {
         non_governance=@0x1
     )]
     #[expected_failure]
-    fun test_create_vault_reject(
+    fun test_initialize_strategy_reject(
         aptos_framework: &signer,
         satay: &signer,
         non_governance: &signer,
     ) {
-        initialize(aptos_framework, satay);
-        create_vault(non_governance);
+        initialize_with_vault(aptos_framework, satay);
+        initialize_strategy(non_governance);
     }
+
 
     #[test(
         aptos_framework=@aptos_framework,
         satay=@satay,
-        new_vault_manager=@0x1
+        new_keeper=@0x1
     )]
-    fun test_set_vault_manager(
+    fun test_set_keeper(
         aptos_framework: &signer,
         satay: &signer,
-        new_vault_manager: &signer,
+        new_keeper: &signer,
     ) {
-        initialize_with_vault(aptos_framework, satay);
+        initialize_with_vault_and_strategy(aptos_framework, satay);
         let vault_addr = satay::get_vault_address<AptosCoin>();
-        let new_vault_manager_address = signer::address_of(new_vault_manager);
-        vault_config::set_vault_manager(satay, vault_addr, new_vault_manager_address);
-        vault_config::assert_vault_manager(satay, vault_addr);
-        vault_config::accept_vault_manager(new_vault_manager, vault_addr);
-        vault_config::assert_vault_manager(new_vault_manager, vault_addr);
+        let new_keeper_address = signer::address_of(new_keeper);
+        keeper_config::set_keeper<AptosCoin, MockStrategy>(satay, vault_addr, new_keeper_address);
+        keeper_config::assert_keeper<AptosCoin, MockStrategy>(satay, vault_addr);
+        keeper_config::accept_keeper<AptosCoin, MockStrategy>(new_keeper, vault_addr);
+        keeper_config::assert_keeper<AptosCoin, MockStrategy>(new_keeper, vault_addr);
     }
 
     #[test(
         aptos_framework=@aptos_framework,
         satay=@satay,
-        non_vault_manager=@0x1
-    )]
-    #[expected_failure]
-    fun test_set_vault_manager_reject(
-        aptos_framework: &signer,
-        satay: &signer,
-        non_vault_manager: &signer,
-    ) {
-        initialize_with_vault(aptos_framework, satay);
-        let vault_addr = satay::get_vault_address<AptosCoin>();
-        let new_vault_manager_address = signer::address_of(non_vault_manager);
-        vault_config::set_vault_manager(non_vault_manager, vault_addr, new_vault_manager_address);
-    }
-
-    #[test(
-        aptos_framework=@aptos_framework,
-        satay=@satay,
-        non_vault_manager=@0x1
+        non_keeper=@0x1
     )]
     #[expected_failure]
-    fun test_accept_vault_manager_reject(
+    fun test_set_keeper_reject(
         aptos_framework: &signer,
         satay: &signer,
-        non_vault_manager: &signer,
+        non_keeper: &signer,
     ) {
-        initialize_with_vault(aptos_framework, satay);
+        initialize_with_vault_and_strategy(aptos_framework, satay);
         let vault_addr = satay::get_vault_address<AptosCoin>();
-        vault_config::accept_vault_manager(non_vault_manager, vault_addr);
+        let new_keeper_address = signer::address_of(non_keeper);
+        keeper_config::set_keeper<AptosCoin, MockStrategy>(non_keeper, new_keeper_address, vault_addr);
+    }
+
+    #[test(
+        aptos_framework=@aptos_framework,
+        satay=@satay,
+        non_keeper=@0x1
+    )]
+    #[expected_failure]
+    fun test_accept_keeper_reject(
+        aptos_framework: &signer,
+        satay: &signer,
+        non_keeper: &signer,
+    ) {
+        initialize_with_vault_and_strategy(aptos_framework, satay);
+        let vault_addr = satay::get_vault_address<AptosCoin>();
+        keeper_config::accept_keeper<AptosCoin, MockStrategy>(non_keeper, vault_addr);
     }
 }

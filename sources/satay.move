@@ -5,62 +5,52 @@ module satay::satay {
     use std::option::{Self, Option};
     use std::signer;
 
-    use aptos_std::type_info::TypeInfo;
-    use aptos_std::table::{Self, Table};
-
     use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::account::{Self, SignerCapability};
+
+    use satay_coins::vault_coin::{VaultCoin};
+    use satay_coins::strategy_coin::{StrategyCoin};
 
     use satay::global_config;
-    use satay::vault::{Self, VaultCapability, KeeperCapability, UserCapability};
-    use satay_vault_coin::vault_coin::VaultCoin;
+    use satay::vault::{Self, VaultCapability, KeeperCapability, UserCapability, VaultManagerCapability};
+    use satay::satay_account;
+    use satay::strategy_coin;
+    use satay::strategy_coin::StrategyCapability;
 
     friend satay::base_strategy;
 
     // error codes
 
-    /// when the transaction signer does not have enough privileges
-    const ERR_NOT_DEPLOYER: u64 = 1;
-    /// when ManagerAccount is not initialized
-    const ERR_MANAGER: u64 = 2;
+
     /// when StrategyType is not approved for a vault
-    const ERR_STRATEGY: u64 = 3;
-    /// when the vault id of VaultCapability and VaultCapLock do not match
-    const ERR_VAULT_CAP: u64 = 4;
+    const ERR_STRATEGY: u64 = 1;
 
     // structs
 
-    /// holds all VaultInfo resources in a table mapping vault_id to VaultInfo
-    /// @field next_vault_id - id of the next vault created by new_vault
-    /// @field vaults - mapping from vault_id to VaultInfo
-    struct ManagerAccount has key {
-        next_vault_id: u64,
-        vaults: Table<u64, VaultInfo>,
+    struct SatayAccount has key {
+        signer_cap: SignerCapability
     }
 
     /// holds a VaultCapability resource in an option
     /// @field vault_cap - Option holding VaultCapability; needed to allow lending to strategies
-    struct VaultInfo has store {
-        vault_cap: Option<VaultCapability>,
+    struct VaultInfo<phantom BaseCoin> has key {
+        vault_cap: Option<VaultCapability<BaseCoin>>,
     }
 
-    /// returned by lock_vault to ensure a subsequent call to unlock_vault with corresponding vault_id
-    /// @field vault_id - the id of the vault in the ManagerAccount resource
-    struct VaultCapLock<phantom StrategyType: drop> {
-        vault_id: u64,
+    struct StrategyInfo<phantom BaseCoin, phantom StrategyType: drop> has key {
+        strategy_cap: Option<StrategyCapability<BaseCoin, StrategyType>>
     }
 
     // deployer functions
 
-    /// create and store ManagerAccount in deployer account
+    /// create and store  in deployer account
     /// @param satay - the transaction signer; must be the deployer account
     public entry fun initialize(satay: &signer) {
-        assert!(signer::address_of(satay) == @satay, ERR_NOT_DEPLOYER);
-        move_to(satay, ManagerAccount {
-            vaults: table::new(),
-            next_vault_id: 0,
-        });
         global_config::initialize(satay);
-        vault::initialize(satay);
+        let signer_cap = satay_account::retrieve_signer_cap(satay);
+        move_to(satay, SatayAccount {
+            signer_cap
+        });
     }
 
     // governance functions
@@ -70,170 +60,115 @@ module satay::satay {
     /// @param management_fee - the vault's management fee in BPS, charged annually
     /// @param performance_fee - the vault's performance fee in bips, charged on profits
     public entry fun new_vault<BaseCoin>(governance: &signer, management_fee: u64, performance_fee: u64)
-    acquires ManagerAccount {
+    acquires SatayAccount {
         global_config::assert_governance(governance);
 
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        // get vault id and update next id
-        let vault_id = account.next_vault_id;
-        account.next_vault_id = account.next_vault_id + 1;
+        let satay_account = borrow_global<SatayAccount>(@satay);
+        let satay_account_signer = account::create_signer_with_capability(&satay_account.signer_cap);
 
         // create vault and add to manager vaults table
         let vault_cap = vault::new<BaseCoin>(
-            governance,
-            vault_id,
+            &satay_account_signer,
             management_fee,
             performance_fee
         );
 
-        table::add(
-            &mut account.vaults,
-            vault_id,
-            VaultInfo {
-                vault_cap: option::some(vault_cap),
-            }
+        move_to(&satay_account_signer, VaultInfo<BaseCoin> {
+            vault_cap: option::some(vault_cap)
+        });
+    }
+
+    ///
+    public fun new_strategy<BaseCoin, StrategyType: drop>(governance: &signer, witness: StrategyType)
+    acquires SatayAccount {
+        global_config::assert_governance(governance);
+        let satay_account = borrow_global<SatayAccount>(@satay);
+        let satay_account_signer = account::create_signer_with_capability(&satay_account.signer_cap);
+        let strategy_cap = strategy_coin::initialize<BaseCoin, StrategyType>(
+            &satay_account_signer,
+            signer::address_of(governance),
+            witness
         );
+        move_to(&satay_account_signer, StrategyInfo<BaseCoin, StrategyType> {
+            strategy_cap: option::some(strategy_cap)
+        });
     }
 
     // vault manager fucntions
 
     /// updates the management and performance fee for vault_id
     /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param management_fee - the vault's management fee in BPS, charged annually
     /// @param performance_fee - the vault's performance fee in bips, charged on profits
-    public entry fun update_vault_fee(vault_manager: &signer, vault_id: u64, management_fee: u64, performance_fee: u64)
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-
-        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
-        vault::update_fee(
-            &vault_manager_cap,
-            management_fee,
-            performance_fee
-        );
-
-        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
+    public entry fun update_vault_fee<BaseCoin>(vault_manager: &signer, management_fee: u64, performance_fee: u64)
+    acquires SatayAccount, VaultInfo {
+        let vault_manager_cap = vault_manager_lock_vault<BaseCoin>(vault_manager);
+        vault::update_fee(&vault_manager_cap, management_fee, performance_fee);
+        vault_manager_unlock_vault<BaseCoin>(vault_manager_cap);
     }
 
     /// freezes user deposits to vault_id
     /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public entry fun freeze_vault(vault_manager: &signer, vault_id: u64)
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-
-        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
-        vault::freeze_vault(
-            &vault_manager_cap
-        );
-
-        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
+    public entry fun freeze_vault<BaseCoin>(vault_manager: &signer)
+    acquires SatayAccount, VaultInfo {
+        let vault_manager_cap = vault_manager_lock_vault<BaseCoin>(vault_manager);
+        vault::freeze_vault(&vault_manager_cap);
+        vault_manager_unlock_vault<BaseCoin>(vault_manager_cap);
     }
 
     /// unfreezes user deposits to vault_id
     /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public entry fun unfreeze_vault(vault_manager: &signer, vault_id: u64)
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-
-        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
-        vault::unfreeze_vault(
-            &vault_manager_cap
-        );
-
-        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
+    public entry fun unfreeze_vault<BaseCoin>(vault_manager: &signer)
+    acquires SatayAccount, VaultInfo {
+        let vault_manager_cap = vault_manager_lock_vault<BaseCoin>(vault_manager);
+        vault::unfreeze_vault(&vault_manager_cap);
+        vault_manager_unlock_vault<BaseCoin>(vault_manager_cap);
     }
 
     /// allows StrategyType to withdraw from vault_id and deposit StrategyCoin on harvest
     /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
+    /// @param vault_id - the id of the vault in the  resource
     /// @param debt_ratio - the percentage of vault's total assets available to StrategyType in BPS
     /// @param witness - reference to an instance of StrategyType used to prove the source of the call
-    public(friend) fun approve_strategy<StrategyType: drop, StrategyCoin>(
+    public(friend) fun approve_strategy<BaseCoin, StrategyType: drop>(
         vault_manager: &signer,
-        vault_id: u64,
         debt_ratio: u64,
         witness: &StrategyType
     )
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-
-        let vault_manager_cap = vault::get_vault_manager_capability(vault_manager, vault_cap);
-        vault::approve_strategy<StrategyType, StrategyCoin>(
-            &vault_manager_cap,
-            debt_ratio,
-            witness
-        );
-
-        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
+    acquires SatayAccount, VaultInfo {
+        let vault_manager_cap = vault_manager_lock_vault<BaseCoin>(vault_manager);
+        vault::approve_strategy<BaseCoin, StrategyType>(&vault_manager_cap, debt_ratio, witness);
+        vault_manager_unlock_vault<BaseCoin>(vault_manager_cap);
     }
 
     /// update the debt_ratio for StrategyType
     /// @param vault_manager - the transaction signer; must have vault_manager role on vault_config for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param debt_ratio - the percentage of vault's total assets available to StrategyType in BPS
     /// @param witness - reference to an instance of StrategyType used to prove the source of the call
-    public(friend) fun update_strategy_debt_ratio<StrategyType: drop>(
+    public(friend) fun update_strategy_debt_ratio<BaseCoin, StrategyType: drop>(
         vault_manager: &signer,
-        vault_id: u64,
         debt_ratio: u64,
         witness: &StrategyType
-    ): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-        assert_strategy_approved<StrategyType>(&vault_cap);
-
-        let vault_manager_cap = vault::get_vault_manager_capability(
-            vault_manager,
-            vault_cap
-        );
-        vault::update_strategy_debt_ratio<StrategyType>(
+    )
+    acquires SatayAccount, VaultInfo {
+        let vault_manager_cap = vault_manager_lock_vault<BaseCoin>(vault_manager);
+        vault::update_strategy_debt_ratio<BaseCoin, StrategyType>(
             &vault_manager_cap,
             debt_ratio,
             witness
         );
-
-        option::fill(&mut vault_info.vault_cap, vault::destroy_vault_manager_capability(vault_manager_cap));
-
-        debt_ratio
+        vault_manager_unlock_vault<BaseCoin>(vault_manager_cap);
     }
 
     // user functions
 
     /// entry script to deposit BaseCoin from user into vault, returning VaultCoin<BaseCoin> to user
     /// @param user - the transaction signer; must hold at least amount of Coin<BaseCoin>
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param amount - the amount of Coin<BaseCoin> to deposit
-    public entry fun deposit<BaseCoin>(user: &signer, vault_id: u64, amount: u64)
-    acquires ManagerAccount {
+    public entry fun deposit<BaseCoin>(user: &signer, amount: u64)
+    acquires SatayAccount, VaultInfo {
         let base_coins = coin::withdraw<BaseCoin>(user, amount);
-
-        let vault_coins = deposit_as_user(user, vault_id, base_coins);
-
+        let vault_coins = deposit_as_user(user, base_coins);
         let user_addr = signer::address_of(user);
         if(!vault::is_vault_coin_registered<BaseCoin>(user_addr)){
             coin::register<VaultCoin<BaseCoin>>(user);
@@ -243,47 +178,26 @@ module satay::satay {
 
     /// converts Coin<BaseCoin> into Coin<VaultCoin<BaseCoin>> by depositing into vault_id
     /// @param user - the transaction signer
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param base_coins - coins to deposit
     /// @return vault_coins - liquid wrapper for deposit
     public fun deposit_as_user<BaseCoin>(
         user: &signer,
-        vault_id: u64,
         base_coins: Coin<BaseCoin>
     ): Coin<VaultCoin<BaseCoin>>
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-
-        let user_cap = vault::get_user_capability(
-            user,
-            vault_cap,
-        );
-
+    acquires SatayAccount, VaultInfo {
+        let user_cap = user_lock_vault<BaseCoin>(user);
         let vault_coins = vault::deposit_as_user(&user_cap, base_coins);
-
-        let (
-            vault_cap,
-            _
-        ) = vault::destroy_user_capability(user_cap);
-
-        option::fill(&mut vault_info.vault_cap, vault_cap);
-
+        user_unlock_vault<BaseCoin>(user_cap);
         vault_coins
     }
 
     /// entry script to withdraw BaseCoin from vault, returning BaseCoin to user
     /// @param user - the transaction signer; must hold amount of Coin<VaultCoin<BaseCoin>>
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param amount - the amount of Coin<VaultCoin<BaseCoin>> to burn
-    public entry fun withdraw<BaseCoin>(user: &signer, vault_id: u64, amount: u64)
-    acquires ManagerAccount {
+    public entry fun withdraw<BaseCoin>(user: &signer, amount: u64)
+    acquires SatayAccount, VaultInfo {
         let vault_coins = coin::withdraw<VaultCoin<BaseCoin>>(user, amount);
-
-        let base_coins = withdraw_as_user(user, vault_id, vault_coins);
-
+        let base_coins = withdraw_as_user(user, vault_coins);
         let user_addr = signer::address_of(user);
         if(!coin::is_account_registered<BaseCoin>(user_addr)){
             coin::register<BaseCoin>(user);
@@ -293,503 +207,424 @@ module satay::satay {
 
     /// converts Coin<VaultCoin<BaseCoin>> into Coin<BaseCoin> by withdrawing from vault_id
     /// @param user - the withrdawer, must hold sufficient Coin<VaultCoin<BaseCoin>>
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
+    /// @param vault_id - the id of the vault in the  resource
     /// @param vault_coins - coins to burn
     /// @return base_coin - underlying vault asset
     public fun withdraw_as_user<BaseCoin>(
         user: &signer,
-        vault_id: u64,
         vault_coins: Coin<VaultCoin<BaseCoin>>
     ): Coin<BaseCoin>
-    acquires ManagerAccount {
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-
-        let user_cap = vault::get_user_capability(
-            user,
-            vault_cap,
-        );
-
+    acquires SatayAccount, VaultInfo {
+        let user_cap = user_lock_vault<BaseCoin>(user);
         let base_coins = vault::withdraw_as_user<BaseCoin>(&user_cap, vault_coins);
-
-        let (
-            vault_cap,
-            _
-        ) = vault::destroy_user_capability(user_cap);
-        option::fill(&mut vault_info.vault_cap, vault_cap);
-
+        user_unlock_vault<BaseCoin>(user_cap);
         base_coins
     }
 
-    // strategy functions
 
-    /// get the KeeperCapability of vault_id for use by StrategyType, StrategyType must be approved first
-    /// followed by a subsequent call to keeper_unlock_vault
-    /// @param keeper - the transaction signer; must hold the KeeperCapability<StrategyType> for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
+    // strategy coin functions
+
+    /// mint amount of StrategyCoin<BaseCoin, StrategyType>
+    /// @param amount - amount to mint
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_mint<BaseCoin, StrategyType: drop>(
+        amount: u64,
+        _witness: StrategyType
+    ): Coin<StrategyCoin<BaseCoin, StrategyType>>
+    acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<BaseCoin, StrategyType>>(
+            satay_account_address
+        );
+        strategy_coin::mint(option::borrow(&strategy_info.strategy_cap), amount)
+    }
+
+    /// burn amount of StrategyCoin<BaseCoin, StrategyType>
+    /// @param strategy_coins - Coin<StrategyCoin<BaseCoin, StrategyType>> to burn
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_burn<BaseCoin, StrategyType: drop>(
+        strategy_coins: Coin<StrategyCoin<BaseCoin, StrategyType>>,
+        _witness: StrategyType
+    ) acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<BaseCoin, StrategyType>>(
+            satay_account_address
+        );
+        strategy_coin::burn(option::borrow(&strategy_info.strategy_cap), strategy_coins);
+    }
+
+    /// create CoinStore<CoinType> for the strategy account
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_add_coin<BaseCoin, StrategyType: drop, CoinType>(
+        _witness: StrategyType
+    ) acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<BaseCoin, StrategyType>>(
+            satay_account_address
+        );
+        strategy_coin::add_coin<BaseCoin, StrategyType, CoinType>(option::borrow(&strategy_info.strategy_cap));
+    }
+
+    /// deposit amount of CoinType into the strategy account
+    /// @param coins - Coin<CoinType> to deposit
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_deposit<BaseCoin, StrategyType: drop, CoinType>(
+        coins: Coin<CoinType>,
+        _witness: StrategyType
+    ) acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<BaseCoin, StrategyType>>(
+            satay_account_address
+        );
+        strategy_coin::deposit<BaseCoin, StrategyType, CoinType>(option::borrow(&strategy_info.strategy_cap), coins);
+    }
+
+    /// withdraw amount of CoinType from the strategy account
+    /// @param amount - amount to withdraw
+    /// @param _witness - instance of StrategyType used to prove the source of the call
+    public fun strategy_withdraw<BaseCoin, StrategyType: drop, CoinType>(
+        amount: u64,
+        _witness: StrategyType
+    ): Coin<CoinType> acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        let strategy_info = borrow_global<StrategyInfo<BaseCoin, StrategyType>>(
+            satay_account_address
+        );
+        strategy_coin::withdraw<BaseCoin, StrategyType, CoinType>(option::borrow(&strategy_info.strategy_cap), amount)
+    }
+
+    // lock/unlock
+
+    /// get the VaultCapability for Vault<BaseCoin>
+    fun lock_vault<BaseCoin>(): VaultCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        let vault_info = borrow_global_mut<VaultInfo<BaseCoin>>(satay_account_address);
+        option::extract(&mut vault_info.vault_cap)
+    }
+
+    /// return the VaultCapability for Vault<BaseCoin>
+    fun unlock_vault<BaseCoin>(vault_cap: VaultCapability<BaseCoin>)
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        let vault_info = borrow_global_mut<VaultInfo<BaseCoin>>(satay_account_address);
+        option::fill(&mut vault_info.vault_cap, vault_cap);
+    }
+
+    /// get the VaultCapability for Vault<BaseCoin> and assert that (BaseCoin, StrategyType) is approved
+    /// @param _witness - reference to an instance of StrategyType used to prove the source of the call
+    fun strategy_lock_vault<BaseCoin, StrategyType: drop>(_witness: &StrategyType): VaultCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        let vault_cap = lock_vault<BaseCoin>();
+        assert_strategy_approved<BaseCoin, StrategyType>(&vault_cap);
+        vault_cap
+    }
+
+    /// return the VaultCapability for Vault<BaseCoin>
+    /// @param vault_cap - VaultCapability for Vault<BaseCoin>
+    fun strategy_unlock_vault<BaseCoin, StrategyType: drop>(vault_cap: VaultCapability<BaseCoin>)
+    acquires SatayAccount, VaultInfo {
+        unlock_vault(vault_cap);
+    }
+
+    /// get the VaultManagerCapability for Vault<BaseCoin>
+    /// @param vault_manager - the transaction signer; must have the vault manager role on satay::vault_config
+    fun vault_manager_lock_vault<BaseCoin>(vault_manager: &signer): VaultManagerCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        let vault_cap = lock_vault<BaseCoin>();
+        vault::get_vault_manager_capability(vault_manager, vault_cap)
+    }
+
+    /// return the VaultManagerCapability for Vault<BaseCoin>
+    /// @param vault_manager_cap - VaultManagerCapability for Vault<BaseCoin>
+    fun vault_manager_unlock_vault<BaseCoin>(vault_manager_cap: VaultManagerCapability<BaseCoin>)
+    acquires SatayAccount, VaultInfo {
+        let vault_cap = vault::destroy_vault_manager_capability(vault_manager_cap);
+        unlock_vault(vault_cap);
+    }
+
+    /// get the KeeperCapability for Vault<BaseCoin>, StrategyType must be approved
+    /// @param keeper - the transaction signer; must hold the keeper role for StrategyType on satay::keeper_config
     /// @param witness - instance of StrategyType used to prove the source of the call
-    public(friend) fun keeper_lock_vault<StrategyType: drop>(
+    public(friend) fun keeper_lock_vault<BaseCoin, StrategyType: drop>(
         keeper: &signer,
-        vault_id: u64,
         witness: StrategyType
-    ): (KeeperCapability<StrategyType>, VaultCapLock<StrategyType>)
-    acquires ManagerAccount {
-        let (vault_cap, vault_cap_lock) = lock_vault(vault_id, &witness);
-        let keeper_cap = vault::get_keeper_capability<StrategyType>(keeper, vault_cap, witness);
-        (keeper_cap, vault_cap_lock)
+    ): KeeperCapability<BaseCoin, StrategyType>
+    acquires SatayAccount, VaultInfo {
+        let vault_cap = strategy_lock_vault<BaseCoin, StrategyType>(&witness);
+        vault::get_keeper_capability<BaseCoin, StrategyType>(keeper, vault_cap, witness)
     }
 
     /// destroy the KeeperCapability, vault_cap and stop_handle must match
     /// @param keeper_cap - KeeperCapability for vault referenced by vault_id in preceding call to keeper_lock_vault
     /// @param vault_cap_lock - holds the vault_id for vault_cap
-    public(friend) fun keeper_unlock_vault<StrategyType: drop>(
-        keeper_cap: KeeperCapability<StrategyType>,
-        vault_cap_lock: VaultCapLock<StrategyType>
-    ) acquires ManagerAccount {
+    public(friend) fun keeper_unlock_vault<BaseCoin, StrategyType: drop>(
+        keeper_cap: KeeperCapability<BaseCoin, StrategyType>,
+    ) acquires SatayAccount, VaultInfo {
         let vault_cap = vault::destroy_keeper_capability(keeper_cap);
-        unlock_vault(vault_cap, vault_cap_lock);
+        strategy_unlock_vault<BaseCoin, StrategyType>(vault_cap);
     }
 
     /// get the UserCapability of vault_id for use by StrategyType, StrategyType must be approved first
     /// followed by a subsequent call to user_unlock_vault
     /// @param user - the transaction signer
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param witness - reference to an instance of StrategyType used to prove the source of the call
-    public(friend) fun user_lock_vault<StrategyType: drop>(
+    public(friend) fun user_lock_vault<BaseCoin>(
         user: &signer,
-        vault_id: u64,
-        witness: &StrategyType
-    ) : (UserCapability, VaultCapLock<StrategyType>)
-    acquires ManagerAccount {
-        let (vault_cap, vault_cap_lock) = lock_vault(vault_id, witness);
-        let user_cap = vault::get_user_capability(user, vault_cap);
-        (user_cap, vault_cap_lock)
+    ) : UserCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        let vault_cap = lock_vault<BaseCoin>();
+        vault::get_user_capability(user, vault_cap)
     }
 
     /// destroy the UserCapability, vault_cap and stop_handle must match
     /// @param user_cap - UserCapability for vault referenced by vault_id in preceding call to user_lock_vault
     /// @param vault_cap_lock - holds the vault_id for vault_cap
-    public(friend) fun user_unlock_vault<StrategyType: drop>(
-        user_cap: UserCapability,
-        vault_cap_lock: VaultCapLock<StrategyType>
-    ) acquires ManagerAccount {
+    public(friend) fun user_unlock_vault<BaseCoin>(
+        user_cap: UserCapability<BaseCoin>,
+    ) acquires SatayAccount, VaultInfo {
         let (vault_cap, _) = vault::destroy_user_capability(user_cap);
-        unlock_vault(vault_cap, vault_cap_lock);
+        unlock_vault<BaseCoin>(vault_cap);
     }
 
     // getter functions
 
-    // ManagerAccount fields
+    // satay account
 
-    /// gets the next vault_id, which is also the number of active vaults
-    public fun get_next_vault_id(): u64 acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        account.next_vault_id
+    /// gets the address of the satay account
+    public fun get_satay_account_address(): address acquires SatayAccount {
+        let satay_account = borrow_global<SatayAccount>(@satay);
+        account::get_signer_capability_address(&satay_account.signer_cap)
     }
-
+    
     // vault fields
 
-    /// returns the vault address from a vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_vault_address_by_id(vault_id: u64): address
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::get_vault_addr(vault_cap)
-    }
-
-    /// returns the BaseCoin for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_base_coin_by_id(vault_id: u64): TypeInfo
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::get_base_coin_type(vault_cap)
+    /// returns the address of Vault<BaseCoin>
+    public fun get_vault_address<BaseCoin>(): address
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::get_vault_address(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the management fee and performance fee for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_vault_fees(vault_id: u64): (u64, u64)
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::get_fees(option::borrow(&vault_info.vault_cap))
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_vault_fees<BaseCoin>(): (u64, u64)
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::get_fees(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns whether depoosts are frozen for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun is_vault_frozen(vault_id: u64): bool
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::is_vault_frozen(option::borrow(&vault_info.vault_cap))
+    /// @param vault_id - the id of the vault in the  resource
+    public fun is_vault_frozen<BaseCoin>(): bool
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::is_vault_frozen(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the total debt ratio for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_vault_debt_ratio(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::get_debt_ratio(option::borrow(&vault_info.vault_cap))
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_vault_debt_ratio<BaseCoin>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::get_debt_ratio(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the total debt of vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_total_debt(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::get_total_debt(option::borrow(&vault_info.vault_cap))
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_total_debt<BaseCoin>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::get_total_debt(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
-    public fun get_vault_balance<CoinType>(vault_id: u64) : u64 acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::balance<CoinType>(vault_cap)
+    /// returns the total balance of CoinType in Vault<BaseCoin>
+    public fun get_vault_balance<BaseCoin, CoinType>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::balance<BaseCoin, CoinType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
 
     /// returns the total assets of vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_total_assets<BaseCoin>(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::total_assets<BaseCoin>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_total_assets<BaseCoin>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::total_assets(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     // strategy fields
 
     /// returns whether vault_id has StrategyType approved
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun has_strategy<StrategyType: drop>(vault_id: u64): bool
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        vault::has_strategy<StrategyType>(option::borrow(&vault_info.vault_cap))
+    /// @param vault_id - the id of the vault in the  resource
+    public fun has_strategy<BaseCoin, StrategyType: drop>(): bool
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::has_strategy<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns total debt for StrategyType on vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_strategy_total_debt<StrategyType: drop>(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::total_debt<StrategyType>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_strategy_total_debt<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::total_debt<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the debt ratio for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_strategy_debt_ratio<StrategyType: drop>(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::debt_ratio<StrategyType>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_strategy_debt_ratio<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::debt_ratio<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the credit availale for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_credit_available<StrategyType: drop, BaseCoin>(vault_id: u64, ): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::credit_available<StrategyType, BaseCoin>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_credit_available<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::credit_available<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the outstanding debt for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_debt_out_standing<StrategyType: drop, BaseCoin>(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::debt_out_standing<StrategyType, BaseCoin>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_debt_out_standing<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::debt_out_standing<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// returns the timestamp of the last harvest for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_last_report<StrategyType: drop>(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::last_report<StrategyType>(vault_cap)
-    }
-
-    /// returns the type of the strategy coin for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_strategy_coin_type<StrategyType: drop>(vault_id: u64, ): TypeInfo
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::get_strategy_coin_type<StrategyType>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_last_report<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::last_report<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// get the total gain for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_total_gain<StrategyType: drop, BaseCoin>(vault_id: u64, ): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::total_gain<StrategyType>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_total_gain<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::total_gain<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     /// get the total loss for StrategyType for vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    public fun get_total_loss<StrategyType: drop, BaseCoin>(vault_id: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::total_loss<StrategyType>(vault_cap)
+    /// @param vault_id - the id of the vault in the  resource
+    public fun get_total_loss<BaseCoin, StrategyType: drop>(): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::total_loss<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
     }
 
     // user calculations
 
     /// returns the amount of VaultCoin minted for an amount of BaseCoin deposited to vault_id
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// @param base_coin_amount - the amount of BaseCoin to deposit
-    public fun get_vault_coin_amount<BaseCoin>(vault_id: u64, base_coin_amount: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::calculate_vault_coin_amount_from_base_coin_amount<BaseCoin>(vault_cap, base_coin_amount)
+    public fun get_vault_coin_amount<BaseCoin>(base_coin_amount: u64): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::calculate_vault_coin_amount_from_base_coin_amount<BaseCoin>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap),
+            base_coin_amount
+        )
     }
 
     /// returns the amount of BaseCoin returned from vault_id by burining an amount of VaultCoin<BaseCoin>
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
     /// vault_coin_amount - the amount of VaultCoin<BaseCoin> to burn
-    public fun get_base_coin_amount<BaseCoin>(vault_id: u64, vault_coin_amount: u64): u64
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global<ManagerAccount>(@satay);
-        let vault_info = table::borrow(&account.vaults, vault_id);
-        let vault_cap = option::borrow(&vault_info.vault_cap);
-        vault::calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(vault_cap, vault_coin_amount)
-    }
-
-    // helper functions
-
-    /// get the VaultCapability of vault_id for use by StrategyType, StrategyType must be approved first
-    /// followed by a subsequent call to unlock_vault
-    /// @param vault_id - the id of the vault in the ManagerAccount resource
-    /// @param _witness - reference to an instance of StrategyType used to prove the source of the call
-    fun lock_vault<StrategyType: drop>(
-        vault_id: u64,
-        _witness: &StrategyType
-    ): (VaultCapability, VaultCapLock<StrategyType>)
-    acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-
-        // assert that strategy is approved for vault
-        assert_strategy_approved<StrategyType>(option::borrow(&vault_info.vault_cap));
-
-        let vault_cap = option::extract(&mut vault_info.vault_cap);
-        let stop_handle = VaultCapLock {
-            vault_id,
-        };
-        (vault_cap, stop_handle)
-    }
-
-    /// return the VaultCapability to ManagerAccount, vault_cap and stop_handle must match
-    /// @param vault_cap - VaultCapability for vault referenced by vault_id in preceding call to lock_vault
-    /// @param stop_handle - holds the vault_id for vault_cap
-    fun unlock_vault<StrategyType: drop>(vault_cap: VaultCapability, stop_handle: VaultCapLock<StrategyType>)
-    acquires ManagerAccount {
-        // assert that correct VaultCapLock for VaultCapability is passed
-        assert_vault_cap_and_stop_handle_match(&vault_cap, &stop_handle);
-
-        let VaultCapLock<StrategyType> {
-            vault_id,
-        } = stop_handle;
-
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        assert_strategy_approved<StrategyType>(&vault_cap);
-        option::fill(&mut vault_info.vault_cap, vault_cap);
+    public fun get_base_coin_amount<BaseCoin>(vault_coin_amount: u64): u64
+    acquires SatayAccount, VaultInfo {
+        let satay_account_address = get_satay_account_address();
+        vault::calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap),
+            vault_coin_amount
+        )
     }
 
     // assert statements
 
-    /// asserts that the ManagerAccount is initialized
-    fun assert_manager_initialized() {
-        assert!(exists<ManagerAccount>(@satay), ERR_MANAGER);
-    }
-
-    /// asserts that the vault_id for a given VaultCapability and VaultCapLock are equal, called by unlock_vault
-    /// @param vault_cap - a VaultCapability reference
-    /// @param stop_handle - A VaultCapLock reference
-    fun assert_vault_cap_and_stop_handle_match<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        stop_handle: &VaultCapLock<StrategyType>,
-    ) {
-        assert!(vault::vault_cap_has_id(vault_cap, stop_handle.vault_id), ERR_VAULT_CAP);
-    }
-
     /// asserts that StrategyType is approved on the vault controlled by vault_cap
     /// @param vault_cap - a VaultCapability reference
-    fun assert_strategy_approved<StrategyType: drop>(vault_cap: &VaultCapability) {
-        assert!(vault::has_strategy<StrategyType>(vault_cap), ERR_STRATEGY);
+    fun assert_strategy_approved<BaseCoin, StrategyType: drop>(vault_cap: &VaultCapability<BaseCoin>) {
+        assert!(vault::has_strategy<BaseCoin, StrategyType>(vault_cap), ERR_STRATEGY);
     }
 
     // test functions
 
     #[test_only]
-    public fun open_vault(vault_id: u64): VaultCapability acquires ManagerAccount {
-        assert_manager_initialized();
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        option::extract(&mut vault_info.vault_cap)
+    public fun test_lock_vault<BaseCoin>(): VaultCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        lock_vault<BaseCoin>()
     }
 
     #[test_only]
-    public fun close_vault(vault_id: u64, vault_cap: VaultCapability) acquires ManagerAccount {
-        assert!(
-            vault::vault_cap_has_id(&vault_cap, vault_id),
-            ERR_VAULT_CAP
-        );
-        let account = borrow_global_mut<ManagerAccount>(@satay);
-        let vault_info = table::borrow_mut(&mut account.vaults, vault_id);
-        option::fill(&mut vault_info.vault_cap, vault_cap);
+    public fun test_unlock_vault<BaseCoin>(vault_cap: VaultCapability<BaseCoin>)
+    acquires SatayAccount, VaultInfo {
+        unlock_vault<BaseCoin>(vault_cap);
     }
 
     #[test_only]
-    public fun test_lock_vault<StrategyType: drop>(
-        vault_id: u64,
-        witness: &StrategyType,
-    ): (VaultCapability, VaultCapLock<StrategyType>) acquires ManagerAccount {
-        lock_vault<StrategyType>(
-            vault_id,
-            witness
-        )
+    public fun test_strategy_lock_vault<BaseCoin, StrategyType: drop>(witness: &StrategyType): VaultCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        strategy_lock_vault<BaseCoin, StrategyType>(witness)
     }
 
     #[test_only]
-    public fun test_unlock_vault<StrategyType: drop>(
-        vault_cap: VaultCapability,
-        stop_handle: VaultCapLock<StrategyType>,
-    ) acquires ManagerAccount {
-        unlock_vault<StrategyType>(
-            vault_cap,
-            stop_handle,
-        )
+    public fun test_strategy_unlock_vault<BaseCoin, StrategyType: drop>(vault_cap: VaultCapability<BaseCoin>)
+    acquires SatayAccount, VaultInfo {
+        strategy_unlock_vault<BaseCoin, StrategyType>(vault_cap)
     }
 
     #[test_only]
-    public fun test_keeper_lock_vault<StrategyType: drop>(
+    public fun test_keeper_lock_vault<BaseCoin, StrategyType: drop>(
         keeper: &signer,
-        vault_id: u64,
         witness: StrategyType
-    ): (KeeperCapability<StrategyType>, VaultCapLock<StrategyType>)
-    acquires ManagerAccount {
-        keeper_lock_vault(keeper, vault_id, witness)
+    ): KeeperCapability<BaseCoin, StrategyType>
+    acquires SatayAccount, VaultInfo {
+        keeper_lock_vault<BaseCoin, StrategyType>(keeper, witness)
     }
 
     #[test_only]
-    public fun test_keeper_unlock_vault<StrategyType: drop>(
-        keeper_cap: KeeperCapability<StrategyType>,
-        stop_handle: VaultCapLock<StrategyType>,
-    ) acquires ManagerAccount {
-        keeper_unlock_vault(keeper_cap, stop_handle)
+    public fun test_keeper_unlock_vault<BaseCoin, StrategyType: drop>(
+        keeper_cap: KeeperCapability<BaseCoin, StrategyType>
+    )
+    acquires SatayAccount, VaultInfo {
+        keeper_unlock_vault<BaseCoin, StrategyType>(keeper_cap);
     }
 
     #[test_only]
-    public fun test_user_lock_vault<StrategyType: drop>(
+    public fun test_user_lock_vault<BaseCoin>(
         user: &signer,
-        vault_id: u64,
-        witness: &StrategyType
-    ): (UserCapability, VaultCapLock<StrategyType>)
-    acquires ManagerAccount {
-        user_lock_vault(user, vault_id, witness)
+    ): UserCapability<BaseCoin>
+    acquires SatayAccount, VaultInfo {
+        user_lock_vault<BaseCoin>(user)
     }
 
     #[test_only]
-    public fun test_user_unlock_vault<StrategyType: drop>(
-        user_cap: UserCapability,
-        stop_handle: VaultCapLock<StrategyType>,
-    ) acquires ManagerAccount {
-        user_unlock_vault(user_cap, stop_handle)
+    public fun test_user_unlock_vault<BaseCoin>(
+        user_cap: UserCapability<BaseCoin>,
+    ) acquires SatayAccount, VaultInfo {
+        user_unlock_vault<BaseCoin>(user_cap);
     }
 
     #[test_only]
-    public fun test_approve_strategy<StrategyType: drop, StrategyCoin>(
+    public fun test_approve_strategy<BaseCoin, StrategyType: drop>(
         vault_manager: &signer,
-        vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType,
-    ) acquires ManagerAccount {
-        approve_strategy<StrategyType, StrategyCoin>(
-            vault_manager,
-            vault_id,
-            debt_ratio,
-            &witness
-        );
+    ) acquires SatayAccount, VaultInfo {
+        approve_strategy<BaseCoin, StrategyType>(vault_manager, debt_ratio, &witness);
     }
 
     #[test_only]
-    public fun test_update_strategy_debt_ratio<StrategyType: drop>(
+    public fun test_update_strategy_debt_ratio<BaseCoin, StrategyType: drop>(
         vault_manager: &signer,
-        vault_id: u64,
         debt_ratio: u64,
         witness: StrategyType
-    ) acquires ManagerAccount {
-        update_strategy_debt_ratio<StrategyType>(
-            vault_manager,
-            vault_id,
-            debt_ratio,
-            &witness
-        );
-    }
-
-    #[test_only]
-    public fun test_assert_manager_initialized() {
-        assert_manager_initialized();
-    }
-
-    #[test_only]
-    public fun test_assert_vault_cap_and_stop_handle_match<StrategyType: drop>(
-        vault_cap: &VaultCapability,
-        stop_handle: &VaultCapLock<StrategyType>,
-    ) {
-        assert_vault_cap_and_stop_handle_match<StrategyType>(vault_cap, stop_handle);
-    }
-
-    #[test_only]
-    public fun test_get_vault_address_by_id(vault_id: u64) : address acquires ManagerAccount {
-        get_vault_address_by_id(vault_id)
+    ) acquires SatayAccount, VaultInfo {
+        update_strategy_debt_ratio<BaseCoin, StrategyType>(vault_manager, debt_ratio, &witness);
     }
 }

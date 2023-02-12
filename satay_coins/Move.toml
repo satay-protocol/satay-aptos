@@ -1,12 +1,12 @@
 [package]
-name = 'SatayVaultCoin'
+name = 'SatayCoins'
 version = '1.0.0'
 upgrade_policy = "immutable"
 
 [addresses]
-satay_vault_coin = "0xa5f4eafd961a1552be9aed938bf77d373f4f6d242950fd5ca2fa03da0e7d64c7"
+satay_coins = "0x50fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5"
 
 [dev-dependencies.MoveStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "mainnet"
+rev = "d57b97bae0b64b617869f2ff26e749e503848846"
 subdir = "aptos-move/framework/move-stdlib"
