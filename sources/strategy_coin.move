@@ -81,8 +81,6 @@ module satay::strategy_coin {
             &witness
         );
 
-
-
         let strategy_coin_caps = StrategyCoinCaps<BaseCoin, StrategyType> {
             mint_cap,
             burn_cap,
@@ -169,10 +167,19 @@ module satay::strategy_coin {
 
     // getters
 
-    /// gets the address of the product account for BaseCoin
+    /// gets the address of the strategy account
     public fun strategy_account_address<BaseCoin, StrategyType: drop>(
         strategy_cap: &StrategyCapability<BaseCoin, StrategyType>
     ): address {
         account::get_signer_capability_address(&strategy_cap.signer_cap)
+    }
+
+    /// gets the CoinType balance of the strategy account
+    public fun balance<BaseCoin, StrategyType: drop, CoinType>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>
+    ): u64 acquires CoinStore {
+        let strategy_address = strategy_account_address(strategy_cap);
+        let coin_store = borrow_global<CoinStore<CoinType>>(strategy_address);
+        coin::value<CoinType>(&coin_store.coin)
     }
 }

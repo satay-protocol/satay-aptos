@@ -489,6 +489,15 @@ module satay::satay {
         )
     }
 
+    /// returns the CoinType balance of the strategy resource account
+    public fun get_strategy_balance<BaseCoin, StrategyType: drop, CoinType>(): u64
+    acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        strategy_coin::balance<BaseCoin, StrategyType, CoinType>(
+            option::borrow(&borrow_global<StrategyInfo<BaseCoin, StrategyType>>(satay_account_address).strategy_cap)
+        )
+    }
+
     /// returns total debt for StrategyType on vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_strategy_total_debt<BaseCoin, StrategyType: drop>(): u64
