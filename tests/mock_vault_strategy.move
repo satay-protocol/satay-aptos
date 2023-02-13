@@ -12,8 +12,6 @@ module satay::mock_vault_strategy {
 
     use satay::mock_strategy::{Self, MockStrategy};
 
-    const ERR_NOT_SATAY: u64 = 1;
-
     public entry fun approve(governance: &signer, debt_ratio: u64) {
         base_strategy::approve_strategy<AptosCoin, MockStrategy>(
             governance,

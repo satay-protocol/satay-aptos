@@ -403,7 +403,9 @@ module satay::satay {
     public fun get_vault_address<BaseCoin>(): address
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::get_vault_address(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::get_vault_address(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the management fee and performance fee for vault_id
@@ -411,7 +413,9 @@ module satay::satay {
     public fun get_vault_fees<BaseCoin>(): (u64, u64)
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::get_fees(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::get_fees(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns whether depoosts are frozen for vault_id
@@ -419,7 +423,9 @@ module satay::satay {
     public fun is_vault_frozen<BaseCoin>(): bool
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::is_vault_frozen(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::is_vault_frozen(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the total debt ratio for vault_id
@@ -427,7 +433,9 @@ module satay::satay {
     public fun get_vault_debt_ratio<BaseCoin>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::get_debt_ratio(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::get_debt_ratio(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the total debt of vault_id
@@ -435,14 +443,18 @@ module satay::satay {
     public fun get_total_debt<BaseCoin>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::get_total_debt(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::get_total_debt(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the total balance of CoinType in Vault<BaseCoin>
     public fun get_vault_balance<BaseCoin, CoinType>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::balance<BaseCoin, CoinType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::balance<BaseCoin, CoinType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
 
@@ -451,7 +463,9 @@ module satay::satay {
     public fun get_total_assets<BaseCoin>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::total_assets(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::total_assets(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     // strategy fields
@@ -461,7 +475,18 @@ module satay::satay {
     public fun has_strategy<BaseCoin, StrategyType: drop>(): bool
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::has_strategy<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::has_strategy<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
+    }
+
+    /// returns the address of the strategy resource account
+    public fun get_strategy_address<BaseCoin, StrategyType: drop>(): address
+    acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        strategy_coin::strategy_account_address(
+            option::borrow(&borrow_global<StrategyInfo<BaseCoin, StrategyType>>(satay_account_address).strategy_cap)
+        )
     }
 
     /// returns total debt for StrategyType on vault_id
@@ -469,7 +494,9 @@ module satay::satay {
     public fun get_strategy_total_debt<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::total_debt<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::total_debt<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the debt ratio for StrategyType for vault_id
@@ -477,7 +504,9 @@ module satay::satay {
     public fun get_strategy_debt_ratio<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::debt_ratio<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::debt_ratio<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the credit availale for StrategyType for vault_id
@@ -485,7 +514,9 @@ module satay::satay {
     public fun get_credit_available<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::credit_available<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::credit_available<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the outstanding debt for StrategyType for vault_id
@@ -493,7 +524,9 @@ module satay::satay {
     public fun get_debt_out_standing<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::debt_out_standing<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::debt_out_standing<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// returns the timestamp of the last harvest for StrategyType for vault_id
@@ -501,7 +534,9 @@ module satay::satay {
     public fun get_last_report<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::last_report<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::last_report<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// get the total gain for StrategyType for vault_id
@@ -509,7 +544,9 @@ module satay::satay {
     public fun get_total_gain<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::total_gain<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::total_gain<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     /// get the total loss for StrategyType for vault_id
@@ -517,7 +554,9 @@ module satay::satay {
     public fun get_total_loss<BaseCoin, StrategyType: drop>(): u64
     acquires SatayAccount, VaultInfo {
         let satay_account_address = get_satay_account_address();
-        vault::total_loss<BaseCoin, StrategyType>(option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap))
+        vault::total_loss<BaseCoin, StrategyType>(
+            option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap)
+        )
     }
 
     // user calculations
