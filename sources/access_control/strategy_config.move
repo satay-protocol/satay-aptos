@@ -85,6 +85,7 @@ module satay::strategy_config {
         strategy_config.new_strategy_manager_address = @0x0;
     }
 
+    #[view]
     /// returns the strategy manager address for the strategy
     /// @param strategy_address - the address of the strategy
     public fun get_strategy_manager_address<BaseCoin, StrategyType: drop>(strategy_address: address): address

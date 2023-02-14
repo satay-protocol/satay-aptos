@@ -78,6 +78,7 @@ module satay::keeper_config {
         vault_config.new_keeper_address = @0x0;
     }
 
+    #[view]
     /// returns the keeper address for StrategyType on vault_address
     /// @param vault_address - the address of the vault holding KeeperConfig<StrategyType>
     public fun get_keeper_address<BaseCoin, StrategyType: drop>(vault_address: address): address

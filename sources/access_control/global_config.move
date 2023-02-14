@@ -97,6 +97,7 @@ module satay::global_config {
 
     // getter functions
 
+    #[view]
     /// returns the address of the account that holds the GlobalConfig resource
     public fun get_global_config_account_address(): address
     acquires GlobalConfigResourceAccount {
@@ -112,6 +113,7 @@ module satay::global_config {
         global_config_account_address
     }
 
+    #[view]
     /// returns the address of the DAO admin account
     public fun get_dao_admin(): address
     acquires GlobalConfig, GlobalConfigResourceAccount {
@@ -120,6 +122,7 @@ module satay::global_config {
         config.dao_admin_address
     }
 
+    #[view]
     /// returns the address of the governance account
     public fun get_governance_address(): address
     acquires GlobalConfig, GlobalConfigResourceAccount {

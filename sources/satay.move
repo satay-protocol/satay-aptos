@@ -391,6 +391,7 @@ module satay::satay {
 
     // satay account
 
+    #[view]
     /// gets the address of the satay account
     public fun get_satay_account_address(): address acquires SatayAccount {
         let satay_account = borrow_global<SatayAccount>(@satay);
@@ -399,6 +400,7 @@ module satay::satay {
     
     // vault fields
 
+    #[view]
     /// returns the address of Vault<BaseCoin>
     public fun get_vault_address<BaseCoin>(): address
     acquires SatayAccount, VaultInfo {
@@ -408,6 +410,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the management fee and performance fee for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_vault_fees<BaseCoin>(): (u64, u64)
@@ -418,6 +421,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns whether depoosts are frozen for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun is_vault_frozen<BaseCoin>(): bool
@@ -428,6 +432,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the total debt ratio for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_vault_debt_ratio<BaseCoin>(): u64
@@ -438,6 +443,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the total debt of vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_total_debt<BaseCoin>(): u64
@@ -448,6 +454,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the total balance of CoinType in Vault<BaseCoin>
     public fun get_vault_balance<BaseCoin, CoinType>(): u64
     acquires SatayAccount, VaultInfo {
@@ -457,7 +464,7 @@ module satay::satay {
         )
     }
 
-
+    #[view]
     /// returns the total assets of vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_total_assets<BaseCoin>(): u64
@@ -470,6 +477,7 @@ module satay::satay {
 
     // strategy fields
 
+    #[view]
     /// returns whether vault_id has StrategyType approved
     /// @param vault_id - the id of the vault in the  resource
     public fun has_strategy<BaseCoin, StrategyType: drop>(): bool
@@ -480,6 +488,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the address of the strategy resource account
     public fun get_strategy_address<BaseCoin, StrategyType: drop>(): address
     acquires SatayAccount, StrategyInfo {
@@ -489,6 +498,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the CoinType balance of the strategy resource account
     public fun get_strategy_balance<BaseCoin, StrategyType: drop, CoinType>(): u64
     acquires SatayAccount, StrategyInfo {
@@ -498,6 +508,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns total debt for StrategyType on vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_strategy_total_debt<BaseCoin, StrategyType: drop>(): u64
@@ -508,6 +519,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the debt ratio for StrategyType for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_strategy_debt_ratio<BaseCoin, StrategyType: drop>(): u64
@@ -518,6 +530,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the credit availale for StrategyType for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_credit_available<BaseCoin, StrategyType: drop>(): u64
@@ -528,6 +541,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the outstanding debt for StrategyType for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_debt_out_standing<BaseCoin, StrategyType: drop>(): u64
@@ -538,6 +552,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the timestamp of the last harvest for StrategyType for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_last_report<BaseCoin, StrategyType: drop>(): u64
@@ -548,6 +563,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// get the total gain for StrategyType for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_total_gain<BaseCoin, StrategyType: drop>(): u64
@@ -558,6 +574,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// get the total loss for StrategyType for vault_id
     /// @param vault_id - the id of the vault in the  resource
     public fun get_total_loss<BaseCoin, StrategyType: drop>(): u64
@@ -570,6 +587,7 @@ module satay::satay {
 
     // user calculations
 
+    #[view]
     /// returns the amount of VaultCoin minted for an amount of BaseCoin deposited to vault_id
     /// @param base_coin_amount - the amount of BaseCoin to deposit
     public fun get_vault_coin_amount<BaseCoin>(base_coin_amount: u64): u64
@@ -581,6 +599,7 @@ module satay::satay {
         )
     }
 
+    #[view]
     /// returns the amount of BaseCoin returned from vault_id by burining an amount of VaultCoin<BaseCoin>
     /// vault_coin_amount - the amount of VaultCoin<BaseCoin> to burn
     public fun get_base_coin_amount<BaseCoin>(vault_coin_amount: u64): u64

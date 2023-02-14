@@ -37,7 +37,7 @@ module satay::vault_config {
 
     /// initializes the vault config for the vault
     /// @param vault_account - the transaction signer; the vault's resource account
-    public(friend) fun initialize (vault_account: &signer) {
+    public(friend) fun initialize(vault_account: &signer) {
         move_to(vault_account, VaultConfig {
             vault_manager_address: global_config::get_governance_address(),
             new_vault_manager_address: @0x0,
@@ -72,6 +72,7 @@ module satay::vault_config {
         vault_config.new_vault_manager_address = @0x0;
     }
 
+    #[view]
     /// gets the vault manager address
     /// @param vault_address - the vault's resource account address
     public fun get_vault_manager_address(vault_address: address): address
