@@ -1435,6 +1435,7 @@ module satay::vault {
         let user_cap = get_user_capability(user, vault_cap);
         let vault_coins = deposit_as_user(&user_cap, base_coins);
         let (vault_cap, user_addr) = destroy_user_capability(user_cap);
+        coin::register<VaultCoin<BaseCoin>>(user);
         coin::deposit(user_addr, vault_coins);
         vault_cap
     }
