@@ -642,10 +642,8 @@ module satay::satay {
     #[view]
     /// returns the address of the keeper for (BaseCoin, StrategyType)
     public fun get_keeper_address<BaseCoin, StrategyType: drop>(): address
-    acquires SatayAccount, StrategyInfo {
-        keeper_config::get_keeper_address<BaseCoin, StrategyType>(
-            get_strategy_address<BaseCoin, StrategyType>()
-        )
+    acquires SatayAccount, VaultInfo {
+        keeper_config::get_keeper_address<BaseCoin, StrategyType>(get_vault_address<BaseCoin>())
     }
 
     // assert statements
