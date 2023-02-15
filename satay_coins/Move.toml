@@ -4,7 +4,7 @@ version = '1.0.0'
 upgrade_policy = "immutable"
 
 [addresses]
-satay_coins = "0x50fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5"
+satay_coins = "0x869ec26e021e97bef32f7e4fc33fc8afdd6a617d1c1255a5ab99ff4056b3cd5c"
 
 [dev-dependencies.MoveStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"

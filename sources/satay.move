@@ -12,6 +12,10 @@ module satay::satay {
     use satay_coins::strategy_coin::{StrategyCoin};
 
     use satay::global_config;
+    use satay::vault_config;
+    use satay::strategy_config;
+    use satay::keeper_config;
+
     use satay::vault::{Self, VaultCapability, KeeperCapability, UserCapability, VaultManagerCapability};
     use satay::satay_account;
     use satay::strategy_coin;
@@ -475,6 +479,21 @@ module satay::satay {
         )
     }
 
+    #[view]
+    /// returns the address of the vault manager for Vault<BaseCoin>
+    /// REMOVE IN NEXT DEPLOYMENT
+    public fun get_vault_manager<BaseCoin>(): address
+    acquires SatayAccount, VaultInfo {
+        vault_config::get_vault_manager_address(get_vault_address<BaseCoin>())
+    }
+
+    #[view]
+    /// returns the address of the vault manager for Vault<BaseCoin>
+    public fun get_vault_manager_address<BaseCoin>(): address
+    acquires SatayAccount, VaultInfo {
+        vault_config::get_vault_manager_address(get_vault_address<BaseCoin>())
+    }
+
     // strategy fields
 
     #[view]
@@ -608,6 +627,24 @@ module satay::satay {
         vault::calculate_base_coin_amount_from_vault_coin_amount<BaseCoin>(
             option::borrow(&borrow_global<VaultInfo<BaseCoin>>(satay_account_address).vault_cap),
             vault_coin_amount
+        )
+    }
+
+    #[view]
+    /// returns the address of the strategy manager for (BaseCoin, StrategyType)
+    public fun get_strategy_manager_address<BaseCoin, StrategyType: drop>(): address
+    acquires SatayAccount, StrategyInfo {
+        strategy_config::get_strategy_manager_address<BaseCoin, StrategyType>(
+            get_strategy_address<BaseCoin, StrategyType>()
+        )
+    }
+
+    #[view]
+    /// returns the address of the keeper for (BaseCoin, StrategyType)
+    public fun get_keeper_address<BaseCoin, StrategyType: drop>(): address
+    acquires SatayAccount, StrategyInfo {
+        keeper_config::get_keeper_address<BaseCoin, StrategyType>(
+            get_strategy_address<BaseCoin, StrategyType>()
         )
     }
 
