@@ -74,6 +74,7 @@ module satay::vault_config {
         vault_config.new_vault_manager_address = @0x0;
     }
 
+    #[view]
     /// gets the vault manager address
     /// * vault_address: address - the vault resource account address
     public fun get_vault_manager_address(vault_address: address): address

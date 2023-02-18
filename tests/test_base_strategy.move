@@ -3,21 +3,18 @@ module satay::test_base_strategy {
 
     use std::signer;
 
-    use aptos_framework::stake;
-    use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::timestamp;
 
     use satay_coins::vault_coin::VaultCoin;
     use satay_coins::strategy_coin::StrategyCoin;
-
-    use satay::satay_account;
-
+    
     use satay::satay;
     use satay::base_strategy;
     use satay::vault;
     use satay::dao_storage;
+    use satay::setup_tests;
 
     const MAX_DEBT_RATIO_BPS: u64 = 10000;
     const SECS_PER_YEAR: u64 = 31556952; // 365.2425 days
@@ -43,102 +40,34 @@ module satay::test_base_strategy {
 
     struct TestStrategy has drop {}
 
-    fun setup_tests_and_create_vault(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        stake::initialize_for_test(aptos_framework);
-        account::create_account_for_test(signer::address_of(aptos_framework));
-        coin::register<AptosCoin>(aptos_framework);
-        satay_account::initialize_satay_account(
-            satay,
-            x"0a5361746179436f696e73020000000000000000403241383933453237324133313136324437393735414641464239344439333132453041413143323532424139353946393543323536453939343342373946434196021f8b08000000000002ff2d50bd6e833010defd14114ba6800163a052a7ce9d32465174679f132b80916d68f3f6b5db6ef7dd7d7fbacb0aea0977bab205663abc1f8e6788f0fa70760947b6930fd62d795d97bce447b6ad770f9a6eab9bac7aa54361e7798b8013158c5d406b4f2150b8b2907d6e2a1b651affeeb88151486839081c00476ca5a4bad502a996ad018d8d31bcefc4d0b4d874c2d4ed28fb5e0d409cab2efb6bda4f9a565a342dca52283fdd4ee7a8278b5776b731273d625cc35b5525f8d8b0546eae608d2e9c26c0f03f2ae7a94c848279dab348773d8e3da624940265dd0f7234a94e23a9172375bc1dc4300859b0b0a1b63e6bfeace6d4a0323e7defcbf96795e129fc362a7e00444fcab75d010000020d73747261746567795f636f696ec4011f8b08000000000002ff4d8f410ac3201045f79e620e50c85e4a17ed115aba0d539d26a14946742c48c8ddab62a0e2c6f1fff7ff745d0723cf36808c04417c3402319085377bb88b47a121dd785a21dfaa41c1040ecd0707525df65b7233a76c79a5aaf014387a4380c6705c058ca78cb18550dd5a7f31ced29b8ced9b482d6ce3dcf0f527681d5a7e7dc3a6209f9258529e05518b0db4929f4c6b5f456d91fffe6737e22abcc0150395c1098ec9217b24471aac6777816d57bbfa012fb975701e01000000000a7661756c745f636f696eaf011f8b08000000000002ff4d8f310ec2300c45f79cc237c88e1003307002d6cab8a6ad48e32a7190aaaa77278922c0f2643fffff6dad859bb83e828e0c5143228514b987a704b863727a91c943ee0aa0e20a0bd20b0736361f5f7971b266feb156227094148801892479050a8c9af759a15e1f0eefa2da5196ed1a6466e9936bf27513ff31d80ce42a76c5e2976a60cf61a296bb42ed852f735c46f42a339c3172199c60dbcd6e3e1cb58cd7f900000000000000",
-            vector[
-                x"a11ceb0b0500000005010002020208070a270831200a5105000000010002000102010d73747261746567795f636f696e0c5374726174656779436f696e0b64756d6d795f6669656c6450fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5000201020100",
-                x"a11ceb0b05000000050100020202060708210829200a490500000001000100010a7661756c745f636f696e095661756c74436f696e0b64756d6d795f6669656c6450fa946a30a4b8ab9b366e13d4be163fadb2ff0754823b254f139677c8ae00c5000201020100"
-            ],
-        );
-        satay::initialize(satay);
-
-        account::create_account_for_test(signer::address_of(user));
-        coin::register<AptosCoin>(user);
-        account::create_account_for_test(signer::address_of(coins_manager));
-        coin::register<AptosCoin>(coins_manager);
-
-        satay::new_vault<AptosCoin>(
-            satay,
-            MANAGEMENT_FEE,
-            PERFORMANCE_FEE
-        );
-
+    fun setup_tests_and_create_vault(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_tests::setup_tests_with_user(aptos_framework, satay, user, DEPOSIT_AMOUNT);
+        
+        satay::new_vault<AptosCoin>(satay, MANAGEMENT_FEE, PERFORMANCE_FEE);
         satay::new_strategy<AptosCoin, TestStrategy>(satay, TestStrategy {});
     }
 
-    fun user_deposit(
-        aptos_framework: &signer,
-        user: &signer,
-        amount: u64
-    ) {
-        aptos_coin::mint(aptos_framework, signer::address_of(user), amount);
+    fun user_deposit(user: &signer, amount: u64) {
         satay::deposit<AptosCoin>(user, amount);
     }
 
-    fun initialize_strategy(
-        satay: &signer
-    ) {
-        base_strategy::approve_strategy<AptosCoin, TestStrategy>(
-            satay,
-            DEBT_RATIO,
-            TestStrategy {}
-        );
+    fun initialize_strategy(satay: &signer) {
+        base_strategy::approve_strategy<AptosCoin, TestStrategy>(satay, DEBT_RATIO, TestStrategy {});
     }
 
-    fun setup_tests_and_create_vault_and_strategy(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_tests_and_create_vault(aptos_framework, satay, coins_manager, user);
+    fun setup_tests_and_create_vault_and_strategy(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_tests_and_create_vault(aptos_framework, satay, user);
         initialize_strategy(satay);
     }
 
-    fun setup_and_user_deposit(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_tests_and_create_vault_and_strategy(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
-
-        user_deposit(aptos_framework, user, DEPOSIT_AMOUNT);
+    fun setup_and_user_deposit(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_tests_and_create_vault_and_strategy(aptos_framework, satay, user);
+        user_deposit(user, DEPOSIT_AMOUNT);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_initialize(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-        setup_tests_and_create_vault(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_initialize(aptos_framework: &signer, satay: &signer, user: &signer){
+        setup_tests_and_create_vault(aptos_framework, satay, user);
 
         initialize_strategy(satay);
 
@@ -148,25 +77,10 @@ module satay::test_base_strategy {
         satay::test_unlock_vault(vault_cap);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
     #[expected_failure]
-    fun test_initialize_unauthorized(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-        setup_tests_and_create_vault(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    fun test_initialize_unauthorized(aptos_framework: &signer, satay: &signer, user: &signer){
+        setup_tests_and_create_vault(aptos_framework, satay, user);
 
         base_strategy::approve_strategy<AptosCoin, TestStrategy>(
             user,
@@ -175,24 +89,9 @@ module satay::test_base_strategy {
         );
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_deposit_strategy_coin(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-        setup_tests_and_create_vault_and_strategy(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_deposit_strategy_coin(aptos_framework: &signer, satay: &signer, user: &signer){
+        setup_tests_and_create_vault_and_strategy(aptos_framework, satay, user);
 
         let amount = 1000;
         let strategy_coins = satay::strategy_mint<AptosCoin, TestStrategy>(amount, TestStrategy {});
@@ -207,24 +106,9 @@ module satay::test_base_strategy {
         assert!(satay::get_vault_balance<AptosCoin, StrategyCoin<AptosCoin, TestStrategy>>() == amount, ERR_DEPOSIT);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_withdraw_strategy_coin(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ){
-        setup_tests_and_create_vault_and_strategy(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_withdraw_strategy_coin(aptos_framework: &signer, satay: &signer, user: &signer){
+        setup_tests_and_create_vault_and_strategy(aptos_framework, satay, user);
 
         let amount = 1000;
         let strategy_coins = satay::strategy_mint<AptosCoin, TestStrategy>(amount, TestStrategy {});
@@ -251,24 +135,9 @@ module satay::test_base_strategy {
         assert!(satay::get_vault_balance<AptosCoin, AptosCoin>() == 0, ERR_WITHDRAW);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_admin_functions(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_tests_and_create_vault_and_strategy(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_admin_functions(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_tests_and_create_vault_and_strategy(aptos_framework, satay, user);
 
         let debt_ratio = 100;
         base_strategy::update_debt_ratio<AptosCoin, TestStrategy>(
@@ -343,24 +212,9 @@ module satay::test_base_strategy {
         );
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_harvest_credit(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_harvest_credit(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         let credit_available = satay::get_credit_available<AptosCoin, TestStrategy>();
 
@@ -391,24 +245,9 @@ module satay::test_base_strategy {
     }
 
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_harvest_profit(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_harvest_profit(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
 
@@ -440,24 +279,9 @@ module satay::test_base_strategy {
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_harvest_profit_and_credit(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_harvest_profit_and_credit(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         let seconds = 1000;
         timestamp::fast_forward_seconds(seconds);
@@ -486,24 +310,9 @@ module satay::test_base_strategy {
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_harvest_debt_payment(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_harvest_debt_payment(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
 
@@ -518,24 +327,9 @@ module satay::test_base_strategy {
         assert!(satay::get_vault_balance<AptosCoin, AptosCoin>() == DEPOSIT_AMOUNT, ERR_HARVEST);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_harvest_debt_payment_and_profit(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_harvest_debt_payment_and_profit(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
 
@@ -570,25 +364,10 @@ module satay::test_base_strategy {
         assert!(dao_storage::balance<VaultCoin<AptosCoin>>(vault_addr) == expected_fee, ERR_HARVEST);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
     #[expected_failure]
-    fun test_harvest_profit_wrong_amount(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    fun test_harvest_profit_wrong_amount(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
         harvest_profit(aptos_framework, satay, user);
@@ -613,25 +392,10 @@ module satay::test_base_strategy {
         );
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
     #[expected_failure]
-    fun test_harvest_debt_payment_wrong_amount(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    fun test_harvest_debt_payment_wrong_amount(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
 
@@ -663,24 +427,9 @@ module satay::test_base_strategy {
         );
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
-    fun test_user_withdraw(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
+    fun test_user_withdraw(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
         harvest(satay, user);
 
         let user_vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
@@ -710,27 +459,12 @@ module satay::test_base_strategy {
         assert!(satay::get_total_loss<AptosCoin, TestStrategy>() == 0, ERR_USER_WITHDRAW);
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
     #[expected_failure]
-    fun test_user_withdraw_loss(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
+    fun test_user_withdraw_loss(aptos_framework: &signer, satay: &signer, user: &signer) {
         let loss = 10;
 
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
 
@@ -755,25 +489,10 @@ module satay::test_base_strategy {
         );
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
     #[expected_failure]
-    fun test_user_withdraw_not_enough_share_coins(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    fun test_user_withdraw_not_enough_share_coins(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         harvest(satay, user);
 
@@ -791,25 +510,10 @@ module satay::test_base_strategy {
         )
     }
 
-    #[test(
-        aptos_framework = @aptos_framework,
-        satay = @satay,
-        coins_manager = @satay,
-        user = @0x47
-    )]
+    #[test(aptos_framework = @aptos_framework, satay = @satay, user = @0x47)]
     #[expected_failure]
-    fun test_user_withdraw_enough_liquidity(
-        aptos_framework: &signer,
-        satay: &signer,
-        coins_manager: &signer,
-        user: &signer,
-    ) {
-        setup_and_user_deposit(
-            aptos_framework,
-            satay,
-            coins_manager,
-            user,
-        );
+    fun test_user_withdraw_enough_liquidity(aptos_framework: &signer, satay: &signer, user: &signer) {
+        setup_and_user_deposit(aptos_framework, satay, user);
 
         let user_vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
         let user_vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, user_vault_coin_balance);

@@ -1,38 +1,17 @@
 #[test_only]
-module satay::coins {
+module satay::test_coin {
     use std::signer;
     use std::string::utf8;
 
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
 
-    /// Represents test USDT coin.
-    struct USDT {}
-
-    /// Represents test BTC coin.
-    struct BTC {}
-
-    struct ETH {}
+    /// Represents test USDC coin.
+    struct USDC {}
 
     /// Storing mint/burn capabilities for `USDT` and `BTC` coins under user account.
     struct Caps<phantom CoinType> has key {
         mint: MintCapability<CoinType>,
         burn: BurnCapability<CoinType>,
-    }
-
-    /// Initializes `BTC` and `USDT` coins.
-    public entry fun register_coins(token_admin: &signer) {
-        let (btc_b, btc_f, btc_m) =
-            coin::initialize<BTC>(token_admin,
-                utf8(b"Bitcoin"), utf8(b"BTC"), 8, true);
-        let (usdt_b, usdt_f, usdt_m) =
-            coin::initialize<USDT>(token_admin,
-                utf8(b"Tether"), utf8(b"USDT"), 6, true);
-
-        coin::destroy_freeze_cap(btc_f);
-        coin::destroy_freeze_cap(usdt_f);
-
-        move_to(token_admin, Caps<BTC> { mint: btc_m, burn: btc_b });
-        move_to(token_admin, Caps<USDT> { mint: usdt_m, burn: usdt_b });
     }
 
     public fun register_coin<CoinType>(token_admin: &signer) {
@@ -42,8 +21,8 @@ module satay::coins {
             mint
         ) = coin::initialize<CoinType>(
             token_admin,
-            utf8(b"Bitcoin"),
-            utf8(b"BTC"),
+            utf8(b"USDC"),
+            utf8(b"USDC"),
             8,
             true
         );
