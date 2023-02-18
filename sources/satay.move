@@ -297,6 +297,15 @@ module satay::satay {
         strategy_coin::withdraw<BaseCoin, StrategyType, CoinType>(option::borrow(&strategy_info.strategy_cap), amount)
     }
 
+    /// gets the signer for the strategy account
+    public fun strategy_signer<BaseCoin, StrategyType: drop>(_witness: StrategyType): signer
+    acquires SatayAccount, StrategyInfo {
+        let satay_account_address = get_satay_account_address();
+        strategy_coin::strategy_account_signer(
+            option::borrow(&borrow_global<StrategyInfo<BaseCoin, StrategyType>>(satay_account_address).strategy_cap)
+        )
+    }
+
     // lock/unlock
 
     /// get the VaultCapability for Vault<BaseCoin>
