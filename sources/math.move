@@ -17,8 +17,10 @@ module satay::math {
     /// when result overflows alotted storage
     const OVERFLOW: u64 = 2002;
 
-    /// computes x * y / z for three u64
-    /// @notice - overflows when result is greater than MAX_U64
+    /// computes x * y / z for three u64; overflows when result is greater than MAX_U64
+    /// * x: u64
+    /// * y: u64
+    /// * z: u64
     public fun mul_div(x: u64, y: u64, z: u64): u64 {
         assert!(z != 0, ERR_DIVIDE_BY_ZERO);
         let res = (x as u128) * (y as u128) / (z as u128);
@@ -26,8 +28,10 @@ module satay::math {
         (res as u64)
     }
 
-    /// computes x * numerator / denominator
-    /// @notice - asserts that denominator >= numerator, thus the result cannot overflow
+    /// computes x * numerator / denominator; cannot overflow
+    /// * x: u64
+    /// * numerator: u64
+    /// * denominator: u64 - must be greater than or equal to numerator
     public fun calculate_proportion_of_u64_with_u64_denominator(x: u64, numerator: u64, denominator: u64): u64 {
         assert!(denominator != 0, ERR_DIVIDE_BY_ZERO);
         // this assertion ensures the result will not overflow after casting down to u64
@@ -36,8 +40,10 @@ module satay::math {
         ((x as u128) * (numerator as u128) / (denominator as u128) as u64)
     }
 
-    /// computes x * numerator / denominator where denominator is a u128
-    /// @notice - asserts that denominator >= numerator, thus the result cannot overflow
+    /// computes x * numerator / denominator where denominator is a u128; cannot overflow
+    /// * x: u64
+    /// * numerator: u64
+    /// * denominator: u128 - must be greater than or equal to numerator
     public fun calculate_proportion_of_u64_with_u128_denominator(x: u64, numerator: u64, denominator: u128): u64 {
         assert!(denominator != 0, ERR_DIVIDE_BY_ZERO);
         // this assertion ensures the result will not overflow after casting down to u64
@@ -46,8 +52,10 @@ module satay::math {
         ((x as u128) * (numerator as u128) / (denominator) as u64)
     }
 
-    /// computes x * y * z where x is a u128 and y and z are u64
-    /// @notice - overflows when result is greater than MAX_U64
+    /// computes x * y * z where x is a u128 and y and z are u64; overflows when result is greater than MAX_U64
+    /// * x: u128
+    /// * y: u64
+    /// * z: u64
     public fun mul_u128_u64_div_u64_result_u64(x: u128, y: u64, z: u64): u64 {
         assert!(z != 0, ERR_DIVIDE_BY_ZERO);
         let res = x * (y as u128) / (z as u128);
@@ -56,14 +64,14 @@ module satay::math {
     }
 
     /// asserts that a u128 can downcast to a u64
-    /// @notice - will fail if x > MAX_U64
+    /// * x: u128
     fun assert_can_cast_to_u64(x: u128) {
         assert!(x <= (MAX_U64 as u128), OVERFLOW);
     }
 
-    /// computes 10 ^ x
-    /// @notice - will overflow for x > 19
-    public fun pow10(x: u64): u64 {
+    /// computes 10 ^ x; overflows when x > 19
+    /// * x: u64
+    public fun pow10(x: u8): u64 {
         let res = 1;
         let i = 0;
         while (i < x) {

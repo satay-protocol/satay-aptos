@@ -17,6 +17,9 @@ module satay::dao_storage {
     const ERR_NOT_REGISTERED: u64 = 301;
 
     /// holds coins and associated events for deposits and withdraws
+    /// * coin: Coin<CoinType>
+    /// * deposit_events: EventHandle<DepositEvent<CoinType>>
+    /// * withdraw_events: EventHandle<WithdrawEvent<CoinType>>
     struct CoinStore<phantom CoinType> has key {
         coin: Coin<CoinType>,
         deposit_events: EventHandle<DepositEvent<CoinType>>,
@@ -26,18 +29,20 @@ module satay::dao_storage {
     // events
 
     /// emitted when CoinType is deposited into a CoinStore
+    /// * amount: u64
     struct DepositEvent<phantom CoinType> has store, drop {
         amount: u64
     }
 
     /// emitted when CoinType is withdrawn from a CoinStore
+    /// * amount: u64
     struct WithdrawEvent<phantom CoinType> has store, drop {
         amount: u64,
         recipient: address,
     }
 
-    /// create a CoinStore for CoinType in signer's account, called by vault accounts
-    /// @param vault_acc - the resource account for a vault
+    /// creates a CoinStore for CoinType in a vault account
+    /// * vault_acc: &signer - the signer for the vault account
     public fun register<CoinType>(vault_acc: &signer) {
         move_to(vault_acc, CoinStore<CoinType>{
             coin: coin::zero(),
@@ -47,8 +52,8 @@ module satay::dao_storage {
     }
 
     /// deposit CoinType into CoinStore<CoinType> under vault_addr
-    /// @param vault_addr - the address of the vault, must have CoinStore<CoinType> registered
-    /// @param coins - the coins to deposit into a CoinStore
+    /// * vault_addr: address - the address of the vault
+    /// * coins: Coin<CoinType> - the coins to deposit
     public fun deposit<CoinType>(vault_addr: address, coins: Coin<CoinType>)
     acquires CoinStore {
         // assert that Storage for CoinType exists for vault_address
@@ -63,10 +68,10 @@ module satay::dao_storage {
         })
     }
 
-    /// withdraw CoinType from DAO storage for vault_addr
-    /// @param dao_admin - the transaction signer; must have the dao_admin role on global_config
-    /// @param vault_addr - the address of the vault, must have CoinStore<CoinType> registered
-    /// @param amount - the amount of CoinType to withdraw from DAO storage
+    /// withdraw CoinType from DAO storage on vault_addr
+    /// * dao_admin: &signer - must have DAO admin role in global_config
+    /// * vault_addr: address - the address of the vault
+    /// * amount: u64 - the amount of CoinType to withdraw
     public entry fun withdraw<CoinType>(dao_admin: &signer, vault_addr: address, amount: u64)
     acquires CoinStore {
         // assert that signer is the DAO admin
@@ -84,8 +89,8 @@ module satay::dao_storage {
         coin::deposit(dao_admin_addr, asset);
     }
 
-    /// returns the balance of CoinType for a given vault_addr
-    /// @param vault_addr - the address of the vault
+    /// returns the balance of CoinType for the DAO storage of vault_addr
+    /// * vault_addr: address - the address of the vault
     public fun balance<CoinType>(vault_addr: address): u64
     acquires CoinStore {
         // assert that Storage for CoinType exists for vault_address
@@ -95,13 +100,13 @@ module satay::dao_storage {
     }
 
     /// returns true if vault_addr has registerd a CoinStore for CoinType
-    /// @param vault_addr - the address of the vault
+    /// * vault_addr: address - the address of the vault
     public fun has_storage<CoinType>(vault_addr: address): bool {
         exists<CoinStore<CoinType>>(vault_addr)
     }
 
     /// asserts that vault_addr has a CoinStore registered for CoinType
-    /// @param vault_addr - the address of the vault
+    /// * vault_addr: address - the address of the vault
     fun assert_has_storage<CoinType>(vault_addr: address) {
         assert!(has_storage<CoinType>(vault_addr), ERR_NOT_REGISTERED);
     }

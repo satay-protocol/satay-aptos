@@ -432,7 +432,7 @@ module satay::test_base_strategy {
         setup_and_user_deposit(aptos_framework, satay, user);
         harvest(satay, user);
 
-        let user_vault_coin_balance = vault::vault_coin_balance<AptosCoin>(signer::address_of(user));
+        let user_vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
         let vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, user_vault_coin_balance);
 
         let base_coin_expected = satay::get_base_coin_amount<AptosCoin>(user_vault_coin_balance);
@@ -468,7 +468,7 @@ module satay::test_base_strategy {
 
         harvest(satay, user);
 
-        let user_vault_coin_balance = vault::vault_coin_balance<AptosCoin>(signer::address_of(user));
+        let user_vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
         let user_vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, user_vault_coin_balance);
 
         let user_withdraw_lock = base_strategy::open_vault_for_user_withdraw<AptosCoin, TestStrategy>(
@@ -496,7 +496,7 @@ module satay::test_base_strategy {
 
         harvest(satay, user);
 
-        let user_withdraw_amount= vault::vault_coin_balance<AptosCoin>(signer::address_of(user)) + 1;
+        let user_withdraw_amount= coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user)) + 1;
         let user_vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, user_withdraw_amount);
 
         let user_withdraw_lock = base_strategy::open_vault_for_user_withdraw<AptosCoin, TestStrategy>(
@@ -515,7 +515,7 @@ module satay::test_base_strategy {
     fun test_user_withdraw_enough_liquidity(aptos_framework: &signer, satay: &signer, user: &signer) {
         setup_and_user_deposit(aptos_framework, satay, user);
 
-        let user_vault_coin_balance = vault::vault_coin_balance<AptosCoin>(signer::address_of(user));
+        let user_vault_coin_balance = coin::balance<VaultCoin<AptosCoin>>(signer::address_of(user));
         let user_vault_coins = coin::withdraw<VaultCoin<AptosCoin>>(user, user_vault_coin_balance);
 
         let user_withdraw_lock = base_strategy::open_vault_for_user_withdraw<AptosCoin, TestStrategy>(

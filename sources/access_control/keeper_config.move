@@ -20,10 +20,10 @@ module satay::keeper_config {
     /// when the signer is not the keeper
     const ERR_NOT_KEEPER: u64 = 3;
 
-    /// holds the keeper information for each StrategyType, stored in vault account
-    /// @field keeper_address - the address of the current keeper
-    /// @field new_keeper_address - the address of the new keeper, set by set_keeper
-    /// @field keeper_change_events - event handle for KeeperChangeEvent
+    /// holds the keeper information for each StrategyType, stored in Vault<BaseCoin> account
+    /// * keeper_address: address - the address of the current keeper
+    /// * new_keeper_address: address - the address of the account that can accept the keeper role
+    /// * keeper_change_events: EventHandle<KeeperChangeEvent>
     struct KeeperConfig<phantom BaseCoin, phantom StrategyType: drop> has key {
         keeper_address: address,
         new_keeper_address: address,
@@ -31,14 +31,14 @@ module satay::keeper_config {
     }
 
     /// emitted when a new keeper accepts the role
-    /// @field new_keeper_address - the address of the new keeper
+    /// * new_keeper_address: address - the address of the account that accepted the keeper role
     struct KeeperChangeEvent has drop, store {
         new_keeper_address: address,
     }
 
-    /// initializes a KeeperConfig resource in the vault_account, called by vault::approve_strategy
-    /// @param vault_account - the transaction signer; the resource account for the vault
-    /// @param _witness - proves the origin of the call
+    /// initializes a KeeperConfig resource in vault_account, called by vault::approve_strategy
+    /// * vault_account: &signer - the resource account of Vault<BaseCoin>
+    /// * _witness: &StrategyType - witness pattern
     public(friend) fun initialize<BaseCoin, StrategyType: drop>(vault_account: &signer, _witness: &StrategyType) {
         move_to(vault_account, KeeperConfig<BaseCoin, StrategyType> {
             keeper_address: vault_config::get_vault_manager_address(signer::address_of(vault_account)),
@@ -48,9 +48,9 @@ module satay::keeper_config {
     }
 
     /// set new_keeper_address on the KeeperConfig resource
-    /// @param vault_manager - the transaction signer; must have the vault_manager role for vault_address
-    /// @param vault_address - the address of the vault holding KeeperConfig<StrategyType>
-    /// @param new_keeper_address - the address to offer keeper capability to
+    /// * vault_manager: &signer - must have the vault manager role for Vault<BaseCoin>
+    /// * vault_address: address - the address of the resource account for Vault<BaseCoin>
+    /// * new_keeper_address: address - the address of the account that can accept the keeper role
     public entry fun set_keeper<BaseCoin, StrategyType: drop>(
         vault_manager: &signer,
         vault_address: address,
@@ -63,9 +63,9 @@ module satay::keeper_config {
         strategy_config.new_keeper_address = new_keeper_address;
     }
 
-    /// accept the keeper role for new_keeper_address
-    /// @param new_keeper - the transaction signer; address of the signer must equal new_keeper_address
-    /// @param vault_address - the address of the vault holding StrategyCofig<StrategyType>
+    /// accept the keeper role
+    /// * new_keeper: &signer - must have the address set on KeeperConfig.new_keeper_address
+    /// * vault_address: address - the address of the resource account for Vault<BaseCoin>
     public entry fun accept_keeper<BaseCoin, StrategyType: drop>(new_keeper: &signer, vault_address: address)
     acquires KeeperConfig {
         assert_strategy_config_exists<BaseCoin, StrategyType>(vault_address);
@@ -78,9 +78,8 @@ module satay::keeper_config {
         vault_config.new_keeper_address = @0x0;
     }
 
-    #[view]
-    /// returns the keeper address for StrategyType on vault_address
-    /// @param vault_address - the address of the vault holding KeeperConfig<StrategyType>
+    /// returns the keeper address for StrategyType on Vault<BaseCoin>
+    /// * vault_address: address - the address of the resource account for Vault<BaseCoin>
     public fun get_keeper_address<BaseCoin, StrategyType: drop>(vault_address: address): address
     acquires KeeperConfig {
         assert_strategy_config_exists<BaseCoin, StrategyType>(vault_address);
@@ -88,9 +87,9 @@ module satay::keeper_config {
         config.keeper_address
     }
 
-    /// asserts that the signer has the keeper role for strategy type on vault_address
-    /// @param keeper - the transaction signer; must have the keeper role for KeeperConfig<StrategyType> on vault_address
-    /// @param vault_address - the address of the vault holding KeeperConfig<StrategyType>
+    /// asserts that the signer has the keeper role for StrategyType on Vault<BaseCoin>
+    /// * keeper: &signer - must have the keeper role for StrategyType on Vault<BaseCoin>
+    /// * vault_address: address - the address of the resource account for Vault<BaseCoin>
     public fun assert_keeper<BaseCoin, StrategyType: drop>(keeper: &signer, vault_address: address)
     acquires KeeperConfig {
         assert_strategy_config_exists<BaseCoin, StrategyType>(vault_address);
@@ -98,8 +97,8 @@ module satay::keeper_config {
         assert!(signer::address_of(keeper) == config.keeper_address, ERR_NOT_KEEPER);
     }
 
-    /// asserts that KeeperConfig<StrategyType> exists on vault_address
-    /// @param vault_address - the address of the vault to check for KeeperConfig<StrategyType>
+    /// asserts that KeeperConfig<BaseCoin, StrategyType> exists on vault_address
+    /// * vault_address: address - the address of the resource account for Vault<BaseCoin>
     fun assert_strategy_config_exists<BaseCoin, StrategyType: drop>(vault_address: address) {
         assert!(exists<KeeperConfig<BaseCoin, StrategyType>>(vault_address), ERR_CONFIG_DOES_NOT_EXIST);
     }
