@@ -2,14 +2,13 @@ module satay::strategy_coin {
 
     use std::string;
 
-    use aptos_std::type_info;
-
     use aptos_framework::coin::{Self, MintCapability, BurnCapability, Coin, FreezeCapability};
     use aptos_framework::account::{Self, SignerCapability};
 
     use satay_coins::strategy_coin::StrategyCoin;
 
     use satay::strategy_config;
+    use aptos_std::type_info;
 
     friend satay::satay;
 
@@ -47,16 +46,10 @@ module satay::strategy_coin {
         strategy_manager_address: address,
         witness: StrategyType
     ): StrategyCapability<BaseCoin, StrategyType> {
-        let strategy_struct = type_info::struct_name(&type_info::type_of<StrategyType>());
-        let base_coin_symbol = coin::symbol<BaseCoin>();
-
-        let name = copy base_coin_symbol;
-        string::append_utf8(&mut name, b":");
-        string::append_utf8(&mut name, copy strategy_struct);
+        // fixme
+        let name = string::utf8(type_info::struct_name(&type_info::type_of<StrategyType>()));
 
         let symbol = coin::symbol<BaseCoin>();
-        string::append_utf8(&mut symbol, b":");
-        string::append_utf8(&mut name, copy strategy_struct);
 
         let (
             burn_cap,
@@ -73,7 +66,7 @@ module satay::strategy_coin {
         let (
             strategy_signer,
             signer_cap
-        ) = account::create_resource_account(satay_account, *string::bytes(&symbol));
+        ) = account::create_resource_account(satay_account, *string::bytes(&name));
 
         strategy_config::initialize<BaseCoin, StrategyType>(
             &strategy_signer,
@@ -172,6 +165,13 @@ module satay::strategy_coin {
         strategy_cap: &StrategyCapability<BaseCoin, StrategyType>
     ): address {
         account::get_signer_capability_address(&strategy_cap.signer_cap)
+    }
+
+    /// gets the strategy account signer
+    public fun strategy_account_signer<BaseCoin, StrategyType: drop>(
+        strategy_cap: &StrategyCapability<BaseCoin, StrategyType>
+    ): signer {
+        account::create_signer_with_capability(&strategy_cap.signer_cap)
     }
 
     /// gets the CoinType balance of the strategy account
