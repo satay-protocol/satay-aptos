@@ -74,17 +74,6 @@ module satay::strategy_coin {
             true,
         );
 
-        let (
-            strategy_signer,
-            signer_cap
-        ) = account::create_resource_account(satay_account, *string::bytes(&name));
-
-        strategy_config::initialize<BaseCoin, StrategyType>(
-            &strategy_signer,
-            strategy_manager_address,
-            &witness
-        );
-
         let strategy_coin_caps = StrategyCoinCaps<BaseCoin, StrategyType> {
             mint_cap,
             burn_cap,
