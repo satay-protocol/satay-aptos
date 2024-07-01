@@ -1,3 +1,4 @@
 build/
 .aptos/
 .idea/
+.DS_STORE

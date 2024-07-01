@@ -3,7 +3,7 @@ name = 'satay'
 version = '1.0.0'
 
 [addresses]
-satay = "0x659d53b22ebb61ef1f64d28698b8117f65136d8bb211d6d22f54d5064eec08f5"
+satay = "0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

@@ -1,0 +1,1054 @@
+INCLUDING DEPENDENCY AptosFramework
+INCLUDING DEPENDENCY AptosStdlib
+INCLUDING DEPENDENCY MoveStdlib
+INCLUDING DEPENDENCY SatayCoins
+INCLUDING DEPENDENCY SatayInit
+BUILDING satay
+Running Move unit tests
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_dao_storage::test_deposit
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_admin_functions
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_admin_functions
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_keeper_config::test_accept_keeper_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault_config::test_accept_vault_manager_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_accept_dao_admin_reject
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_mock_strategy::test_harvest
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_approve_strategy
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_dao_storage::test_register
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_deposit_strategy_coin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_approve_multiple_strategies
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_keeper_config::test_initialize_strategy
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_accept_governance_reject
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault_config::test_create_vault
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_mock_strategy::test_initialize_strategy
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_assess_fees
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_dao_storage::test_withdraw
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_approve_strategy
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_credit
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault_config::test_create_vault_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_keeper_config::test_initialize_strategy_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_create_vault
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_initialize
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_mock_strategy::test_revoke
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_deposit
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_keeper_config::test_set_keeper
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_dao_storage::test_withdraw_non_dao_admin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_debt_payment
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault_config::test_set_vault_manager
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_initialize_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_debt_payment
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_deposit_after_freeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_keeper_config::test_set_keeper_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault_config::test_set_vault_manager_reject
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_new_vault_after_governance_change
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_debt_payment_and_profit
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_deposit
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_deposit_after_freeze_and_unfreeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_set_dao_admin
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_deposit_after_freeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_debt_payment_wrong_amount
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_freeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_set_dao_admin_reject
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_profit
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_deposit_after_unfreeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_freeze_unauthorized
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_set_governance
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_profit_and_credit
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_deposit_as_user
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_initialize
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config::test_set_governance_reject
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_harvest_profit_wrong_amount
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_deposit_profit
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_initialize_unauthorized
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_initialize
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_deposit_strategy_coin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_keeper_lock_unlock_vault
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_initialize_unauthorized
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_freeze_vault
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_keeper_lock_unlock_vault_unauthorized
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_user_withdraw
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_freeze_while_frozen
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_lock_locked_vault
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_user_withdraw_enough_liquidity
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_prepare_return_debt_payment
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_lock_unlock_vault
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_user_withdraw_loss
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_prepare_return_loss
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_lock_unlock_vault_multiple_strategies
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_user_withdraw_not_enough_share_coins
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_prepare_return_profit
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_new_vault
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy::test_withdraw_strategy_coin
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_reporting
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_new_vault_unathorized
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_share_amount_calculation
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_reject_unapproved_strategy
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_strategy_deposit_base_coin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_two_new_vaults
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_strategy_withdraw_base_coin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_unfreeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_strategy_withdraw_base_coin_over_credit_availale
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_unfreeze_unauthorized
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_unfreeze_vault
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_update_vault_fee
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_unfreeze_while_unfrozen
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_update_vault_fee_unauthorized
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_update_fee
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_user_lock_unlock_vault
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_update_management_fee_reject
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_withdraw
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_update_performance_fee_reject
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_withdraw_after_freeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_update_strategy_debt_ratio_exceed_limit
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay::test_withdraw_no_liquidity
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_update_strategy_properties
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_user_liquidation
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_user_liquidation_insufficient
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_after_freeze
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_as_user
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_as_user_after_farm
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_as_user_not_enough_vault_coin
+[ PASS    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_incorrect_strategy_coin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_strategy_coin
+[ FAIL    ] 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault::test_withdraw_strategy_coin_over_balance
+
+Test failures:
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_base_strategy:
+
+┌── test_admin_functions ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::test_admin_functions(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:140)
+│ 
+└──────────────────
+
+
+┌── test_deposit_strategy_coin ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::test_deposit_strategy_coin(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:94)
+│ 
+└──────────────────
+
+
+┌── test_harvest_credit ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::setup_and_user_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:64)
+│ 	test_base_strategy::test_harvest_credit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:217)
+│ 
+└──────────────────
+
+
+┌── test_harvest_debt_payment ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::setup_and_user_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:64)
+│ 	test_base_strategy::test_harvest_debt_payment(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:315)
+│ 
+└──────────────────
+
+
+┌── test_harvest_debt_payment_and_profit ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::setup_and_user_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:64)
+│ 	test_base_strategy::test_harvest_debt_payment_and_profit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:332)
+│ 
+└──────────────────
+
+
+┌── test_harvest_profit ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::setup_and_user_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:64)
+│ 	test_base_strategy::test_harvest_profit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:250)
+│ 
+└──────────────────
+
+
+┌── test_harvest_profit_and_credit ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::setup_and_user_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:64)
+│ 	test_base_strategy::test_harvest_profit_and_credit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:284)
+│ 
+└──────────────────
+
+
+┌── test_initialize ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::test_initialize(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:70)
+│ 
+└──────────────────
+
+
+┌── test_user_withdraw ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::setup_and_user_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:64)
+│ 	test_base_strategy::test_user_withdraw(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:432)
+│ 
+└──────────────────
+
+
+┌── test_withdraw_strategy_coin ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_base_strategy::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:46)
+│ 	test_base_strategy::setup_tests_and_create_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:59)
+│ 	test_base_strategy::test_withdraw_strategy_coin(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_base_strategy.move:111)
+│ 
+└──────────────────
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_global_config:
+
+┌── test_new_vault_after_governance_change ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_global_config::test_new_vault_after_governance_change(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_global_config.move:83)
+│ 
+└──────────────────
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_keeper_config:
+
+┌── test_initialize_strategy ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_keeper_config::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:19)
+│ 	test_keeper_config::initialize_with_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:24)
+│ 	test_keeper_config::initialize_with_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:32)
+│ 	test_keeper_config::test_initialize_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:39)
+│ 
+└──────────────────
+
+
+┌── test_set_keeper ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_keeper_config::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:19)
+│ 	test_keeper_config::initialize_with_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:24)
+│ 	test_keeper_config::initialize_with_vault_and_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:32)
+│ 	test_keeper_config::test_set_keeper(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_keeper_config.move:52)
+│ 
+└──────────────────
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_mock_strategy:
+
+┌── test_harvest ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_mock_strategy::initialize_vault_with_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:30)
+│ 	test_mock_strategy::initialize_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:35)
+│ 	test_mock_strategy::test_harvest(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:59)
+│ 
+└──────────────────
+
+
+┌── test_initialize_strategy ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_mock_strategy::initialize_vault_with_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:30)
+│ 	test_mock_strategy::test_initialize_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:42)
+│ 
+└──────────────────
+
+
+┌── test_revoke ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_mock_strategy::initialize_vault_with_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:30)
+│ 	test_mock_strategy::initialize_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:35)
+│ 	test_mock_strategy::test_revoke(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_mock_strategy.move:75)
+│ 
+└──────────────────
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_satay:
+
+┌── test_admin_functions ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::setup_test_and_create_vault_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:60)
+│ 	test_satay::test_admin_functions(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:440-444)
+│ 
+└──────────────────
+
+
+┌── test_approve_multiple_strategies ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::setup_test_and_create_vault_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:60)
+│ 	test_satay::test_approve_multiple_strategies(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:303-307)
+│ 
+└──────────────────
+
+
+┌── test_approve_strategy ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_approve_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:289-293)
+│ 
+└──────────────────
+
+
+┌── test_deposit ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_deposit(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:150)
+│ 
+└──────────────────
+
+
+┌── test_deposit_after_freeze_and_unfreeze ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_deposit_after_freeze_and_unfreeze(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:279)
+│ 
+└──────────────────
+
+
+┌── test_freeze ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_freeze(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:200)
+│ 
+└──────────────────
+
+
+┌── test_keeper_lock_unlock_vault ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::setup_test_and_create_vault_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:60)
+│ 	test_satay::test_keeper_lock_unlock_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:393-397)
+│ 
+└──────────────────
+
+
+┌── test_lock_unlock_vault ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::setup_test_and_create_vault_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:60)
+│ 	test_satay::test_lock_unlock_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:320-324)
+│ 
+└──────────────────
+
+
+┌── test_lock_unlock_vault_multiple_strategies ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::setup_test_and_create_vault_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:60)
+│ 	test_satay::test_lock_unlock_vault_multiple_strategies(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:335-339)
+│ 
+└──────────────────
+
+
+┌── test_new_vault ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::test_new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:94)
+│ 
+└──────────────────
+
+
+┌── test_two_new_vaults ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::test_two_new_vaults(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:116)
+│ 
+└──────────────────
+
+
+┌── test_unfreeze ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_unfreeze(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:222)
+│ 
+└──────────────────
+
+
+┌── test_update_vault_fee ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_update_vault_fee(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:123)
+│ 
+└──────────────────
+
+
+┌── test_user_lock_unlock_vault ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::setup_test_and_create_vault_with_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:60)
+│ 	test_satay::test_user_lock_unlock_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:426-430)
+│ 
+└──────────────────
+
+
+┌── test_withdraw ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_withdraw(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:161)
+│ 
+└──────────────────
+
+
+┌── test_withdraw_after_freeze ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_satay::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:42)
+│ 	test_satay::setup_tests_and_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:47)
+│ 	test_satay::test_withdraw_after_freeze(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_satay.move:266)
+│ 
+└──────────────────
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault:
+
+┌── test_deposit_strategy_coin ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	strategy_coin::initialize(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/strategy_coin.move:69-75)
+│ 	satay::new_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:96-100)
+│ 	test_vault::test_deposit_strategy_coin(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault.move:712)
+│ 
+└──────────────────
+
+
+┌── test_withdraw_strategy_coin ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	strategy_coin::initialize(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/strategy_coin.move:69-75)
+│ 	satay::new_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:96-100)
+│ 	test_vault::test_withdraw_strategy_coin(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault.move:742)
+│ 
+└──────────────────
+
+
+┌── test_withdraw_strategy_coin_over_balance ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	strategy_coin::initialize(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/strategy_coin.move:69-75)
+│ 	satay::new_strategy(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:96-100)
+│ 	test_vault::test_withdraw_strategy_coin_over_balance(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault.move:780)
+│ 
+└──────────────────
+
+Failures in 0xe9e742086a94cac35d2a09fc742726170cf3d4d97feda6c7d5e49d0cc06b3a30::test_vault_config:
+
+┌── test_create_vault ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_vault_config::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault_config.move:17)
+│ 	test_vault_config::initialize_with_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault_config.move:22)
+│ 	test_vault_config::test_create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault_config.move:27)
+│ 
+└──────────────────
+
+
+┌── test_set_vault_manager ──────
+│ error[E11001]: test failure
+│      ┌─ /Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1078:9
+│      │  
+│ 1068 │       fun initialize_internal<CoinType>(
+│      │           ------------------- In this function in 0x1::coin
+│      ·  
+│ 1078 │ ╭         assert!(
+│ 1079 │ │             coin_address<CoinType>() == account_addr,
+│ 1080 │ │             error::invalid_argument(ECOIN_INFO_ADDRESS_MISMATCH),
+│ 1081 │ │         );
+│      │ ╰─────────^ Test was not expected to error, but it aborted with code 65537 originating in the module 0000000000000000000000000000000000000000000000000000000000000001::coin rooted here
+│ 
+│ 
+│ stack trace
+│ 	coin::initialize(/Users/bendavis36/.move/https___github_com_aptos-labs_aptos-core_git_d57b97bae0b64b617869f2ff26e749e503848846/aptos-move/framework/aptos-framework/sources/coin.move:1053)
+│ 	vault::new(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/vault.move:402-408)
+│ 	satay::new_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/sources/satay.move:77-81)
+│ 	test_vault_config::create_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault_config.move:17)
+│ 	test_vault_config::initialize_with_vault(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault_config.move:22)
+│ 	test_vault_config::test_set_vault_manager(/Users/bendavis36/Desktop/Satay/Repos/satay-aptos/tests/test_vault_config.move:40)
+│ 
+└──────────────────
+
+Test result: FAILED. Total tests: 106; passed: 69; failed: 37
+{
+  "Error": "Move unit tests failed"
+}
